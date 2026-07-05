@@ -1,76 +1,69 @@
 #!/bin/ash
 # ============================================================
 # Instalador k2-improvements SEM Cartographer - K2 Plus (Joelma)
-# Baseado no no-carto.sh do upstream, corrigido:
-#   - inclui entware e better-root-safe (faltavam no original;
-#     moonraker/fluidd falham sem eles)
-#   - usa better-root-safe (evita o bug "File exists" do moonraker)
-#   - renova HOME apos better-root (o /etc/passwd muda mas o
-#     shell logado mantem o HOME antigo em cache)
-#   - start_print.cfg ja vem sem as chamadas CARTOGRAPHER_*
-# Opcionais (abort_homing, skip-setup, kamp) ficam no final,
-# desativados por padrao - descomente o que quiser.
+# v2 - ADAPTADO PARA FIRMWARE 1.1.6.x
+#
+# No 1.1.6.x a Creality ja embute Moonraker (7125) e Fluidd
+# (4408) de fabrica. Por isso esta versao NAO instala:
+#   entware, better-root, better-init, moonraker, fluidd
+# (redundantes ou conflitantes com os servicos stock).
+#
+# Instala apenas: screws_tilt_adjust + macros (start_print,
+# bed_mesh/MESH_IF_NEEDED, M191, overrides).
 # ============================================================
 
 set -e
 
 SCRIPT_DIR=$(readlink -f $(dirname ${0}))
+CFG=/mnt/UDISK/printer_data/config
 
-# Garante que binarios do Entware fiquem no PATH durante a instalacao
-export PATH="/opt/bin:/opt/sbin:/mnt/UDISK/bin:$PATH"
-
-run_step() {
-    NOME=${1}
-    SCRIPT=${2}
-    MARCA=/tmp/k2imp-$(echo ${NOME} | tr '/' '-')
-    if [ -f ${MARCA} ]; then
-        echo "==> ${NOME}: ja instalado nesta sessao, pulando"
-        return 0
+# ---------- 0. Sanidade: dependencias stock das macros ----------
+echo "==> Verificando macros stock exigidas pelo START_PRINT..."
+for M in BOX_START_PRINT BOX_NOZZLE_CLEAN BOX_GO_TO_EXTRUDE_POS z_tilt; do
+    if ! grep -rq "$M" ${CFG}/*.cfg; then
+        echo "E: '$M' nao encontrado nos cfg stock - firmware mudou algo."
+        echo "   Abortando por seguranca. Mande esta saida pro Claude."
+        exit 1
     fi
+done
+echo "    OK - BOX_* e z_tilt presentes"
+
+# ---------- 1. Symlinks de compatibilidade ----------
+# No 1.1.6.x /root vem vazio; os install.sh esperam ~/printer_data
+# e ~/klipper (layout que o better-root criava nos firmwares antigos).
+echo "==> Criando symlinks de compatibilidade em /root..."
+[ -e /root/printer_data ] || ln -s /mnt/UDISK/printer_data /root/printer_data
+[ -e /root/klipper ]      || ln -s /usr/share/klipper      /root/klipper
+ls -la /root/
+
+# ---------- 2. Features (cada install reinicia o klipper) ----------
+run_step() {
     echo ""
     echo "============================================"
-    echo "==> Instalando: ${NOME}"
+    echo "==> Instalando: ${1}"
     echo "============================================"
-    # Le o HOME atual do /etc/passwd (better-root muda ele no meio do fluxo)
-    PWD_HOME=$(awk -F: '$1=="root"{print $6}' /etc/passwd)
-    HOME="${PWD_HOME}" sh ${SCRIPT_DIR}/${SCRIPT}
-    touch ${MARCA}
+    sh ${SCRIPT_DIR}/${2}
 }
 
-# ---------- BASE (ordem de dependencia, nao alterar) ----------
-run_step entware            features/entware/install.sh
-run_step better-root-safe   installer/extras/better-root-safe/install.sh
-run_step better-init        features/better-init/install.sh
-run_step moonraker          features/moonraker/install.sh
-run_step fluidd             features/fluidd/install.sh
-
-# ---------- QOL sem Cartographer ----------
 run_step screws_tilt_adjust features/screws_tilt_adjust/install.sh
-
-mkdir -p /tmp/macros
 run_step macros/bed_mesh    features/macros/bed_mesh/install.sh
 run_step macros/m191        features/macros/m191/install.sh
 run_step macros/start_print features/macros/start_print/install.sh
 run_step macros/overrides   features/macros/overrides/install.sh
 
 # ---------- OPCIONAIS (descomente para instalar) ----------
-# Botao "Force Stop Homing" no Fluidd (aplica patch no webhooks.py do Klipper):
-#run_step abort_homing       features/abort_homing/install.sh
-
-# Pula o self-test da Creality no boot e ajusta screensaver:
-#run_step skip-setup         features/skip-setup/install.sh
-
-# Purga adaptativa KAMP (LINE_PURGE) - ATENCAO: exige mudar o
-# gcode inicial no slicer (Label Objects ON + trocar purga fixa
-# por LINE_PURGE). Leia features/kamp-adaptive-purge/README.md antes.
-#run_step kamp               features/kamp-adaptive-purge/install.sh
+# Purga adaptativa KAMP (LINE_PURGE) - exige git (instale entware
+# antes: features/entware/install.sh) e mudar o gcode do slicer:
+#run_step kamp features/kamp-adaptive-purge/install.sh
 
 echo ""
 echo "============================================"
-echo " Instalacao concluida!"
-echo " Fluidd: http://$(ip route get 1 2>/dev/null | awk '{print $7; exit}'):4408"
-echo " (se a porta 4408 nao responder, tente a 80)"
+echo " Instalacao concluida! (firmware 1.1.6.x)"
+echo " Fluidd stock: http://$(ip route get 1 2>/dev/null | awk '{print $7; exit}'):4408"
 echo ""
-echo " PROXIMO PASSO: atualizar o gcode inicial no slicer:"
+echo " Instalado: SCREWS_TILT_CALCULATE, START_PRINT,"
+echo " MESH_IF_NEEDED, M191, overrides (forced_leveling off)"
+echo ""
+echo " PROXIMO PASSO: gcode inicial no slicer:"
 echo " START_PRINT EXTRUDER_TEMP=[nozzle_temperature_initial_layer] BED_TEMP=[bed_temperature_initial_layer_single] CHAMBER_TEMP=[overall_chamber_temperature] MATERIAL={filament_type[initial_tool]}"
 echo "============================================"
