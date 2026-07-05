@@ -1,0 +1,17 @@
+#!/bin/sh
+
+if [ "$#" -ne 1 ]; then
+    echo "You must supply the name of the camera you'd like to delete"
+    echo ""
+    echo "Usage: $0 <name>"
+    exit 1
+fi
+
+cd "$(dirname $0)" || exit
+
+if type -p curl > /dev/null; then
+    CURL=curl
+else
+    CURL=./python-curl.py
+fi
+${CURL} -X DELETE "http://localhost:4408/server/webcams/item?name=${1}"

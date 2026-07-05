@@ -1,0 +1,1047 @@
+#!/bin/sh
+# K2 Plus installer bootstrap — run on the USER'S PC, not on the printer.
+#
+# Usage:
+#   sh bootstrap.sh <printer-ip> [<password>]
+#
+# Single command for every user. Behavior is auto-detected:
+#   - 1.1.5.2 firmware (fresh or update)        -> erondiel/k2-improvements
+#   - 1.1.3.13 firmware, no existing install    -> Jacob10383/k2-improvements
+#   - 1.1.3.13 firmware, existing Jacob install -> ASK whether to add only
+#                                                  extras (KAMP, surface-
+#                                                  selection-wrapper,
+#                                                  cartographer-macros, etc.)
+#                                                  on top, or re-run the
+#                                                  full Jacob install
+#   - other firmware                            -> ask user
+#
+# Extras-only mode (chosen automatically or via --extras-only) clones to
+# /mnt/UDISK/k2-improvements-extras/ as a sibling so the existing install
+# at /mnt/UDISK/k2-improvements/ is never touched.
+#
+# Power-user override flags (rarely needed, both skip the auto-detect prompt):
+#   --extras-only   force extras-only mode regardless of detected state
+#   --full          force full install regardless of detected state
+#
+# Idempotent — re-run any time to update.
+
+set -eu
+
+# Print a startup message before any potentially slow work (curl/wget
+# self-download, opkg update, sshpass install). Without this, the user
+# pastes the curl one-liner and sees nothing for 5-10 seconds — easy to
+# mistake for a frozen terminal. Suppressed on re-exec via BOOTSTRAP_REEXEC.
+if [ "${BOOTSTRAP_REEXEC:-0}" = "0" ]; then
+    cat <<'EOF'
+=================================================================
+ K2 Plus installer bootstrap (erondiel/k2-improvements)
+ Starting up — this may take a few seconds while we prepare
+ dependencies (download installer, install sshpass, etc.)
+=================================================================
+EOF
+fi
+
+# When this script is invoked via `curl -sSL ... | sh`, stdin is the curl
+# pipe — not a terminal. The K2 Plus's dropbear SSH client (and BusyBox in
+# general) reads password input from stdin if no TTY is properly attached,
+# which means the SSH password prompt eats the rest of this script as
+# password attempts and the bootstrap silently terminates.
+#
+# Self-heal by re-downloading to /tmp and re-execing from there, so the
+# new sh process inherits a real TTY for stdin. Skipped when stdin is
+# already a TTY (file invocation) or when we've already re-execed once
+# (prevents infinite recursion via BOOTSTRAP_REEXEC marker).
+if [ ! -t 0 ] && [ "${BOOTSTRAP_REEXEC:-0}" = "0" ]; then
+    SCRIPT_TMP=$(mktemp /tmp/bootstrap.XXXXXX.sh 2>/dev/null || echo "/tmp/bootstrap.$$.sh")
+    SCRIPT_URL="${BOOTSTRAP_URL:-https://raw.githubusercontent.com/erondiel/k2-improvements/main/bootstrap.sh}"
+    echo "I: downloading installer to $SCRIPT_TMP (connect timeout 30s, total timeout 60s)..."
+    DL_OK=0
+    # Explicit timeouts on both tools so a stalled connection (transient
+    # GitHub slowness, rate limit, slow DNS) fails fast with a clear
+    # error instead of hanging indefinitely. busybox wget on the printer
+    # supports -T (network-activity timeout in seconds).
+    if command -v curl >/dev/null 2>&1 && \
+       curl -sSL --connect-timeout 30 --max-time 60 "$SCRIPT_URL" -o "$SCRIPT_TMP" 2>/dev/null && \
+       [ -s "$SCRIPT_TMP" ]; then
+        DL_OK=1
+    elif command -v wget >/dev/null 2>&1 && \
+         wget -q -T 30 -O "$SCRIPT_TMP" "$SCRIPT_URL" 2>/dev/null && \
+         [ -s "$SCRIPT_TMP" ]; then
+        DL_OK=1
+    fi
+    if [ "$DL_OK" = "1" ]; then
+        export BOOTSTRAP_REEXEC=1
+        # Re-attach stdin to the controlling terminal. Without this, the
+        # re-execed sh inherits the (now-closed) curl/wget pipe as its
+        # stdin, and every `read` for an interactive prompt returns
+        # immediately with empty input — bootstrap's "Add extras only?
+        # [Y/n]" and firmware-version chooser silently pick defaults
+        # without giving the user a chance to type. /dev/tty is the
+        # controlling terminal, which is intact across the re-exec.
+        #
+        # `[ -e /dev/tty ]` isn't sufficient — the device file exists in
+        # most environments, but actually opening it fails in CI / docker-
+        # without-tty / other non-controlling-terminal contexts. Try the
+        # open in a subshell and only redirect if it succeeds.
+        if (: < /dev/tty) 2>/dev/null; then
+            exec sh "$SCRIPT_TMP" "$@" </dev/tty
+        else
+            # Headless / no controlling tty — proceed without stdin
+            # redirect. Prompts will pick defaults.
+            exec sh "$SCRIPT_TMP" "$@"
+        fi
+    fi
+    # Re-download failed; emit a clear actionable error instead of letting
+    # the curl-pipe path silently break later.
+    cat >&2 <<'EOF'
+ERROR: bootstrap is being piped from a download tool ("curl ... | sh"
+or "wget -O - ... | sh"), but the self-rewrite to a temp file failed
+(neither curl nor wget was found, or the re-download didn't work).
+
+On systems with the dropbear SSH client (BusyBox / K2 Plus printer
+shells) and without sshpass, the curl-pipe invocation causes silent
+script termination during the SSH password prompt. The fix is to run
+this script from a file instead of stdin.
+
+Try:
+
+  curl -sSL https://raw.githubusercontent.com/erondiel/k2-improvements/main/bootstrap.sh \
+    -o /tmp/bootstrap.sh
+  sh /tmp/bootstrap.sh <printer-ip>
+
+EOF
+    exit 1
+fi
+
+EXTRAS_ONLY=0
+EXTRAS_OVERRIDE=0   # set when user passes --extras-only or --full; skip auto-detect prompt
+TEST_JACOB=0        # --test-jacob: simulate a 1.1.3.13 + Jacob install for testing
+AUTO_LAUNCH=0       # --auto-launch: skip post-install prompt, exec menu directly
+PRINTER_IP=""
+PASSWORD="creality_2024"
+
+# Parse args (positional + flags in any order)
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --extras-only)
+            EXTRAS_ONLY=1
+            EXTRAS_OVERRIDE=1
+            shift
+            ;;
+        --full)
+            EXTRAS_ONLY=0
+            EXTRAS_OVERRIDE=1
+            shift
+            ;;
+        --test-jacob)
+            TEST_JACOB=1
+            # In test mode, force PRINTER_IP=localhost so local-mode detection
+            # kicks in and we never SSH anywhere. Override unconditionally
+            # since test mode targets a fake env, not whatever IP the user
+            # may have typed.
+            PRINTER_IP="localhost"
+            shift
+            ;;
+        --auto-launch)
+            AUTO_LAUNCH=1
+            shift
+            ;;
+        -h|--help)
+            cat <<'USAGE'
+usage: sh bootstrap.sh <printer-ip> [password] [--extras-only|--full]
+
+Single command for every user. Bootstrap auto-detects firmware and
+existing-install state and does the right thing — no flag needed for
+the common cases.
+
+Override flags (rare, both skip the auto-detect prompt):
+  --extras-only  Force extras-only mode. Clones to /mnt/UDISK/
+                 k2-improvements-extras/ and shows only KAMP / Extras
+                 / Status / Update in the menu. Useful for CI or for
+                 advanced users who know they want this.
+
+  --full         Force full install. Skips the auto-detect prompt and
+                 re-runs the firmware-routed flow. Useful if you want
+                 to reinstall over an existing install.
+
+  --test-jacob   Test mode: simulate a 1.1.3.13 printer with an
+                 existing Jacob10383 install (staged in /tmp). Forces
+                 local-mode (no SSH), forces PRINTER_FW=1.1.3.13,
+                 stages a fake Jacob install at /tmp/k2-test-jacob/,
+                 redirects clone destination to /tmp/k2-test-extras/,
+                 skips destructive operations (Entware install, opkg,
+                 unslung hook), and exits after the routing decision.
+                 Useful for verifying the auto-detect prompt + extras-
+                 only routing without a real 1.1.3.13 printer.
+
+  --auto-launch  Skip the post-install "Launch the menu now? [Y/n]"
+                 prompt and exec the menu directly. In local-mode the
+                 menu runs in the current shell; in SSH-from-PC mode
+                 bootstrap opens an SSH session to the printer with
+                 a TTY allocated for the menu. Useful for one-shot
+                 install-and-go workflows.
+USAGE
+            exit 0
+            ;;
+        -*)
+            echo "ERROR: unknown flag: $1"
+            echo "       sh bootstrap.sh --help"
+            exit 1
+            ;;
+        *)
+            if [ -z "$PRINTER_IP" ]; then
+                PRINTER_IP="$1"
+            else
+                PASSWORD="$1"
+            fi
+            shift
+            ;;
+    esac
+done
+
+REPO_URL_152="${REPO_URL_152:-https://github.com/erondiel/k2-improvements.git}"
+REPO_BRANCH_152="${REPO_BRANCH_152:-main}"
+REPO_URL_1313="${REPO_URL_1313:-https://github.com/Jacob10383/k2-improvements.git}"
+REPO_BRANCH_1313="${REPO_BRANCH_1313:-main}"
+# REPO_URL / REPO_BRANCH / CLONE_DIR / LAUNCH_CMD are picked after firmware detection below
+REPO_URL=""
+REPO_BRANCH=""
+CLONE_DIR=""
+LAUNCH_CMD=""
+
+if [ -z "$PRINTER_IP" ]; then
+    echo "usage: sh bootstrap.sh <printer-ip> [password] [--extras-only|--full]"
+    echo "  default password: creality_2024"
+    echo "  sh bootstrap.sh --help for details"
+    exit 1
+fi
+
+# If sshpass is missing, offer to install it via the host's package manager.
+# Without sshpass, every SSH call in this bootstrap fires its own password
+# prompt — ~10 prompts per run, which is annoying. Most hosts have a known
+# package manager (opkg on K2 Plus / Entware, apt on Debian/Ubuntu/WSL,
+# brew on macOS, etc.). If we can't detect one, fall through to the
+# existing warning and proceed with prompts.
+maybe_install_sshpass() {
+    if command -v sshpass >/dev/null 2>&1; then
+        # If sshpass is already in PATH, check whether it's our expect-based
+        # wrapper. If so, refresh it from GitHub on every bootstrap run so
+        # users with stale wrappers from earlier versions pick up bug fixes
+        # without having to delete the old file manually.
+        local sshpass_path wrapper_marker wrapper_url dl_cmd
+        sshpass_path=$(command -v sshpass)
+        wrapper_marker="sshpass-equivalent using"   # comes from the wrapper's header comment
+        if [ -f "$sshpass_path" ] && grep -q "$wrapper_marker" "$sshpass_path" 2>/dev/null; then
+            wrapper_url="${SSHPASS_WRAPPER_URL:-https://raw.githubusercontent.com/erondiel/k2-improvements/main/installer/scripts/sshpass-expect.sh}"
+            if command -v curl >/dev/null 2>&1; then
+                dl_cmd="curl -sSL '$wrapper_url' -o '$sshpass_path'"
+            elif command -v wget >/dev/null 2>&1; then
+                dl_cmd="wget -q -O '$sshpass_path' '$wrapper_url'"
+            else
+                dl_cmd=""
+            fi
+            if [ -n "$dl_cmd" ]; then
+                if sh -c "$dl_cmd" 2>/dev/null && [ -s "$sshpass_path" ]; then
+                    chmod +x "$sshpass_path" 2>/dev/null
+                    echo "I: refreshed sshpass-expect wrapper at $sshpass_path (carries any fixes shipped since your previous install)"
+                fi
+            fi
+        fi
+        return 0
+    fi
+
+    local pm="" cmd=""
+    if command -v opkg >/dev/null 2>&1 && [ -d /opt/etc ]; then
+        # opkg architectures vary in what they ship. The K2 Plus's
+        # armv7-3.2 feed does NOT have sshpass, but it does have expect,
+        # which we can wrap to act as a drop-in sshpass replacement.
+        # Other archs may have sshpass directly. Check the feed first.
+        opkg update >/dev/null 2>&1 || true
+        if opkg list 2>/dev/null | grep -q "^sshpass "; then
+            pm="opkg"
+            cmd="opkg install sshpass"
+        elif opkg list 2>/dev/null | grep -q "^expect "; then
+            # Install expect + drop our sshpass-expect wrapper at /opt/bin/sshpass.
+            # K2 Plus stock has wget but not curl, so use whichever is available.
+            local wrapper_url="${SSHPASS_WRAPPER_URL:-https://raw.githubusercontent.com/erondiel/k2-improvements/main/installer/scripts/sshpass-expect.sh}"
+            local dl_cmd=""
+            if command -v curl >/dev/null 2>&1; then
+                dl_cmd="curl -sSL '$wrapper_url' -o /opt/bin/sshpass"
+            elif command -v wget >/dev/null 2>&1; then
+                dl_cmd="wget -q -O /opt/bin/sshpass '$wrapper_url'"
+            else
+                echo "I: neither curl nor wget found — skipping expect-based sshpass fallback"
+                return 1
+            fi
+            pm="opkg+expect (no native sshpass on this arch)"
+            cmd="opkg install expect && $dl_cmd && chmod +x /opt/bin/sshpass"
+        fi
+        # else: neither sshpass nor expect available; fall through (no prompt)
+    elif command -v apt-get >/dev/null 2>&1; then
+        pm="apt"
+        cmd="sudo apt-get update >/dev/null 2>&1 && sudo apt-get install -y sshpass"
+    elif command -v dnf >/dev/null 2>&1; then
+        pm="dnf"
+        cmd="sudo dnf install -y sshpass"
+    elif command -v yum >/dev/null 2>&1; then
+        pm="yum"
+        cmd="sudo yum install -y sshpass"
+    elif command -v pacman >/dev/null 2>&1; then
+        pm="pacman"
+        cmd="sudo pacman -S --noconfirm sshpass"
+    elif command -v brew >/dev/null 2>&1; then
+        pm="brew"
+        cmd="brew install hudochenkov/sshpass/sshpass"
+    fi
+
+    if [ -z "$pm" ]; then
+        return 1
+    fi
+
+    echo ""
+    echo "I: sshpass is not installed."
+    echo "I:   Without it, the SSH password prompt fires for every command (~10 prompts per run)."
+    echo "I:   Detected package manager: $pm"
+    echo "I:   Would run: $cmd"
+    echo ""
+    printf "Install sshpass now? [Y/n] "
+    read SSHPASS_INSTALL_CHOICE
+    case "$SSHPASS_INSTALL_CHOICE" in
+        n|N|no|NO)
+            echo "I:   declined — continuing with password prompts"
+            return 1
+            ;;
+    esac
+
+    echo "I: installing sshpass..."
+    if sh -c "$cmd"; then
+        # Refresh PATH in case sshpass landed in a dir not yet in PATH
+        # (e.g., /opt/bin from opkg, /home/linuxbrew/.linuxbrew/bin from brew).
+        export PATH="/opt/bin:/opt/sbin:/usr/local/bin:$PATH"
+        if command -v sshpass >/dev/null 2>&1; then
+            echo "I: sshpass installed successfully"
+            return 0
+        else
+            echo "W: install command succeeded but sshpass not in PATH — falling back to password prompts"
+            return 1
+        fi
+    else
+        echo "W: sshpass install failed — falling back to password prompts"
+        return 1
+    fi
+}
+
+# Detect "running on the target" — when bootstrap is invoked on the
+# printer itself with the printer's own IP (or localhost / 127.0.0.1).
+# In that case we can skip SSH entirely and run commands locally,
+# which:
+#   - eliminates the password-prompt spam (no SSH = no auth)
+#   - removes the dropbear-pipe / sshpass / expect-wrapper chain
+#   - is much faster (no network roundtrip per command)
+#   - sidesteps the curl-pipe-stdin issues for users running from
+#     the printer shell
+#
+# Detection probes localhost aliases + local interface IPs via `ip` or
+# `ifconfig` (whichever the host has), with a hostname fallback.
+is_local_target() {
+    case "$1" in
+        localhost|127.0.0.1|::1) return 0 ;;
+    esac
+    if command -v ip >/dev/null 2>&1; then
+        ip -o addr show 2>/dev/null | grep -qE "inet $1/" && return 0
+    fi
+    if command -v ifconfig >/dev/null 2>&1; then
+        ifconfig 2>/dev/null | grep -qE "inet (addr:)?$1\b" && return 0
+    fi
+    [ "$1" = "$(hostname 2>/dev/null)" ] && return 0
+    return 1
+}
+
+LOCAL_MODE=0
+if is_local_target "$PRINTER_IP"; then
+    LOCAL_MODE=1
+fi
+
+if [ "$LOCAL_MODE" = "1" ]; then
+    echo "I: target $PRINTER_IP is this machine — running commands locally (no SSH, no password prompts)"
+    echo ""
+    # In local mode, `remote` runs commands directly via sh -c. No SSH,
+    # no sshpass, no expect wrapper. The arg semantics match: bootstrap
+    # always passes the entire command as a single arg (e.g.
+    # `remote "grep foo bar | tail -1"`), so `sh -c "$*"` evaluates it
+    # correctly. SCP becomes `cp` with the root@host: prefix stripped
+    # from the dest path; only used in two non-extras-only paths so most
+    # users never hit it.
+    remote() { sh -c "$*"; }
+    SCP="bootstrap_local_scp"
+    bootstrap_local_scp() {
+        # Strip leading flags (-O, -r, etc.); destination is the last
+        # arg, rewrite "root@host:/path" -> "/path".
+        local args="" srcs="" dest=""
+        while [ "$#" -gt 1 ]; do
+            case "$1" in
+                -*) args="$args $1" ;;
+                *)  srcs="$srcs $1" ;;
+            esac
+            shift
+        done
+        dest="${1#root@*:}"
+        sh -c "cp $args $srcs '$dest'"
+    }
+else
+    maybe_install_sshpass || true
+    echo ""
+
+    SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR"
+
+    if command -v sshpass >/dev/null 2>&1; then
+        SSH="sshpass -p $PASSWORD ssh $SSH_OPTS -o ConnectTimeout=10"
+        SCP="sshpass -p $PASSWORD scp -O $SSH_OPTS"
+    else
+        cat <<EOF
+NOTE: 'sshpass' is not available — SSH will prompt for the printer
+      password ($PASSWORD by default) on every step. Manual install:
+        Linux/WSL: apt install sshpass
+        Mac:       brew install hudochenkov/sshpass/sshpass
+        K2 Plus:   opkg install sshpass
+        Other:     https://github.com/kevinburke/sshpass#installation
+EOF
+        SSH="ssh $SSH_OPTS -o ConnectTimeout=10"
+        SCP="scp -O $SSH_OPTS"
+    fi
+
+    remote() { $SSH "root@$PRINTER_IP" "$@"; }
+fi
+
+if [ "$LOCAL_MODE" = "1" ]; then
+    echo "I: local-mode probe (skipping SSH)"
+    remote "true" || {
+        echo "ERROR: local probe failed unexpectedly. Aborting."
+        exit 1
+    }
+else
+    echo "I: SSH probe to $PRINTER_IP"
+    remote "true" || {
+        echo "ERROR: SSH to root@$PRINTER_IP failed."
+        echo "       1. Enable root SSH on the printer's screen (the 'open root' disclaimer)"
+        echo "       2. Confirm IP and password"
+        exit 1
+    }
+fi
+
+# Detect printer firmware to pick the right installer source.
+# Our cartographer Klipper patches are rebased for 1.1.5.2; on 1.1.3.13 we
+# route to Jacob10383 upstream (which has the original 1.1.3.13 patches and
+# its own one-shot gimme-the-jamin.sh).
+if [ "$TEST_JACOB" = "1" ]; then
+    echo "I: [test-jacob] forcing firmware = 1.1.3.13 (skipping real probe)"
+    PRINTER_FW="1.1.3.13"
+else
+    echo "I: detecting printer firmware version"
+    PRINTER_FW=$(remote "grep -oE 'sys = [0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' /mnt/UDISK/creality/userdata/log/upgrade-server.log 2>/dev/null | tail -1 | awk '{print \$3}'")
+fi
+
+# Auto-detect an existing Jacob10383 install and ask whether the user
+# wants to add only extras, if the case is ambiguous. Only fires for
+# 1.1.3.13 when neither override flag was passed. Everyone else flows
+# through to current behavior.
+#
+# Detection probes both common install paths:
+#   /mnt/UDISK/k2-improvements/             (our convention; symlink target)
+#   /mnt/UDISK/root/k2-improvements/        (Jacob's ~/k2-improvements/ after
+#                                            better-root sets HOME=/mnt/UDISK/root)
+# Plus a fallback: a moonraker.conf [update_manager k2-improvements] block
+# is registered by Jacob's cartographer/install.sh and points at the actual
+# install directory regardless of which path convention was used.
+if [ "$EXTRAS_OVERRIDE" = "0" ] && [ "$PRINTER_FW" = "1.1.3.13" ]; then
+    if [ "$TEST_JACOB" = "1" ]; then
+        # Stage a fake Jacob10383 install at /tmp so detection finds something.
+        TEST_JACOB_PATH="/tmp/k2-test-jacob-install"
+        echo "I: [test-jacob] staging fake Jacob10383 install at $TEST_JACOB_PATH"
+        rm -rf "$TEST_JACOB_PATH"
+        mkdir -p "$TEST_JACOB_PATH/.git"
+        cat > "$TEST_JACOB_PATH/.git/config" <<EOF
+[remote "origin"]
+        url = https://github.com/Jacob10383/k2-improvements.git
+        fetch = +refs/heads/*:refs/remotes/origin/*
+EOF
+        DETECTED_PATH="$TEST_JACOB_PATH"
+    else
+        echo "I: checking for existing install"
+        DETECTED_PATH=$(remote '
+        # Try the two canonical paths first
+        for d in /mnt/UDISK/k2-improvements /mnt/UDISK/root/k2-improvements; do
+            if [ -d "$d/.git" ] && grep -q "Jacob10383" "$d/.git/config" 2>/dev/null; then
+                # Resolve symlinks to the real path
+                resolved=$(readlink -f "$d" 2>/dev/null || echo "$d")
+                echo "$resolved"
+                exit 0
+            fi
+        done
+        # Fallback: parse moonraker.conf for k2-improvements update_manager block
+        cfg=/mnt/UDISK/printer_data/config/moonraker.conf
+        if [ -f "$cfg" ]; then
+            mr_path=$(awk "/\\[update_manager k2-improvements\\]/,/\\[/" "$cfg" 2>/dev/null \
+                | grep -E "^\\s*path:" | head -1 | sed -E "s/^\\s*path:\\s*//; s/\\s+$//")
+            if [ -n "$mr_path" ]; then
+                # Expand ~ if present
+                case "$mr_path" in
+                    "~"|"~/"*) mr_path="$HOME/${mr_path#~/}" ;;
+                esac
+                if [ -d "$mr_path/.git" ] && grep -q "Jacob10383" "$mr_path/.git/config" 2>/dev/null; then
+                    resolved=$(readlink -f "$mr_path" 2>/dev/null || echo "$mr_path")
+                    echo "$resolved"
+                    exit 0
+                fi
+            fi
+        fi
+        echo none
+    ')
+    fi
+    if [ -n "$DETECTED_PATH" ] && [ "$DETECTED_PATH" != "none" ]; then
+        echo ""
+        echo "I: detected existing Cartographer install at $DETECTED_PATH"
+        echo "I:   (cloned from Jacob10383 — likely a working setup you want to keep)"
+        echo ""
+        echo "  You can either:"
+        echo "    1) Add only the K2-Plus extras (KAMP, surface-selection-wrapper,"
+        echo "       cartographer-macros, etc.) WITHOUT touching the existing install."
+        echo "       Recommended — safe, additive, leaves Cartographer working."
+        echo "    2) Re-run Jacob10383's full install (idempotent, but updates"
+        echo "       Klipper patches and may require a Klipper restart afterwards)."
+        echo ""
+        printf "Add extras only? [Y/n] "
+        read EXTRAS_CHOICE
+        case "$EXTRAS_CHOICE" in
+            n|N|no|NO)
+                EXTRAS_ONLY=0
+                echo "I:   continuing with full Jacob10383 re-install"
+                ;;
+            *)
+                EXTRAS_ONLY=1
+                echo "I:   extras-only mode — existing install will not be touched"
+                ;;
+        esac
+        echo ""
+    fi
+fi
+
+# If user explicitly forced --extras-only (EXTRAS_OVERRIDE=1 with EXTRAS_ONLY=1),
+# verify a [cartographer] section exists in the printer config. Most extras
+# (surface-selection-wrapper, cartographer-offset-setup, cartographer-macros)
+# require Cartographer to already be installed. KAMP and motor-state-guard
+# work standalone, but flagging this up-front avoids confusion when the
+# extras' own install scripts bail on the same precondition.
+#
+# Skip this check when EXTRAS_ONLY was set by the auto-detect prompt
+# (EXTRAS_OVERRIDE=0) — that path already confirmed an install exists.
+if [ "$EXTRAS_OVERRIDE" = "1" ] && [ "$EXTRAS_ONLY" = "1" ]; then
+    echo "I: checking for [cartographer] section (extras precondition)"
+    HAS_CARTO=$(remote 'grep -lqE "^\[cartographer\]" /mnt/UDISK/printer_data/config/printer.cfg /mnt/UDISK/printer_data/config/custom/*.cfg 2>/dev/null && echo yes || echo no')
+    if [ "$HAS_CARTO" = "no" ]; then
+        echo ""
+        echo "W: --extras-only forced but no [cartographer] section found in printer config."
+        echo "W:"
+        echo "W:   Most extras require Cartographer to already be installed:"
+        echo "W:     - surface-selection-wrapper  (patches START_PRINT to call CARTOGRAPHER_*)"
+        echo "W:     - cartographer-offset-setup  (edits [cartographer] x_offset / y_offset)"
+        echo "W:     - cartographer-macros        (CARTO_* macros wrap CARTOGRAPHER_*)"
+        echo "W:"
+        echo "W:   These extras work standalone:"
+        echo "W:     - KAMP (adaptive purge)"
+        echo "W:     - motor-state-guard (UNTESTED)"
+        echo "W:     - prtouch-cleanup"
+        echo ""
+        printf "Continue anyway? [y/N] "
+        read CONT_CHOICE
+        case "$CONT_CHOICE" in
+            y|Y|yes|YES) echo "I: proceeding — Cartographer-dependent extras will refuse to install" ;;
+            *) echo "I: cancelled. Drop --extras-only for the firmware-routed flow."; exit 0 ;;
+        esac
+        echo ""
+    fi
+fi
+
+if [ "$EXTRAS_ONLY" = "1" ]; then
+    # Extras-only mode: always use erondiel's repo, clone to a sibling path
+    # so we don't disturb any existing /mnt/UDISK/k2-improvements/ install.
+    echo "I:   extras-only mode — using erondiel/k2-improvements regardless of firmware"
+    if [ "$TEST_JACOB" = "1" ]; then
+        echo "I:   [test-jacob] redirecting clone destination to /tmp"
+    fi
+    case "$PRINTER_FW" in
+        1.1.3.13)
+            echo "I:   firmware 1.1.3.13 detected — extras menu will load on top of"
+            echo "I:   your existing Jacob10383 Cartographer install"
+            ;;
+        1.1.5.2)
+            echo "I:   firmware 1.1.5.2 detected — extras-only mode is unusual here;"
+            echo "I:   you can run the full installer (drop --extras-only) and pick"
+            echo "I:   only the items you want from the menu instead"
+            ;;
+    esac
+    REPO_URL="$REPO_URL_152"
+    REPO_BRANCH="$REPO_BRANCH_152"
+    CLONE_DIR="/mnt/UDISK/k2-improvements-extras"
+    LAUNCH_CMD="K2_EXTRAS_ONLY=1 sh ${CLONE_DIR}/menu.sh"
+else
+    case "$PRINTER_FW" in
+        1.1.5.2)
+            echo "I:   firmware: 1.1.5.2 — using erondiel/k2-improvements (verified on this version)"
+            REPO_URL="$REPO_URL_152"
+            REPO_BRANCH="$REPO_BRANCH_152"
+            CLONE_DIR="/mnt/UDISK/k2-improvements"
+            LAUNCH_CMD="sh ${CLONE_DIR}/menu.sh"
+            ;;
+        1.1.3.13)
+            echo "I:   firmware: 1.1.3.13 — switching to Jacob10383/k2-improvements upstream"
+            echo "I:   (this fork's installer is rebased for 1.1.5.2; on 1.1.3.13 use the original)"
+            echo "I:   Tip: if you already installed via Jacob10383 and just want to add extras"
+            echo "I:        (KAMP, surface-selection-wrapper, cartographer-macros), re-run with"
+            echo "I:        --extras-only"
+            REPO_URL="$REPO_URL_1313"
+            REPO_BRANCH="$REPO_BRANCH_1313"
+            CLONE_DIR="/mnt/UDISK/k2-improvements"
+            LAUNCH_CMD="sh ${CLONE_DIR}/gimme-the-jamin.sh"
+            ;;
+        "")
+            echo "W:   firmware: could not detect (upgrade-server.log empty or absent)"
+            echo "W:   defaulting to erondiel/k2-improvements; if this is a 1.1.3.13 printer,"
+            echo "W:   cancel now and re-run with REPO_URL_152= and REPO_BRANCH_152= overrides"
+            REPO_URL="$REPO_URL_152"
+            REPO_BRANCH="$REPO_BRANCH_152"
+            CLONE_DIR="/mnt/UDISK/k2-improvements"
+            LAUNCH_CMD="sh ${CLONE_DIR}/menu.sh"
+            ;;
+        *)
+            echo "W:   firmware: $PRINTER_FW — not 1.1.5.2 or 1.1.3.13"
+            echo "W:   This installer is verified only on those two versions. Pick how to proceed:"
+            echo ""
+            echo "  1) Use erondiel/k2-improvements (rebased for 1.1.5.2; might work on 1.1.4.x)"
+            echo "  2) Use Jacob10383/k2-improvements upstream (1.1.3.13 patches)"
+            echo "  3) Cancel"
+            printf "Choose [1-3]: "
+            read FW_CHOICE
+            case "$FW_CHOICE" in
+                1) REPO_URL="$REPO_URL_152"; REPO_BRANCH="$REPO_BRANCH_152"; CLONE_DIR="/mnt/UDISK/k2-improvements"; LAUNCH_CMD="sh ${CLONE_DIR}/menu.sh" ;;
+                2) REPO_URL="$REPO_URL_1313"; REPO_BRANCH="$REPO_BRANCH_1313"; CLONE_DIR="/mnt/UDISK/k2-improvements"; LAUNCH_CMD="sh ${CLONE_DIR}/gimme-the-jamin.sh" ;;
+                3) echo "I: cancelled"; exit 0 ;;
+                *) echo "ERROR: invalid choice"; exit 1 ;;
+            esac
+            ;;
+    esac
+fi
+
+# In test mode, redirect the clone destination from /mnt/UDISK/... to
+# /tmp/k2-test-... and exit early after printing the routing decision.
+# Skips the destructive Entware/opkg/clone/unslung-hook operations,
+# which would damage the developer's machine.
+if [ "$TEST_JACOB" = "1" ]; then
+    case "$CLONE_DIR" in
+        /mnt/UDISK/*) CLONE_DIR="/tmp/k2-test-${CLONE_DIR##*/}" ;;
+    esac
+    case "$LAUNCH_CMD" in
+        *"/mnt/UDISK/"*)
+            # Recompute LAUNCH_CMD with the new CLONE_DIR
+            case "$LAUNCH_CMD" in
+                "K2_EXTRAS_ONLY=1 "*) LAUNCH_CMD="K2_EXTRAS_ONLY=1 sh ${CLONE_DIR}/menu.sh" ;;
+                *menu.sh*)            LAUNCH_CMD="sh ${CLONE_DIR}/menu.sh" ;;
+                *gimme-the-jamin.sh*) LAUNCH_CMD="sh ${CLONE_DIR}/gimme-the-jamin.sh" ;;
+            esac
+            ;;
+    esac
+    # Do the git clone in test mode too — harmless to /tmp, and lets the
+    # user actually launch menu.sh afterwards to see the extras experience.
+    # Only Entware/opkg/unslung/patch-jacob-fixes are skipped (those are
+    # destructive on the dev box).
+    CLONE_OK=0
+    if command -v git >/dev/null 2>&1; then
+        echo ""
+        echo "I: [test-jacob] cloning $REPO_URL ($REPO_BRANCH) to $CLONE_DIR"
+        echo "I: [test-jacob] (this can take 1-3 minutes on slow networks; progress shown below)"
+        rm -rf "$CLONE_DIR" 2>/dev/null
+        # `--progress` forces git to show progress when stderr isn't a TTY.
+        # Don't pipe through tail/head — that buffers until clone completes
+        # and looks like a hang.
+        if git clone --progress --depth=1 --branch "$REPO_BRANCH" "$REPO_URL" "$CLONE_DIR"; then
+            CLONE_OK=1
+            echo "I: [test-jacob] clone successful"
+        else
+            echo "W: [test-jacob] clone failed (network issue?). Routing summary still printed below."
+        fi
+    else
+        echo "W: [test-jacob] git not found — skipping clone (only routing summary, no menu.sh to launch)"
+    fi
+
+    echo ""
+    cat <<EOF
+==================================================================
+ [test-jacob mode] Routing decision summary
+
+ Detected firmware:     $PRINTER_FW (forced)
+ Existing install:      ${DETECTED_PATH:-(none)}
+ EXTRAS_ONLY mode:      $EXTRAS_ONLY
+ Repo URL:              $REPO_URL
+ Repo branch:           $REPO_BRANCH
+ Clone destination:     $CLONE_DIR  (redirected from /mnt/UDISK)
+ Clone done:            $([ "$CLONE_OK" = "1" ] && echo yes || echo no)
+ Launch command:        $LAUNCH_CMD
+
+ Test passed if:
+   - The "Add extras only? [Y/n]" prompt fired and accepted your input
+   - EXTRAS_ONLY matches what you chose (1 = yes, 0 = no)
+   - Clone destination is under /tmp/k2-test-...
+   - Clone done is "yes" (if git was available)
+
+EOF
+    if [ "$CLONE_OK" = "1" ]; then
+        # ANSI colors for visual emphasis (degrade gracefully on non-ANSI
+        # terminals — the escape sequences just render as their literal
+        # bytes, which is rare and harmless).
+        ESC=$(printf '\033')
+        C_BOLD="${ESC}[1m"
+        C_CYAN="${ESC}[1;36m"
+        C_DIM="${ESC}[2m"
+        C_RESET="${ESC}[0m"
+        cat <<EOF
+
+ ${C_BOLD}Next step:${C_RESET} run this to launch the extras menu
+
+     ${C_CYAN}${LAUNCH_CMD}${C_RESET}
+
+ ${C_DIM}(The K2_EXTRAS_ONLY=1 prefix is optional — menu.sh detects the
+ -extras path and auto-sets it. Either form works.)${C_RESET}
+
+EOF
+    fi
+    cat <<EOF
+ Skipping: Entware install, opkg packages, unslung boot hook, patch-
+ jacob-fixes — these only make sense on a real printer.
+
+ Cleanup:  rm -rf /tmp/k2-test-* /tmp/bootstrap.*.sh
+==================================================================
+EOF
+
+    # Mirror the real-install launch logic so test mode can exercise
+    # both --auto-launch and the default-yes prompt path. The test
+    # clone landed at /tmp/k2-test-...-extras/, so menu.sh's path-
+    # based safeguard auto-detects extras-only mode just like a real
+    # extras install would.
+    if [ "$CLONE_OK" = "1" ]; then
+        if [ "${AUTO_LAUNCH:-0}" = "1" ]; then
+            if (: < /dev/tty) 2>/dev/null; then
+                echo "I: --auto-launch — launching menu..."
+                exec sh -c "$LAUNCH_CMD"
+            else
+                echo "W: --auto-launch but stdin isn't a TTY — skipping"
+            fi
+        elif (: < /dev/tty) 2>/dev/null; then
+            echo ""
+            printf "Launch the menu now? [Y/n] "
+            read TEST_LAUNCH_CHOICE
+            case "$TEST_LAUNCH_CHOICE" in
+                n|N|no|NO)
+                    echo "I: ok — run the command above when ready"
+                    ;;
+                *)
+                    echo "I: launching menu..."
+                    exec sh -c "$LAUNCH_CMD"
+                    ;;
+            esac
+        fi
+    fi
+
+    exit 0
+fi
+
+echo "I: checking Entware on printer"
+HAS_OPKG=$(remote "[ -x /opt/bin/opkg ] && echo yes || echo no")
+
+if [ "$HAS_OPKG" = "no" ]; then
+    echo "I: bootstrapping Entware (printer's python3 + wget shim, since stock K2 Plus has no wget/curl)"
+
+    echo "I:   creating /opt structure and fetching opkg + opkg.conf"
+    remote "set -e
+mkdir -p /opt/bin /opt/sbin /opt/etc /opt/lib/opkg/info /opt/lib/opkg/lists /opt/var/lock /opt/tmp /opt/share /etc/profile.d
+python3 -c 'import urllib.request; urllib.request.urlretrieve(\"http://bin.entware.net/armv7sf-k3.2/installer/opkg\", \"/opt/bin/opkg\")'
+chmod +x /opt/bin/opkg
+python3 -c 'import urllib.request; urllib.request.urlretrieve(\"http://bin.entware.net/armv7sf-k3.2/installer/opkg.conf\", \"/opt/etc/opkg.conf\")'"
+fi
+
+# Ensure real wget is installed. Independent from entware bootstrap so a
+# partial install can be repaired by re-running the script.
+HAS_REAL_WGET=$(remote "/opt/bin/opkg list-installed 2>/dev/null | grep -qE '^wget(-ssl|-nossl)? ' && echo yes || echo no")
+
+if [ "$HAS_REAL_WGET" = "no" ]; then
+    echo "I: installing wget (uses python shim for the bootstrap download, then opkg overwrites it)"
+
+    # Stage a Python-based wget shim locally — opkg uses wget internally to
+    # fetch packages. The real wget package then overwrites this shim.
+    SHIM_TMP=$(mktemp)
+    cat > "$SHIM_TMP" <<'WGET_SHIM_EOF'
+#!/usr/bin/env python3
+# Minimal wget shim — used only during Entware bootstrap. The real
+# wget package overwrites this file once `opkg install wget` runs.
+#
+# If the real wget install fails (transient opkg issue, network glitch),
+# this shim can stick around indefinitely as /opt/bin/wget. Without a
+# socket timeout, every subsequent invocation can hang forever on a
+# stalled TCP connection. Hence the explicit timeouts below — fail
+# loudly within ~30s instead of hanging silently.
+#
+# Supports `wget URL`, `wget -O FILE URL`, and `wget -qO- URL` (or any
+# combined-flag variant where -O is followed by the destination, with
+# `-` meaning stdout).
+import socket, sys, urllib.request
+
+# 30s connect timeout, applied globally to all socket connections made
+# by urllib. Stalled connections raise socket.timeout instead of hanging.
+socket.setdefaulttimeout(30)
+
+args = sys.argv[1:]
+url = None
+out = None
+while args:
+    a = args.pop(0)
+    if a == '-O':
+        out = args.pop(0) if args else None
+    elif a == '-qO-' or a == '-O-':
+        out = '-'
+    elif a.startswith('-O'):
+        # Combined form like -Ofoo (no space) — value is in same arg
+        out = a[2:]
+    elif a.startswith('-'):
+        # Other flags (-q, -nv, -c, etc.) — ignore quietly
+        pass
+    else:
+        url = a
+if not url:
+    print('wget-shim: no URL given', file=sys.stderr)
+    sys.exit(1)
+try:
+    if out and out != '-':
+        urllib.request.urlretrieve(url, out)
+    else:
+        sys.stdout.buffer.write(urllib.request.urlopen(url, timeout=30).read())
+except socket.timeout:
+    print(f'wget-shim: timeout connecting to {url}', file=sys.stderr)
+    sys.exit(1)
+except Exception as e:
+    print(f'wget-shim error: {e}', file=sys.stderr)
+    sys.exit(1)
+WGET_SHIM_EOF
+
+    $SCP "$SHIM_TMP" "root@$PRINTER_IP:/opt/bin/wget" >/dev/null
+    rm -f "$SHIM_TMP"
+
+    remote "set -e
+chmod +x /opt/bin/wget
+PATH=/opt/bin:/opt/sbin:\$PATH /opt/bin/opkg update >/dev/null 2>&1 || true
+PATH=/opt/bin:/opt/sbin:\$PATH /opt/bin/opkg install --force-overwrite entware-opt 2>&1 | tail -3
+PATH=/opt/bin:/opt/sbin:\$PATH /opt/bin/opkg install --force-overwrite wget"
+fi
+
+echo "I: ensuring opkg packages (git, dialog, ca-bundle)"
+remote "PATH=/opt/bin:/opt/sbin:\$PATH; opkg update >/dev/null 2>&1 || true; \
+        for p in git git-http ca-bundle dialog; do \
+            opkg list-installed 2>/dev/null | grep -q \"^\$p \" || opkg install \$p || echo W: \$p install failed; \
+        done"
+
+echo "I: ensuring /opt on PATH for future logins"
+remote "[ -f /etc/profile.d/k2-installer-path.sh ] || \
+        printf 'export PATH=/opt/bin:/opt/sbin:\$PATH\n' > /etc/profile.d/k2-installer-path.sh"
+
+echo "I: cloning installer to ${CLONE_DIR} (branch: $REPO_BRANCH)"
+# Update strategy: try a fast-forward pull first (preserves anything
+# the user might've intentionally edited, even though they shouldn't).
+# If that fails — e.g. the working tree has accumulated untracked or
+# modified files from previous interrupted runs — fall through to a
+# hard reset to origin so bootstrap can complete instead of bailing
+# halfway through. The install dir isn't a user-editable workspace;
+# customizations belong in printer.cfg / overrides.cfg, not here.
+remote "PATH=/opt/bin:/opt/sbin:\$PATH; \
+        D=${CLONE_DIR}; \
+        if [ -d \$D/.git ]; then \
+            git -C \$D fetch origin $REPO_BRANCH; \
+            if git -C \$D checkout $REPO_BRANCH 2>/dev/null && git -C \$D pull --ff-only 2>/dev/null; then \
+                echo \"I: ff-only update succeeded\"; \
+            else \
+                echo \"I: working tree dirty or fast-forward failed — force-resetting to origin/$REPO_BRANCH\"; \
+                git -C \$D reset --hard origin/$REPO_BRANCH; \
+                git -C \$D clean -fd; \
+            fi; \
+        else \
+            if [ -d \$D ] && [ ! -d \$D/.git ]; then \
+                mv \$D \${D}.flat-\$(date +%s); \
+                echo I: existing flat tree moved aside; \
+            fi; \
+            git clone --branch $REPO_BRANCH $REPO_URL \$D; \
+        fi"
+
+# In default mode, also create the canonical /mnt/UDISK/root/k2-improvements
+# symlink so $HOME-relative scripts find the install. Skip in extras-only
+# mode — there, the user likely has an existing Jacob10383 install already
+# pointed at by that symlink, and we don't want to clobber it.
+if [ "$EXTRAS_ONLY" = "0" ]; then
+    remote "mkdir -p /mnt/UDISK/root && ln -sfn ${CLONE_DIR} /mnt/UDISK/root/k2-improvements"
+fi
+
+# Install the Entware unslung boot hook. Our streamlined Python-based
+# Entware install bypasses the official generic.sh installer, which is
+# what creates /etc/init.d/unslung (the script that runs all
+# /opt/etc/init.d/S* services at boot). Without this hook,
+# S56moonraker and S50cartographer never fire on boot and the printer
+# comes up with no API server and no probe — even though the services
+# are otherwise correctly installed.
+#
+# Use the same unslung.init that Jacob10383's features/entware/install.sh
+# uses, now that our cloned repo has it on the printer.
+echo "I: installing Entware unslung boot hook (so /opt/etc/init.d/S* fires on boot)"
+remote "set -e
+UNSLUNG_SRC=/mnt/UDISK/k2-improvements/features/entware/unslung.init
+if [ ! -f \$UNSLUNG_SRC ]; then
+    echo 'W:   unslung.init not found in cloned repo — skipping (Jacob10383 path supplies its own)'
+    exit 0
+fi
+cp \$UNSLUNG_SRC /etc/init.d/unslung
+chmod +x /etc/init.d/unslung
+ln -sf /etc/init.d/unslung /etc/rc.d/S99unslung
+ln -sf /etc/init.d/unslung /etc/rc.d/K01unslung
+echo 'I:   /etc/init.d/unslung installed; rc.d/S99unslung + K01unslung symlinked'"
+
+# If we routed to Jacob10383 upstream for a 1.1.3.13 install, apply our
+# portable bug-fixes BEFORE the user runs gimme-the-jamin.sh.
+#
+# The patcher overlays 5 fixed files onto Jacob's checkout — 4 of them
+# correspond to open PRs against Jacob's repo (#6 PATH, #7 better-root,
+# #8 better-init, #9 cartographer) plus a secure-auth grep-syntax fix
+# not yet PR'd. Idempotent: if upstream merges any PR, the corresponding
+# overlay file becomes byte-identical to upstream and the cp is a no-op.
+#
+# Skipped in --extras-only mode: those fixes are for fresh 1.1.3.13 installs.
+# An extras-only user already has a working Cartographer setup; overlaying
+# Jacob's installer scripts at this point is unnecessary and could regress
+# whatever they have.
+if [ "$EXTRAS_ONLY" = "0" ] && [ "$REPO_URL" = "$REPO_URL_1313" ]; then
+    SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+    PATCH_DIR="$SCRIPT_DIR/installer/scripts"
+    if [ -f "$PATCH_DIR/patch-jacob-fixes.sh" ] && [ -d "$PATCH_DIR/jacob-overlay" ]; then
+        echo "I: applying erondiel portable bug-fixes to upstream installer"
+        # Copy patcher + overlay tree to printer
+        remote "rm -rf /tmp/erondiel-jacob-fixes && mkdir -p /tmp/erondiel-jacob-fixes"
+        $SCP -r "$PATCH_DIR/patch-jacob-fixes.sh" "$PATCH_DIR/jacob-overlay" \
+            "root@$PRINTER_IP:/tmp/erondiel-jacob-fixes/" >/dev/null
+        remote "sh /tmp/erondiel-jacob-fixes/patch-jacob-fixes.sh /mnt/UDISK/k2-improvements && rm -rf /tmp/erondiel-jacob-fixes"
+    else
+        echo "W: patch-jacob-fixes.sh + overlay not found locally — your 1.1.3.13 install"
+        echo "   will hit known upstream bugs (secure-auth lockout, better-root moonraker"
+        echo "   trap, gimme-the-jamin PATH, prtouch SAVE_CONFIG residue, etc.)"
+    fi
+fi
+
+# ANSI color codes for visual emphasis on the launch command. Same
+# treatment as the --test-jacob summary so the next-step action is
+# unmistakable. Degrades gracefully on non-ANSI terminals (escapes
+# render as their literal bytes — rare and harmless).
+ESC=$(printf '\033')
+C_BOLD="${ESC}[1m"
+C_CYAN="${ESC}[1;36m"
+C_RESET="${ESC}[0m"
+
+# In local-mode the user is already on the printer, so the
+# `ssh root@host` line is just noise — they'd run the menu command
+# directly. Pick the right "how to launch" prose per mode.
+if [ "${LOCAL_MODE:-0}" = "1" ]; then
+    LAUNCH_INSTRUCTIONS=" Run this to start the menu:
+
+   ${C_CYAN}${LAUNCH_CMD}${C_RESET}"
+else
+    LAUNCH_INSTRUCTIONS=" To start the menu, SSH in and run:
+
+   ssh root@${PRINTER_IP}
+   ${C_CYAN}${LAUNCH_CMD}${C_RESET}
+
+ Or one-line:
+
+   ${C_CYAN}ssh root@${PRINTER_IP} '${LAUNCH_CMD}'${C_RESET}"
+fi
+
+if [ "$EXTRAS_ONLY" = "1" ]; then
+    cat <<EOF
+
+==================================================================
+ ${C_BOLD}Bootstrap complete (extras-only mode).${C_RESET}
+
+ Source:           $REPO_URL ($REPO_BRANCH branch)
+ Cloned to:        $CLONE_DIR
+ Detected firmware: ${PRINTER_FW:-unknown}
+
+ Your existing Cartographer install at /mnt/UDISK/k2-improvements/
+ (if any) was NOT touched.
+
+${LAUNCH_INSTRUCTIONS}
+
+ The menu shows only Status / Extras / KAMP / Update — items that
+ are safe cross-firmware. Install-essentials and the Features menu
+ are hidden because they would overwrite Klipper patches.
+==================================================================
+EOF
+else
+    cat <<EOF
+
+==================================================================
+ ${C_BOLD}Bootstrap complete.${C_RESET}
+
+ Source: $REPO_URL ($REPO_BRANCH branch)
+ Cloned to: $CLONE_DIR
+ Detected firmware: ${PRINTER_FW:-unknown}
+
+${LAUNCH_INSTRUCTIONS}
+==================================================================
+EOF
+fi
+
+# Post-install menu launch:
+#
+#   --auto-launch passed: exec the menu unconditionally. In local-mode
+#                         the menu runs in the current shell; in
+#                         SSH-from-PC mode we open an SSH session with
+#                         -t (TTY allocated) so the menu is interactive.
+#   default (no flag):    only prompt in local-mode (where the launch
+#                         is a clean local exec). SSH-from-PC mode is
+#                         left alone — users typically prefer to SSH in
+#                         fresh themselves rather than nesting through
+#                         the bootstrap's SSH plumbing.
+#
+# Both paths skip if stdin isn't a TTY (avoid hanging non-interactive runs).
+if [ "${AUTO_LAUNCH:-0}" = "1" ]; then
+    if ! (: < /dev/tty) 2>/dev/null; then
+        echo "W: --auto-launch passed but stdin isn't a TTY — skipping (need interactive shell)"
+    elif [ "${LOCAL_MODE:-0}" = "1" ]; then
+        echo "I: --auto-launch — launching menu..."
+        exec sh -c "$LAUNCH_CMD"
+    else
+        echo "I: --auto-launch — opening menu over SSH (a TTY will be allocated)..."
+        # `-t` forces ssh to allocate a pseudo-terminal on the remote so
+        # the menu is interactive. exec replaces this process with the
+        # SSH session, so when the user exits the menu they return to
+        # their local shell.
+        exec $SSH -t "root@$PRINTER_IP" "$LAUNCH_CMD"
+    fi
+elif [ "${LOCAL_MODE:-0}" = "1" ] && (: < /dev/tty) 2>/dev/null; then
+    echo ""
+    printf "Launch the menu now? [Y/n] "
+    read LAUNCH_NOW_CHOICE
+    case "$LAUNCH_NOW_CHOICE" in
+        n|N|no|NO)
+            echo "I: ok — run the command above when ready"
+            ;;
+        *)
+            echo "I: launching menu..."
+            # exec replaces this bootstrap process with the menu, so when
+            # the user exits the menu they return to their shell, not
+            # back into a finished bootstrap script.
+            exec sh -c "$LAUNCH_CMD"
+            ;;
+    esac
+fi

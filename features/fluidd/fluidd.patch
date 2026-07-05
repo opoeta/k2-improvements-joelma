@@ -1,0 +1,198 @@
+diff --git a/src/components/settings/cameras/CameraConfigDialog.vue b/src/components/settings/cameras/CameraConfigDialog.vue
+index 2cfc776a..9081496e 100644
+--- a/src/components/settings/cameras/CameraConfigDialog.vue
++++ b/src/components/settings/cameras/CameraConfigDialog.vue
+@@ -84,6 +84,7 @@
+             { text: $t('app.setting.camera_type_options.webrtc_camera_streamer'), value: 'webrtc-camerastreamer' },
+             { text: $t('app.setting.camera_type_options.webrtc_go2rtc'), value: 'webrtc-go2rtc' },
+             { text: $t('app.setting.camera_type_options.webrtc_mediamtx'), value: 'webrtc-mediamtx' },
++            { text: $t('app.setting.camera_type_options.webrtc_crealityk2'), value: 'webrtc-crealityk2rtc' },
+             { text: $t('app.setting.camera_type_options.video'), value: 'ipstream' },
+             { text: $t('app.setting.camera_type_options.iframe'), value: 'iframe' }
+           ]"
+diff --git a/src/components/widgets/camera/services/WebrtcCrealityk2rtcCamera.vue b/src/components/widgets/camera/services/WebrtcCrealityk2rtcCamera.vue
+new file mode 100644
+index 00000000..4a9087f9
+--- /dev/null
++++ b/src/components/widgets/camera/services/WebrtcCrealityk2rtcCamera.vue
+@@ -0,0 +1,155 @@
++<template>
++  <video
++    ref="streamingElement"
++    autoplay
++    disablePictureInPicture
++    playsinline
++    muted
++    :style="cameraStyle"
++    :crossorigin="crossorigin"
++    @play="updateStatus('connected')"
++    @error="onError"
++  />
++</template>
++
++<script lang="ts">
++import { Component, Ref, Mixins } from 'vue-property-decorator'
++import { consola } from 'consola'
++import CameraMixin from '@/mixins/camera'
++import sleep from '@/util/sleep'
++
++type RTCConfigurationWithSdpSemantics = RTCConfiguration & {
++  sdpSemantics: 'unified-plan'
++}
++
++const iceServers = [
++  { urls: 'stun:stun.l.google.com:19302' }
++]
++
++@Component({})
++export default class WebrtcCrealityk2rtcCamera extends Mixins(CameraMixin) {
++  @Ref('streamingElement')
++  readonly cameraVideo!: HTMLVideoElement
++
++  pc: RTCPeerConnection | null = null
++  playbackAbortController: AbortController | null = null
++  sleepAbortController: AbortController | null = null
++
++  // adapted from https://github.com/ayufan/camera-streamer/blob/4203f89df1596cc349b0260f26bf24a3c446a56b/html/webrtc.html
++
++  async loadStream () {
++    this.pc?.close()
++
++    const abortControllerSignal = this.playbackAbortController?.signal
++
++    if (!abortControllerSignal || abortControllerSignal.aborted) {
++      return
++    }
++
++    this.updateStatus('connecting')
++
++    const url = this.buildAbsoluteUrl(this.camera.stream_url || '')
++
++    this.updateRawCameraUrl(url.toString())
++
++    try {
++      const config: RTCConfigurationWithSdpSemantics = {
++        sdpSemantics: 'unified-plan',
++        iceServers
++      }
++
++      const pc = this.pc = new RTCPeerConnection(config)
++
++      pc.onicecandidate = async event => {
++        if (event.candidate === null && pc.localDescription) {
++          try {
++            const response = await fetch(`${url}call/webrtc_local`, {
++              body: btoa(JSON.stringify({
++                type: 'offer',
++                sdp: pc.localDescription.sdp
++              })),
++              headers: {
++                'Content-Type': 'plain/text'
++              },
++              method: 'POST',
++              signal: abortControllerSignal
++            })
++
++            const res = await response.text()
++            const jsonRes = JSON.parse(atob(res)) as RTCSessionDescriptionInit
++
++            if (jsonRes.type === 'answer') {
++              await pc.setRemoteDescription(new RTCSessionDescription(jsonRes))
++            }
++          } catch (e) {
++            consola.error('[WebrtcCrealityk2rtcCamera] onicecandidate', e)
++            this.onError()
++          }
++        }
++      }
++
++      pc.addTransceiver('video', {
++        direction: 'recvonly'
++      })
++
++      pc.ontrack = (event: RTCTrackEvent) => {
++        if (event.track.kind === 'video') {
++          this.cameraVideo.srcObject = event.streams[0]
++        }
++      }
++
++      const offer = await pc.createOffer()
++      await pc.setLocalDescription(offer)
++
++      consola.debug('[WebrtcCrealityk2rtcCamera] Set Creality K2 Camera')
++    } catch (e) {
++      consola.error(`[WebrtcCrealityk2rtcCamera] failed to start playback "${this.camera.name}"`, e)
++      this.onError()
++    }
++  }
++
++  async onError () {
++    this.updateStatus('error')
++    this.pc?.close()
++    this.pc = null
++
++    const playbackAbortSignal = this.playbackAbortController?.signal
++
++    if (!playbackAbortSignal || playbackAbortSignal.aborted) {
++      return
++    }
++
++    this.sleepAbortController?.abort()
++
++    const sleepAbortController = this.sleepAbortController = new AbortController()
++
++    try {
++      const signals = [
++        playbackAbortSignal,
++        sleepAbortController.signal
++      ]
++
++      await sleep(2000, AbortSignal.any(signals))
++
++      this.loadStream()
++    } catch {}
++  }
++
++  async startPlayback () {
++    this.playbackAbortController = new AbortController()
++
++    await this.loadStream()
++  }
++
++  stopPlayback () {
++    this.updateStatus('disconnected')
++    this.playbackAbortController?.abort()
++    this.playbackAbortController = null
++
++    this.pc?.close()
++    this.pc = null
++    this.cameraVideo.src = ''
++    this.cameraVideo.srcObject = null
++  }
++}
++</script>
+diff --git a/src/locales/en.yaml b/src/locales/en.yaml
+index 5d563167..73dceec5 100644
+--- a/src/locales/en.yaml
++++ b/src/locales/en.yaml
+@@ -583,6 +583,7 @@ app:
+       uv4l_mjpeg_stream: UV4L-MJPEG Stream
+       webrtc_go2rtc: WebRTC (go2rtc)
+       webrtc_mediamtx: WebRTC (MediaMTX)
++      webrtc_crealityk2: WebRTC (Creality K2 Plus)
+     camera_rotate_options:
+       '90': 90°
+       '180': 180°
+diff --git a/src/store/webcams/types.ts b/src/store/webcams/types.ts
+index 5e5a1ff0..422bbcaa 100644
+--- a/src/store/webcams/types.ts
++++ b/src/store/webcams/types.ts
+@@ -25,7 +25,7 @@ export interface WebcamConfig extends NewWebcamConfig {
+   source: WebcamSource;
+ }
+ 
+-export type WebcamService = 'mjpegstreamer' | 'mjpegstreamer-adaptive' | 'ipstream' | 'iframe' | 'hlsstream' | 'webrtc-camerastreamer' | 'webrtc-go2rtc' | 'webrtc-mediamtx' | 'uv4l-mjpeg' | 'device'
++export type WebcamService = 'mjpegstreamer' | 'mjpegstreamer-adaptive' | 'ipstream' | 'iframe' | 'hlsstream' | 'webrtc-camerastreamer' | 'webrtc-go2rtc' | 'webrtc-mediamtx' | 'webrtc-crealityk2rtc' | 'uv4l-mjpeg' | 'device'
+ 
+ export type WebcamRotation = 0 | 90 | 180 | 270
+ 
