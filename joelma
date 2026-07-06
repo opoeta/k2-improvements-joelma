@@ -1,0 +1,68 @@
+#!/bin/sh
+# ============================================================
+# joelma - gerenciador do k2-improvements-joelma (K2 Plus)
+# Instalado em /usr/bin/joelma pelo bootstrap.
+#
+# Comandos:
+#   joelma update     - atualiza se houver versao nova no GitHub
+#   joelma status     - mostra versao instalada vs GitHub
+#   joelma verificar  - roda a pre-verificacao (nao muda nada)
+#   joelma install    - forca reinstalacao completa
+# ============================================================
+
+REPO="opoeta/k2-improvements-joelma"
+DEST=/mnt/UDISK/k2-improvements-joelma
+VERFILE=/mnt/UDISK/.joelma-version
+RAW_BOOT="https://raw.githubusercontent.com/${REPO}/main/bootstrap-joelma.sh"
+
+sha_remoto() {
+    python3 -c "import json,ssl,urllib.request;ctx=ssl._create_unverified_context();print(json.load(urllib.request.urlopen('https://api.github.com/repos/${REPO}/commits/main',context=ctx,timeout=30))['sha'][:12])" 2>/dev/null || true
+}
+
+baixa_bootstrap() {
+    python3 -c "import ssl,urllib.request;ctx=ssl._create_unverified_context();open('${1}','wb').write(urllib.request.urlopen('${RAW_BOOT}',context=ctx,timeout=60).read())" 2>/dev/null
+}
+
+case "${1:-status}" in
+  update)
+    REMOTO=$(sha_remoto)
+    LOCAL=$(cat $VERFILE 2>/dev/null)
+    if [ -n "$REMOTO" ] && [ "$REMOTO" = "$LOCAL" ]; then
+        echo "Ja esta na versao mais recente (${LOCAL})."
+        echo "Para forcar reinstalacao: joelma install"
+        exit 0
+    fi
+    echo "==> Atualizando: ${LOCAL:-nenhuma} -> ${REMOTO:-desconhecida}"
+    if baixa_bootstrap /tmp/joelma-up.sh; then
+        sh /tmp/joelma-up.sh install
+    else
+        echo "W: nao consegui baixar o bootstrap novo; usando o local"
+        sh $DEST/bootstrap-joelma.sh install
+    fi
+    ;;
+  status)
+    LOCAL=$(cat $VERFILE 2>/dev/null || echo "nenhuma")
+    REMOTO=$(sha_remoto)
+    echo "Versao instalada: ${LOCAL}"
+    echo "Versao no GitHub: ${REMOTO:-nao foi possivel consultar}"
+    if [ -n "$REMOTO" ] && [ "$LOCAL" = "$REMOTO" ]; then
+        echo "-> Atualizado."
+    else
+        echo "-> Update disponivel: rode 'joelma update'"
+    fi
+    ;;
+  verificar)
+    sh $DEST/verifica-joelma.sh
+    ;;
+  install)
+    if baixa_bootstrap /tmp/joelma-up.sh; then
+        sh /tmp/joelma-up.sh install
+    else
+        sh $DEST/bootstrap-joelma.sh install
+    fi
+    ;;
+  *)
+    echo "uso: joelma [update|status|verificar|install]"
+    exit 1
+    ;;
+esac

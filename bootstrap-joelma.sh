@@ -17,6 +17,7 @@ set -e
 
 REPO="${2:-opoeta/k2-improvements-joelma}"
 MODO="${1:-verificar}"
+VERFILE=/mnt/UDISK/.joelma-version
 
 URL="https://github.com/${REPO}/archive/refs/heads/main.tar.gz"
 DEST=/mnt/UDISK/k2-improvements-joelma
@@ -75,6 +76,12 @@ if [ "$MODO" = "install" ]; then
     echo "==> Modo install: iniciando instalacao em 5 segundos (Ctrl+C para abortar)"
     sleep 5
     sh "$DEST/no-carto-joelma.sh"
+    # registra a versao instalada e instala/atualiza o comando joelma
+    SHA=$(python3 -c "import json,ssl,urllib.request;ctx=ssl._create_unverified_context();print(json.load(urllib.request.urlopen('https://api.github.com/repos/${REPO}/commits/main',context=ctx,timeout=30))['sha'][:12])" 2>/dev/null || true)
+    [ -n "$SHA" ] && echo "$SHA" > $VERFILE
+    cp -f "$DEST/joelma" /usr/bin/joelma && chmod +x /usr/bin/joelma
+    echo "==> Comando joelma instalado (versao ${SHA:-desconhecida})"
+    echo "    Proximos updates: ssh root@IP joelma update"
 else
     echo ""
     echo "==> Somente verificacao executada. Para instalar:"
