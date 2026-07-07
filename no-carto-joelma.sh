@@ -50,6 +50,7 @@ run_step macros/bed_mesh    features/macros/bed_mesh/install.sh
 run_step macros/m191        features/macros/m191/install.sh
 run_step macros/start_print features/macros/start_print/install.sh
 run_step macros/overrides   features/macros/overrides/install.sh
+run_step macros/nivela      features/macros/nivela_parafusos/install.sh
 
 # ---------- OPCIONAIS (descomente para instalar) ----------
 # Purga adaptativa KAMP (LINE_PURGE) - exige git (instale entware
