@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nivelamento da Mesa — Joelma</title>
+<style>
+  :root { --bg:#12141a; --card:#1e2129; --ok:#2e7d32; --warn:#ef6c00; --bad:#c62828; --base:#1565c0; --txt:#eceff1; --mut:#90a4ae; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--txt); font-family:system-ui,Roboto,Arial,sans-serif; padding:14px; max-width:760px; margin:auto; }
+  h1 { font-size:1.25rem; text-align:center; margin-bottom:4px; }
+  .sub { text-align:center; color:var(--mut); font-size:.85rem; margin-bottom:14px; }
+  .botoes { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-bottom:14px; }
+  button { border:0; border-radius:10px; padding:14px 18px; font-size:1rem; font-weight:700; color:#fff; cursor:pointer; }
+  #medir { background:#00695c; flex:1 1 100%; font-size:1.15rem; }
+  #frio { background:#37474f; } #off { background:#5d4037; } #reler { background:#455a64; }
+  button:disabled { opacity:.45; }
+  #status { text-align:center; min-height:26px; margin-bottom:12px; color:var(--mut); }
+  #status.err { color:#ff8a80; font-weight:700; }
+  .mesa-wrap { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .mesa { grid-column:1/3; text-align:center; background:#263238; border:2px dashed #546e7a; border-radius:12px; padding:18px 8px; color:var(--mut); font-weight:700; }
+  .canto { background:var(--card); border-radius:12px; padding:12px; border-left:6px solid var(--mut); min-height:120px; }
+  .canto h3 { font-size:.8rem; color:var(--mut); letter-spacing:.5px; margin-bottom:6px; }
+  .acao { font-size:1.3rem; font-weight:800; display:flex; align-items:center; gap:8px; }
+  .qtd { font-size:1.05rem; margin-top:2px; }
+  .det { color:var(--mut); font-size:.82rem; margin-top:6px; }
+  .ok { border-color:var(--ok); } .ok .acao { color:#81c784; }
+  .warn { border-color:var(--warn); } .warn .acao { color:#ffb74d; }
+  .bad { border-color:var(--bad); } .bad .acao { color:#e57373; }
+  .base { border-color:var(--base); } .base .acao { color:#64b5f6; font-size:1.05rem; }
+  svg { width:34px; height:34px; flex:none; }
+  .legenda { margin-top:14px; color:var(--mut); font-size:.82rem; text-align:center; line-height:1.5; }
+</style>
+</head>
+<body>
+<h1>🔧 Nivelamento da Mesa</h1>
+<div class="sub">K2 Plus "Joelma" — vista de cima, a FRENTE da impressora é você (embaixo)</div>
+<div class="botoes">
+  <button id="medir">📏 MEDIR (aquece mesa a 60°C)</button>
+  <button id="frio">Medir a frio</button>
+  <button id="reler">Reler resultado</button>
+  <button id="off">Desligar aquecedores</button>
+</div>
+<div id="status">Pronto. Aperte MEDIR para começar (leva 3 a 6 min).</div>
+<div class="mesa-wrap">
+  <div class="canto" id="screw4"><h3>TRASEIRO ESQUERDO</h3><div class="acao">—</div></div>
+  <div class="canto" id="screw3"><h3>TRASEIRO DIREITO</h3><div class="acao">—</div></div>
+  <div class="mesa">MESA<br><span style="font-weight:400;font-size:.8rem">FRENTE ⬇ (você)</span></div>
+  <div class="canto" id="screw1"><h3>FRENTE ESQUERDO</h3><div class="acao">—</div></div>
+  <div class="canto" id="screw2"><h3>FRENTE DIREITO</h3><div class="acao">—</div></div>
+</div>
+<div class="legenda">
+  APERTAR = girar no sentido HORÁRIO = o canto DESCE<br>
+  SOLTAR = girar ANTI-HORÁRIO = o canto SOBE<br>
+  Ajuste, meça de novo e repita até todos ficarem ✓ OK (≤ 3 min de relógio)
+</div>
+<script>
+const base = location.protocol + "//" + location.hostname + ":7125";
+const FR = {5:"1/12 de volta",6:"1/10 de volta",10:"1/6 de volta",15:"1/4 de volta",20:"1/3 de volta",30:"MEIA volta",45:"3/4 de volta"};
+const HOR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>';
+const ANT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v6h6"/></svg>';
+const st = document.getElementById("status");
+function status(t, err){ st.textContent = t; st.className = err ? "err" : ""; }
+function trava(v){ for (const id of ["medir","frio","off","reler"]) document.getElementById(id).disabled = v; }
+
+async function gcode(script, minutos){
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), minutos*60000);
+  try {
+    const r = await fetch(base + "/printer/gcode/script", {method:"POST", signal:ctl.signal,
+      headers:{"Content-Type":"application/json"}, body:JSON.stringify({script})});
+    if (!r.ok) { const j = await r.json().catch(()=>({})); throw new Error((j.error&&j.error.message)||("HTTP "+r.status)); }
+  } finally { clearTimeout(timer); }
+}
+
+function fracao(adjust){
+  const [v,m] = adjust.split(":").map(Number);
+  if (v > 0) return v + " volta(s)" + (m>0 ? " e " + m + " min" : "");
+  return FR[m] || (m + " min de relógio");
+}
+
+async function render(){
+  const r = await fetch(base + "/printer/objects/query?screws_tilt_adjust");
+  const s = (await r.json()).result.status.screws_tilt_adjust;
+  if (s.error) { status("Erro na medição — diferença grande demais ou probe falhou. Ajuste grosseiro e meça de novo.", true); return; }
+  const res = s.results || {};
+  if (!Object.keys(res).length) { status("Sem resultados ainda — aperte MEDIR.", false); return; }
+  let zbase = 0;
+  for (const k in res) if (res[k].is_base) zbase = res[k].z;
+  for (const k of ["screw1","screw2","screw3","screw4"]) {
+    const el = document.getElementById(k), d = res[k];
+    const h3 = el.querySelector("h3").outerHTML;
+    if (!d) { el.innerHTML = h3 + '<div class="acao">—</div>'; continue; }
+    if (d.is_base) { el.className = "canto base"; el.innerHTML = h3 + '<div class="acao">🔵 BASE</div><div class="det">Referência — não mexer</div>'; continue; }
+    const [v,m] = d.adjust.split(":").map(Number);
+    const tot = v*60 + m;
+    const delta = Math.abs(d.z - zbase).toFixed(3);
+    if (tot <= 3) { el.className = "canto ok"; el.innerHTML = h3 + '<div class="acao">✓ OK</div><div class="det">Desvio ' + delta + 'mm — não mexer</div>'; continue; }
+    const aperta = d.sign === "CW";
+    el.className = "canto " + (tot > 20 ? "bad" : "warn");
+    el.innerHTML = h3 +
+      '<div class="acao">' + (aperta ? HOR : ANT) + (aperta ? "APERTAR" : "SOLTAR") + '</div>' +
+      '<div class="qtd">' + fracao(d.adjust) + " " + (aperta ? "(horário)" : "(anti-horário)") + '</div>' +
+      '<div class="det">Canto ' + (aperta ? "ALTO" : "BAIXO") + " " + delta + "mm — vai " + (aperta ? "descer" : "subir") + '</div>';
+  }
+  status("Ajuste os indicados e meça de novo. Mesa segue aquecida.", false);
+}
+
+async function medir(cmd, aviso){
+  trava(true); status(aviso, false);
+  try { await gcode(cmd, 12); await render(); }
+  catch (e) { status("Falhou: " + e.message + (/key22|trigger/i.test(e.message) ? " → reinicie a impressora na chave e tente de novo." : ""), true); }
+  finally { trava(false); }
+}
+document.getElementById("medir").onclick = () => medir("NIVELA_PARAFUSOS", "Aquecendo a 60°C, fazendo homing e medindo os 4 cantos (3–6 min)...");
+document.getElementById("frio").onclick  = () => medir("NIVELA_PARAFUSOS BED_TEMP=0", "Medindo a frio (2–3 min)...");
+document.getElementById("reler").onclick = () => render().catch(e => status("Falhou: " + e.message, true));
+document.getElementById("off").onclick = async () => { trava(true); try { await gcode("TURN_OFF_HEATERS", 1); status("Aquecedores desligados.", false); } catch(e){ status("Falhou: " + e.message, true); } finally { trava(false); } };
+render().catch(()=>{});
+</script>
+</body>
+</html>

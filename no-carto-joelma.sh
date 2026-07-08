@@ -52,6 +52,7 @@ run_step macros/start_print features/macros/start_print/install.sh
 run_step macros/overrides   features/macros/overrides/install.sh
 run_step macros/nivela      features/macros/nivela_parafusos/install.sh
 run_step camera             features/camera/install.sh
+run_step nivela_web         features/nivela_web/install.sh
 
 # ---------- OPCIONAIS (descomente para instalar) ----------
 # Purga adaptativa KAMP (LINE_PURGE) - exige git (instale entware
