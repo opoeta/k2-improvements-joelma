@@ -3,65 +3,211 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Nivelamento da Mesa — Joelma</title>
+<title>Central de Calibração — Joelma</title>
 <style>
-  :root { --bg:#12141a; --card:#1e2129; --ok:#2e7d32; --warn:#ef6c00; --bad:#c62828; --base:#1565c0; --txt:#eceff1; --mut:#90a4ae; }
+  :root { --bg:#12141a; --card:#1e2129; --ok:#2e7d32; --warn:#ef6c00; --bad:#c62828; --base:#1565c0; --txt:#eceff1; --mut:#90a4ae; --acc:#00695c; }
   * { box-sizing:border-box; margin:0; padding:0; }
-  body { background:var(--bg); color:var(--txt); font-family:system-ui,Roboto,Arial,sans-serif; padding:14px; max-width:760px; margin:auto; }
-  h1 { font-size:1.25rem; text-align:center; margin-bottom:4px; }
-  .sub { text-align:center; color:var(--mut); font-size:.85rem; margin-bottom:14px; }
-  .botoes { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-bottom:14px; }
-  button { border:0; border-radius:10px; padding:14px 18px; font-size:1rem; font-weight:700; color:#fff; cursor:pointer; }
-  #medir { background:#00695c; flex:1 1 100%; font-size:1.15rem; }
-  #frio { background:#37474f; } #off { background:#5d4037; } #reler { background:#455a64; }
-  button:disabled { opacity:.45; }
-  #status { text-align:center; min-height:26px; margin-bottom:12px; color:var(--mut); }
-  #status.err { color:#ff8a80; font-weight:700; }
-  .mesa-wrap { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-  .mesa { grid-column:1/3; text-align:center; background:#263238; border:2px dashed #546e7a; border-radius:12px; padding:18px 8px; color:var(--mut); font-weight:700; }
-  .canto { background:var(--card); border-radius:12px; padding:12px; border-left:6px solid var(--mut); min-height:120px; }
-  .canto h3 { font-size:.8rem; color:var(--mut); letter-spacing:.5px; margin-bottom:6px; }
-  .acao { font-size:1.3rem; font-weight:800; display:flex; align-items:center; gap:8px; }
-  .qtd { font-size:1.05rem; margin-top:2px; }
-  .det { color:var(--mut); font-size:.82rem; margin-top:6px; }
+  body { background:var(--bg); color:var(--txt); font-family:system-ui,Roboto,Arial,sans-serif; padding:12px; max-width:820px; margin:auto; }
+  h1 { font-size:1.2rem; text-align:center; }
+  .sub { text-align:center; color:var(--mut); font-size:.8rem; margin-bottom:10px; }
+  .statusbar { background:var(--card); border-radius:12px; padding:10px 14px; margin-bottom:10px; display:flex; gap:10px; align-items:center; }
+  .dot { width:12px; height:12px; border-radius:50%; background:#666; flex:none; }
+  .dot.on { background:#4caf50; } .dot.busy { background:#ffb300; animation:pisca 1s infinite; } .dot.err { background:#e53935; }
+  @keyframes pisca { 50% { opacity:.3; } }
+  #fazendo { font-weight:700; font-size:.95rem; }
+  #detalhe { color:var(--mut); font-size:.8rem; }
+  h2 { font-size:.95rem; color:var(--mut); margin:14px 0 8px; letter-spacing:.5px; }
+  .botoes { display:flex; gap:8px; flex-wrap:wrap; }
+  button { border:0; border-radius:10px; padding:12px 14px; font-size:.92rem; font-weight:700; color:#fff; cursor:pointer; background:#37474f; }
+  button.principal { background:var(--acc); flex:1 1 100%; font-size:1.05rem; }
+  button.salvar { background:#f9a825; color:#000; }
+  button:disabled { opacity:.4; }
+  canvas { width:100%; height:180px; background:var(--card); border-radius:12px; margin-top:6px; }
+  .temps { display:flex; gap:14px; font-size:.85rem; color:var(--mut); margin-top:4px; justify-content:center; }
+  .temps b { color:var(--txt); }
+  .mesa-wrap { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:6px; }
+  .mesa { grid-column:1/3; text-align:center; background:#263238; border:2px dashed #546e7a; border-radius:12px; padding:12px 8px; color:var(--mut); font-weight:700; font-size:.85rem; }
+  .canto { background:var(--card); border-radius:12px; padding:10px; border-left:6px solid var(--mut); min-height:104px; }
+  .canto h3 { font-size:.72rem; color:var(--mut); margin-bottom:5px; }
+  .acao { font-size:1.15rem; font-weight:800; display:flex; align-items:center; gap:7px; }
+  .qtd { font-size:.95rem; margin-top:2px; }
+  .det { color:var(--mut); font-size:.78rem; margin-top:5px; }
   .ok { border-color:var(--ok); } .ok .acao { color:#81c784; }
   .warn { border-color:var(--warn); } .warn .acao { color:#ffb74d; }
   .bad { border-color:var(--bad); } .bad .acao { color:#e57373; }
-  .base { border-color:var(--base); } .base .acao { color:#64b5f6; font-size:1.05rem; }
-  svg { width:34px; height:34px; flex:none; }
-  .legenda { margin-top:14px; color:var(--mut); font-size:.82rem; text-align:center; line-height:1.5; }
+  .base { border-color:var(--base); } .base .acao { color:#64b5f6; font-size:.98rem; }
+  svg { width:30px; height:30px; flex:none; }
+  #console { background:#0d0f13; border-radius:12px; margin-top:6px; height:220px; overflow-y:auto; padding:8px 10px; font-family:ui-monospace,Consolas,monospace; font-size:.76rem; line-height:1.45; }
+  #console .e { color:#ef9a9a; } #console .i { color:#78909c; } #console .n { color:#c5e1a5; } #console .c { color:#eceff1; }
+  .aviso { text-align:center; color:var(--mut); font-size:.78rem; margin-top:10px; line-height:1.5; }
+
 </style>
 </head>
 <body>
-<h1>🔧 Nivelamento da Mesa</h1>
-<div class="sub">K2 Plus "Joelma" — vista de cima, a FRENTE da impressora é você (embaixo)</div>
-<div class="botoes">
-  <button id="medir">📏 MEDIR (aquece mesa a 60°C)</button>
-  <button id="frio">Medir a frio</button>
-  <button id="reler">Reler resultado</button>
-  <button id="off">Desligar aquecedores</button>
+<h1>🔧 Central de Calibração — Joelma</h1>
+<div class="sub">K2 Plus — vista de cima, a FRENTE da impressora é você (embaixo)</div>
+
+<div class="statusbar">
+  <div class="dot" id="dot"></div>
+  <div style="flex:1">
+    <div id="fazendo">Conectando ao Moonraker...</div>
+    <div id="detalhe">—</div>
+  </div>
 </div>
-<div id="status">Pronto. Aperte MEDIR para começar (leva 3 a 6 min).</div>
+
+<h2>🌡 TEMPERATURAS (10 min)</h2>
+<canvas id="grafico" width="800" height="180"></canvas>
+<div class="temps">
+  <span style="color:#ffb74d">■</span><span>Mesa <b id="tBed">—</b> / <span id="tBedT">—</span></span>
+  <span style="color:#e57373">■</span><span>Bico <b id="tExt">—</b> / <span id="tExtT">—</span></span>
+</div>
+
+<h2>🔩 NIVELAMENTO DOS PARAFUSOS</h2>
+<div class="botoes">
+  <button id="medir" class="principal">📏 MEDIR (aquece mesa a 60°C)</button>
+  <button id="frio">Medir a frio</button>
+  <button id="reler">Reler</button>
+</div>
 <div class="mesa-wrap">
   <div class="canto" id="screw4"><h3>TRASEIRO ESQUERDO</h3><div class="acao">—</div></div>
   <div class="canto" id="screw3"><h3>TRASEIRO DIREITO</h3><div class="acao">—</div></div>
-  <div class="mesa">MESA<br><span style="font-weight:400;font-size:.8rem">FRENTE ⬇ (você)</span></div>
+  <div class="mesa">MESA — FRENTE ⬇ (você)</div>
   <div class="canto" id="screw1"><h3>FRENTE ESQUERDO</h3><div class="acao">—</div></div>
   <div class="canto" id="screw2"><h3>FRENTE DIREITO</h3><div class="acao">—</div></div>
 </div>
-<div class="legenda">
-  APERTAR = girar no sentido HORÁRIO = o canto DESCE<br>
-  SOLTAR = girar ANTI-HORÁRIO = o canto SOBE<br>
-  Ajuste, meça de novo e repita até todos ficarem ✓ OK (≤ 18°)
+
+<h2>⚙️ OUTRAS CALIBRAÇÕES</h2>
+<div class="botoes">
+  <button id="pidmesa">PID Mesa 60°C (~10 min)</button>
+  <button id="pidbico">PID Bico 220°C (~10 min)</button>
+  <button id="salvar" class="salvar" style="display:none">💾 SALVAR (SAVE_CONFIG — reinicia)</button>
+  <button id="mesh">Criar mesh 60°C (mesa toda)</button>
+  <button id="home">Homing (G28)</button>
+  <button id="off">Desligar aquecedores</button>
+</div>
+
+<h2>🖥 CONSOLE AO VIVO</h2>
+<div id="console"></div>
+
+<div class="aviso">
+  APERTAR = fechar torneira (horário olhando o knob) = canto DESCE • SOLTAR = abrir = canto SOBE<br>
+  Repita a medição até todos ✓ OK (≤ 18°). Após PID concluído, aperte SALVAR para gravar.
 </div>
 <script>
 const base = location.protocol + "//" + location.hostname + ":7125";
+const wsUrl = (location.protocol === "https:" ? "wss://" : "ws://") + location.hostname + ":7125/websocket";
 const HOR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>';
 const ANT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v6h6"/></svg>';
-const st = document.getElementById("status");
-function status(t, err){ st.textContent = t; st.className = err ? "err" : ""; }
-function trava(v){ for (const id of ["medir","frio","off","reler"]) document.getElementById(id).disabled = v; }
+const $ = id => document.getElementById(id);
+let ws = null, rpcId = 1, temps = [], klipperOk = false, ocupado = false;
 
+// ---------- Estado / status ----------
+function setStatus(fazendo, detalhe, modo){
+  $("fazendo").textContent = fazendo;
+  if (detalhe !== null) $("detalhe").textContent = detalhe;
+  $("dot").className = "dot " + (modo || "");
+}
+function trava(v){
+  ocupado = v;
+  for (const id of ["medir","frio","reler","pidmesa","pidbico","mesh","home","off"]) $(id).disabled = v;
+}
+
+// ---------- WebSocket Moonraker ----------
+function conectaWS(){
+  ws = new WebSocket(wsUrl);
+  ws.onopen = () => {
+    setStatus("Conectado", "aguardando dados...", "on");
+    rpc("printer.objects.subscribe", {objects:{heater_bed:["temperature","target"],extruder:["temperature","target"],idle_timeout:["state"],display_status:["message"]}});
+    rpc("server.gcode_store", {count:60}).then(r => (r.gcode_store||[]).forEach(m => logLinha(m.message)));
+  };
+  ws.onmessage = ev => {
+    const d = JSON.parse(ev.data);
+    if (d.method === "notify_status_update") aplicaStatus(d.params[0]);
+    else if (d.method === "notify_gcode_response") logLinha(d.params[0]);
+    else if (d.method === "notify_klippy_disconnected") { klipperOk = false; setStatus("Klipper reiniciando...", "aguardando voltar", "busy"); }
+    else if (d.method === "notify_klippy_ready") { klipperOk = true; setStatus("Pronta", "Klipper ready", "on"); rpc("printer.objects.subscribe", {objects:{heater_bed:["temperature","target"],extruder:["temperature","target"],idle_timeout:["state"],display_status:["message"]}}); render().catch(()=>{}); }
+    else if (d.id && pend[d.id]) { const p = pend[d.id]; delete pend[d.id]; d.error ? p.rej(new Error(d.error.message)) : p.res(d.result); }
+  };
+  ws.onclose = () => { setStatus("Moonraker desconectado", "reconectando em 3s...", "err"); setTimeout(conectaWS, 3000); };
+  ws.onerror = () => ws.close();
+}
+const pend = {};
+function rpc(method, params){
+  return new Promise((res, rej) => {
+    const id = rpcId++;
+    pend[id] = {res, rej};
+    ws.send(JSON.stringify({jsonrpc:"2.0", method, params:params||{}, id}));
+    setTimeout(() => { if (pend[id]) { delete pend[id]; rej(new Error("timeout rpc")); } }, 15000);
+  });
+}
+let ultimo = {bed:null,bedT:null,ext:null,extT:null,idle:"?"};
+function aplicaStatus(st){
+  if (st.heater_bed) { if (st.heater_bed.temperature !== undefined) ultimo.bed = st.heater_bed.temperature; if (st.heater_bed.target !== undefined) ultimo.bedT = st.heater_bed.target; }
+  if (st.extruder) { if (st.extruder.temperature !== undefined) ultimo.ext = st.extruder.temperature; if (st.extruder.target !== undefined) ultimo.extT = st.extruder.target; }
+  if (st.idle_timeout && st.idle_timeout.state) ultimo.idle = st.idle_timeout.state;
+  if (st.display_status && st.display_status.message) $("detalhe").textContent = st.display_status.message;
+  if (!ocupado) {
+    klipperOk = true;
+    if (ultimo.idle === "Printing") setStatus("Executando comando...", null, "busy");
+    else setStatus("Pronta", "ociosa" + (ultimo.bedT > 0 || ultimo.extT > 0 ? " — aquecedores LIGADOS" : ""), "on");
+  }
+  $("tBed").textContent = ultimo.bed !== null ? ultimo.bed.toFixed(1) + "°C" : "—";
+  $("tBedT").textContent = (ultimo.bedT||0) + "°C";
+  $("tExt").textContent = ultimo.ext !== null ? ultimo.ext.toFixed(1) + "°C" : "—";
+  $("tExtT").textContent = (ultimo.extT||0) + "°C";
+}
+// ---------- Grafico de temperaturas (canvas puro) ----------
+setInterval(() => {
+  if (ultimo.bed === null) return;
+  temps.push({t: Date.now(), b: ultimo.bed, bt: ultimo.bedT||0, e: ultimo.ext, et: ultimo.extT||0});
+  const corte = Date.now() - 600000;
+  while (temps.length && temps[0].t < corte) temps.shift();
+  desenha();
+}, 1000);
+function desenha(){
+  const cv = $("grafico"), g = cv.getContext("2d");
+  const W = cv.width = cv.clientWidth * 2, H = cv.height = 360;
+  g.clearRect(0,0,W,H);
+  if (temps.length < 2) return;
+  const t0 = temps[0].t, t1 = temps[temps.length-1].t || t0+1;
+  let max = 70;
+  for (const p of temps) max = Math.max(max, p.b, p.bt, p.e, p.et);
+  max = Math.ceil((max+10)/25)*25;
+  g.strokeStyle = "#2b313c"; g.fillStyle = "#607d8b"; g.font = "20px system-ui"; g.lineWidth = 1;
+  for (let tmp = 0; tmp <= max; tmp += 50) {
+    const y = H - 24 - (tmp/max)*(H-40);
+    g.beginPath(); g.moveTo(46,y); g.lineTo(W-6,y); g.stroke();
+    g.fillText(tmp + "°", 4, y+7);
+  }
+  const px = t => 46 + ((t-t0)/(t1-t0))*(W-56);
+  const py = v => H - 24 - (v/max)*(H-40);
+  function serie(campo, cor, tracejada){
+    g.strokeStyle = cor; g.lineWidth = tracejada ? 2 : 3;
+    g.setLineDash(tracejada ? [8,7] : []);
+    g.beginPath();
+    temps.forEach((p,i) => { const v = p[campo]; i ? g.lineTo(px(p.t), py(v)) : g.moveTo(px(p.t), py(v)); });
+    g.stroke(); g.setLineDash([]);
+  }
+  serie("bt", "#8d6e63", true); serie("et", "#b71c1c", true);
+  serie("b", "#ffb74d", false); serie("e", "#e57373", false);
+}
+
+// ---------- Console ao vivo ----------
+function logLinha(msg){
+  const c = $("console");
+  const noFim = c.scrollTop + c.clientHeight >= c.scrollHeight - 30;
+  const div = document.createElement("div");
+  let cls = "c";
+  if (msg.startsWith("!!")) cls = "e";
+  else if (msg.startsWith("//")) cls = "i";
+  else if (msg.indexOf("[NIVELA]") >= 0 || msg.indexOf("[START_PRINT]") >= 0 || msg.indexOf("PID") >= 0) cls = "n";
+  div.className = cls;
+  div.textContent = msg;
+  c.appendChild(div);
+  while (c.childNodes.length > 150) c.removeChild(c.firstChild);
+  if (noFim) c.scrollTop = c.scrollHeight;
+}
+// ---------- Comandos (gcode via HTTP; console mostra o progresso via WS) ----------
 async function gcode(script, minutos){
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), minutos*60000);
@@ -71,31 +217,57 @@ async function gcode(script, minutos){
     if (!r.ok) { const j = await r.json().catch(()=>({})); throw new Error((j.error&&j.error.message)||("HTTP "+r.status)); }
   } finally { clearTimeout(timer); }
 }
+async function esperaReady(maxMs){
+  const fim = Date.now() + maxMs;
+  while (Date.now() < fim) {
+    if (klipperOk) return true;
+    await new Promise(res => setTimeout(res, 2500));
+  }
+  return false;
+}
+async function roda(cmd, fazendo, minutos, aposOk){
+  trava(true); setStatus(fazendo, "acompanhe no console abaixo", "busy");
+  try {
+    try { await gcode(cmd, minutos); }
+    catch (e) {
+      if (!/not ready|attempting to connect|key3/i.test(e.message)) throw e;
+      setStatus("Klipper reiniciando — aguardando...", null, "busy");
+      if (!(await esperaReady(90000))) throw new Error("Klipper não ficou pronto em 90s");
+      setStatus(fazendo, null, "busy");
+      await gcode(cmd, minutos);
+    }
+    setStatus("Concluído: " + fazendo, "pronta para o próximo passo", "on");
+    if (aposOk) aposOk();
+  } catch (e) {
+    setStatus("FALHOU: " + fazendo, e.message + (/key22|trigger/i.test(e.message) ? " → reinicie na chave" : ""), "err");
+    logLinha("!! " + e.message);
+  } finally { trava(false); }
+}
 
+// ---------- Nivelamento (cards) ----------
 function graus(adjust){
   const [v,m] = adjust.split(":").map(Number);
   const g = m * 6;
   if (v > 0) return v + " volta(s)" + (g>0 ? " + " + g + "°" : "");
   return g + "°";
 }
-
 async function render(){
-  const r = await fetch(base + "/printer/objects/query?screws_tilt_adjust");
-  const s = (await r.json()).result.status.screws_tilt_adjust;
-  if (s.error) { status("Erro na medição — diferença grande demais ou probe falhou. Ajuste grosseiro e meça de novo.", true); return; }
+  const q = await rpc("printer.objects.query", {objects:{screws_tilt_adjust:null}});
+  const s = q.status.screws_tilt_adjust;
+  if (!s || s.error) return;
   const res = s.results || {};
-  if (!Object.keys(res).length) { status("Sem resultados ainda — aperte MEDIR.", false); return; }
+  if (!Object.keys(res).length) return;
   let zbase = 0;
   for (const k in res) if (res[k].is_base) zbase = res[k].z;
   for (const k of ["screw1","screw2","screw3","screw4"]) {
-    const el = document.getElementById(k), d = res[k];
+    const el = $(k), d = res[k];
     const h3 = el.querySelector("h3").outerHTML;
     if (!d) { el.innerHTML = h3 + '<div class="acao">—</div>'; continue; }
     if (d.is_base) { el.className = "canto base"; el.innerHTML = h3 + '<div class="acao">🔵 BASE</div><div class="det">Referência — não mexer</div>'; continue; }
     const [v,m] = (d.adjust_raw || d.adjust).split(":").map(Number);
     const tot = v*60 + m;
     const delta = Math.abs(d.z - zbase).toFixed(3);
-    if (tot <= 3) { el.className = "canto ok"; el.innerHTML = h3 + '<div class="acao">✓ OK</div><div class="det">Desvio ' + delta + 'mm — não mexer</div>'; continue; }
+    if (tot <= 3) { el.className = "canto ok"; el.innerHTML = h3 + '<div class="acao">✓ OK</div><div class="det">Desvio ' + delta + 'mm</div>'; continue; }
     const aperta = d.sign === "CW";
     el.className = "canto " + (tot > 20 ? "bad" : "warn");
     el.innerHTML = h3 +
@@ -103,19 +275,20 @@ async function render(){
       '<div class="qtd">' + graus(d.adjust_raw || d.adjust) + " " + (aperta ? "(horário)" : "(anti-horário)") + '</div>' +
       '<div class="det">Canto ' + (aperta ? "ALTO" : "BAIXO") + " " + delta + "mm — vai " + (aperta ? "descer" : "subir") + '</div>';
   }
-  status("Ajuste os indicados e meça de novo. Mesa segue aquecida.", false);
 }
 
-async function medir(cmd, aviso){
-  trava(true); status(aviso, false);
-  try { await gcode(cmd, 12); await render(); }
-  catch (e) { status("Falhou: " + e.message + (/key22|trigger/i.test(e.message) ? " → reinicie a impressora na chave e tente de novo." : ""), true); }
-  finally { trava(false); }
-}
-document.getElementById("medir").onclick = () => medir("NIVELA_PARAFUSOS", "Aquecendo a 60°C, fazendo homing e medindo os 4 cantos (3–6 min)...");
-document.getElementById("frio").onclick  = () => medir("NIVELA_PARAFUSOS BED_TEMP=0", "Medindo a frio (2–3 min)...");
-document.getElementById("reler").onclick = () => render().catch(e => status("Falhou: " + e.message, true));
-document.getElementById("off").onclick = async () => { trava(true); try { await gcode("TURN_OFF_HEATERS", 1); status("Aquecedores desligados.", false); } catch(e){ status("Falhou: " + e.message, true); } finally { trava(false); } };
+// ---------- Botoes ----------
+$("medir").onclick = () => roda("NIVELA_PARAFUSOS", "Nivelamento (aquece 60°C + mede)", 12, () => render());
+$("frio").onclick  = () => roda("NIVELA_PARAFUSOS BED_TEMP=0", "Nivelamento a frio", 12, () => render());
+$("reler").onclick = () => render().catch(e => logLinha("!! " + e.message));
+$("pidmesa").onclick = () => roda("PID_CALIBRATE HEATER=heater_bed TARGET=60", "PID da mesa @60°C", 25, () => $("salvar").style.display = "");
+$("pidbico").onclick = () => roda("PID_CALIBRATE HEATER=extruder TARGET=220", "PID do bico @220°C", 25, () => $("salvar").style.display = "");
+$("salvar").onclick = () => { $("salvar").style.display = "none"; roda("SAVE_CONFIG", "Salvando config (Klipper reinicia)", 3); };
+$("mesh").onclick = () => roda("MESH_IF_NEEDED BED_TEMP=60 CHAMBER_TEMP=0", "Mesh completo 60°C", 25);
+$("home").onclick = () => roda("G28", "Homing XYZ", 6);
+$("off").onclick = () => roda("TURN_OFF_HEATERS", "Desligando aquecedores", 1);
+
+conectaWS();
 render().catch(()=>{});
 </script>
 </body>
