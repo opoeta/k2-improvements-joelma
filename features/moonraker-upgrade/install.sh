@@ -44,11 +44,12 @@ PYEOF
     echo "I: moonraker upstream instalado"
 fi
 
-# CORS por IP: a Central em http://IP:4408 precisa
-if ! grep -q '10.10.1' ${CONF}; then
-    sed -i 's|^cors_domains:|cors_domains:\n  *://10.10.1.*|' ${CONF}
+# CORS por origem exata (wildcard de IP nao e permitido pelo moonraker 1.4)
+sed -i '\|^  \*://10\.10\.1\.\*$|d' ${CONF}
+if ! grep -q '10.10.1.240:4408' ${CONF}; then
+    sed -i 's|^cors_domains:|cors_domains:\n  http://10.10.1.240:4408\n  http://10.10.1.240|' ${CONF}
     MUDOU=1
-    echo "I: cors_domains ajustado para a LAN"
+    echo "I: cors_domains com origens exatas da LAN"
 fi
 
 if [ "$MUDOU" = "0" ]; then
