@@ -55,9 +55,8 @@ run_step camera             features/camera/install.sh
 run_step nivela_web         features/nivela_web/install.sh
 
 # ---------- OPCIONAIS (descomente para instalar) ----------
-# Purga adaptativa KAMP (LINE_PURGE) - exige git (instale entware
-# antes: features/entware/install.sh) e mudar o gcode do slicer:
-#run_step kamp features/kamp-adaptive-purge/install.sh
+# Purga adaptativa KAMP (LINE_PURGE) - exige Label objects no slicer
+run_step kamp               features/kamp-adaptive-purge/install.sh
 
 echo ""
 echo "============================================"
