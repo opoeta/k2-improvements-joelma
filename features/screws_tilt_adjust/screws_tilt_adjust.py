@@ -8,20 +8,17 @@ import math
 from . import probe
 
 def _acao_pt(sign, full_turns, minutes):
-    # Traduz o ajuste para portugues claro (exibido no dialog do Fluidd)
-    fr = {5: "1/12", 6: "1/10", 10: "1/6", 15: "1/4", 20: "1/3",
-          30: "1/2", 45: "3/4"}
+    # Traduz o ajuste para graus (exibido no dialog do Fluidd)
     m = int(minutes)
     tot = full_turns * 60 + m
     if tot <= 3:
         return "OK"
     acao = "APERTAR" if sign == "CW" else "SOLTAR"
+    graus = m * 6
     if full_turns > 0:
-        qtd = "%d volta(s)" % full_turns + (" e %dmin" % m if m > 0 else "")
-    elif m in fr:
-        qtd = fr[m] + " de volta"
+        qtd = "%d volta(s)" % full_turns + (" + %d\xb0" % graus if graus > 0 else "")
     else:
-        qtd = "%d min" % m
+        qtd = "%d\xb0" % graus
     return "%s %s" % (acao, qtd)
 
 

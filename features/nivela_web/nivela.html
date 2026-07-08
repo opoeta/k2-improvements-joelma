@@ -52,11 +52,10 @@
 <div class="legenda">
   APERTAR = girar no sentido HORÁRIO = o canto DESCE<br>
   SOLTAR = girar ANTI-HORÁRIO = o canto SOBE<br>
-  Ajuste, meça de novo e repita até todos ficarem ✓ OK (≤ 3 min de relógio)
+  Ajuste, meça de novo e repita até todos ficarem ✓ OK (≤ 18°)
 </div>
 <script>
 const base = location.protocol + "//" + location.hostname + ":7125";
-const FR = {5:"1/12 de volta",6:"1/10 de volta",10:"1/6 de volta",15:"1/4 de volta",20:"1/3 de volta",30:"MEIA volta",45:"3/4 de volta"};
 const HOR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>';
 const ANT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v6h6"/></svg>';
 const st = document.getElementById("status");
@@ -73,10 +72,11 @@ async function gcode(script, minutos){
   } finally { clearTimeout(timer); }
 }
 
-function fracao(adjust){
+function graus(adjust){
   const [v,m] = adjust.split(":").map(Number);
-  if (v > 0) return v + " volta(s)" + (m>0 ? " e " + m + " min" : "");
-  return FR[m] || (m + " min de relógio");
+  const g = m * 6;
+  if (v > 0) return v + " volta(s)" + (g>0 ? " + " + g + "°" : "");
+  return g + "°";
 }
 
 async function render(){
@@ -100,7 +100,7 @@ async function render(){
     el.className = "canto " + (tot > 20 ? "bad" : "warn");
     el.innerHTML = h3 +
       '<div class="acao">' + (aperta ? HOR : ANT) + (aperta ? "APERTAR" : "SOLTAR") + '</div>' +
-      '<div class="qtd">' + fracao(d.adjust_raw || d.adjust) + " " + (aperta ? "(horário)" : "(anti-horário)") + '</div>' +
+      '<div class="qtd">' + graus(d.adjust_raw || d.adjust) + " " + (aperta ? "(horário)" : "(anti-horário)") + '</div>' +
       '<div class="det">Canto ' + (aperta ? "ALTO" : "BAIXO") + " " + delta + "mm — vai " + (aperta ? "descer" : "subir") + '</div>';
   }
   status("Ajuste os indicados e meça de novo. Mesa segue aquecida.", false);
