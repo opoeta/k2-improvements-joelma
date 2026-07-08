@@ -32,10 +32,12 @@ rm -rf ${SRC}
 mkdir -p ${SRC} ${KAMP_DIR}
 tar xzf ${TGZ} -C ${SRC}
 cp -f ${SRC}/*/Configuration/Line_Purge.cfg ${KAMP_DIR}/Line_Purge.cfg
+cp -f ${SRC}/*/Configuration/Adaptive_Meshing.cfg ${KAMP_DIR}/Adaptive_Meshing.cfg
 rm -rf ${TGZ} ${SRC}
 
 # 2. Symlink do Line_Purge + copia dos settings ajustaveis
 ln -sfn ${KAMP_DIR}/Line_Purge.cfg ~/printer_data/config/custom/Line_Purge.cfg
+ln -sfn ${KAMP_DIR}/Adaptive_Meshing.cfg ~/printer_data/config/custom/Adaptive_Meshing.cfg
 cp -f ${SCRIPT_DIR}/kamp_settings.cfg ~/printer_data/config/custom/kamp_settings.cfg
 
 # 3. [exclude_object] apenas se nao existir em nenhum cfg
@@ -54,6 +56,8 @@ python ${SCRIPT_DIR}/../../scripts/ensure_included.py \
     ~/printer_data/config/custom/main.cfg kamp_settings.cfg
 python ${SCRIPT_DIR}/../../scripts/ensure_included.py \
     ~/printer_data/config/custom/main.cfg Line_Purge.cfg
+python ${SCRIPT_DIR}/../../scripts/ensure_included.py \
+    ~/printer_data/config/custom/main.cfg Adaptive_Meshing.cfg
 
 /etc/init.d/klipper restart
 echo "I: KAMP LINE_PURGE instalado - ligue Label objects no slicer e troque a prime line por LINE_PURGE"
