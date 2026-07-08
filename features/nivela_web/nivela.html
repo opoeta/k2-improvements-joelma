@@ -92,7 +92,7 @@ async function render(){
     const h3 = el.querySelector("h3").outerHTML;
     if (!d) { el.innerHTML = h3 + '<div class="acao">—</div>'; continue; }
     if (d.is_base) { el.className = "canto base"; el.innerHTML = h3 + '<div class="acao">🔵 BASE</div><div class="det">Referência — não mexer</div>'; continue; }
-    const [v,m] = d.adjust.split(":").map(Number);
+    const [v,m] = (d.adjust_raw || d.adjust).split(":").map(Number);
     const tot = v*60 + m;
     const delta = Math.abs(d.z - zbase).toFixed(3);
     if (tot <= 3) { el.className = "canto ok"; el.innerHTML = h3 + '<div class="acao">✓ OK</div><div class="det">Desvio ' + delta + 'mm — não mexer</div>'; continue; }
@@ -100,7 +100,7 @@ async function render(){
     el.className = "canto " + (tot > 20 ? "bad" : "warn");
     el.innerHTML = h3 +
       '<div class="acao">' + (aperta ? HOR : ANT) + (aperta ? "APERTAR" : "SOLTAR") + '</div>' +
-      '<div class="qtd">' + fracao(d.adjust) + " " + (aperta ? "(horário)" : "(anti-horário)") + '</div>' +
+      '<div class="qtd">' + fracao(d.adjust_raw || d.adjust) + " " + (aperta ? "(horário)" : "(anti-horário)") + '</div>' +
       '<div class="det">Canto ' + (aperta ? "ALTO" : "BAIXO") + " " + delta + "mm — vai " + (aperta ? "descer" : "subir") + '</div>';
   }
   status("Ajuste os indicados e meça de novo. Mesa segue aquecida.", false);
