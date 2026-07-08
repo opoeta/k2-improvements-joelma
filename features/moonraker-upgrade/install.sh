@@ -1,0 +1,79 @@
+#!/bin/ash
+# Moonraker upstream (via DnG-Crafts/K2-Camera): camera no Fluidd (iframe),
+# componente spoolman, update_manager e API 1.4 - substitui o build cortado
+# da Creality. Backup automatico em /usr/share/moonraker_backup.
+# Reverter: parar moonraker, restaurar o backup, iniciar.
+
+set -e
+SRC=/mnt/UDISK/.k2cam-src
+ZIP=/mnt/UDISK/k2cam.zip
+URL="https://github.com/DnG-Crafts/K2-Camera/archive/refs/heads/main.zip"
+CONF=/usr/share/moonraker/moonraker.conf
+MUDOU=0
+
+if ! grep -q "API_VERSION = (1, 4" /usr/share/moonraker/server.py 2>/dev/null; then
+    echo "I: baixando K2-Camera (zip via python3)"
+    python3 - "$URL" "$ZIP" << 'PYEOF'
+import socket, ssl, sys, urllib.request
+socket.setdefaulttimeout(60)
+url, dest = sys.argv[1], sys.argv[2]
+try:
+    urllib.request.urlretrieve(url, dest)
+except Exception:
+    ctx = ssl._create_unverified_context()
+    with urllib.request.urlopen(url, context=ctx) as r, open(dest, "wb") as f:
+        f.write(r.read())
+PYEOF
+    rm -rf ${SRC}
+    mkdir -p ${SRC}
+    python3 -c "import shutil; shutil.unpack_archive('${ZIP}', '${SRC}')"
+    /etc/init.d/moonraker stop || true
+    if [ ! -e /usr/share/moonraker_backup ]; then
+        echo "I: backup do moonraker original em /usr/share/moonraker_backup"
+        mv /usr/share/moonraker /usr/share/moonraker_backup
+    fi
+    rm -rf /usr/share/moonraker
+    cp -r ${SRC}/K2-Camera-main/moonraker /usr/share/moonraker
+    for f in camera.html snapshot.html index.html favicon.ico mylogo.png; do
+        cp ${SRC}/K2-Camera-main/${f} /usr/share/frontend/${f}
+    done
+    cp ${SRC}/K2-Camera-main/camera.html   /usr/share/fluidd/camera.html
+    cp ${SRC}/K2-Camera-main/snapshot.html /usr/share/fluidd/snapshot.html
+    rm -rf ${ZIP} ${SRC}
+    MUDOU=1
+    echo "I: moonraker upstream instalado"
+fi
+
+# CORS por IP: a Central em http://IP:4408 precisa
+if ! grep -q '10.10.1' ${CONF}; then
+    sed -i 's|^cors_domains:|cors_domains:\n  *://10.10.1.*|' ${CONF}
+    MUDOU=1
+    echo "I: cors_domains ajustado para a LAN"
+fi
+
+if [ "$MUDOU" = "0" ]; then
+    echo "I: moonraker upstream ja instalado e configurado - nada a fazer"
+    exit 0
+fi
+
+/etc/init.d/moonraker restart || /etc/init.d/moonraker start
+
+python3 << 'PYEOF'
+import json, time, urllib.request
+for _ in range(30):
+    try:
+        json.load(urllib.request.urlopen("http://127.0.0.1:7125/server/info", timeout=3))
+        break
+    except Exception:
+        time.sleep(2)
+else:
+    raise SystemExit("E: moonraker nao subiu em 60s - rode o restore se necessario")
+try:
+    req = urllib.request.Request(
+        "http://127.0.0.1:7125/server/webcams/item?name=Joelma", method="DELETE")
+    urllib.request.urlopen(req, timeout=5)
+    print("I: registro antigo Joelma (webrtc-creality) removido do DB")
+except Exception:
+    pass
+print("I: moonraker upstream ativo - camera no Fluidd via [webcam Default]")
+PYEOF

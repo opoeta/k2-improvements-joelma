@@ -51,7 +51,10 @@ run_step macros/m191        features/macros/m191/install.sh
 run_step macros/start_print features/macros/start_print/install.sh
 run_step macros/overrides   features/macros/overrides/install.sh
 run_step macros/nivela      features/macros/nivela_parafusos/install.sh
-run_step camera             features/camera/install.sh
+# camera legada (registro webrtc-creality no DB) - substituida pelo
+# moonraker-upgrade, que traz a [webcam Default] via iframe
+#run_step camera             features/camera/install.sh
+run_step moonraker_upgrade  features/moonraker-upgrade/install.sh
 run_step nivela_web         features/nivela_web/install.sh
 
 # ---------- OPCIONAIS (descomente para instalar) ----------

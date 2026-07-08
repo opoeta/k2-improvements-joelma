@@ -323,21 +323,23 @@ $("off").onclick = () => roda("TURN_OFF_HEATERS", "Desligando aquecedores", 1);
 async function ligaCamera(){
   const st = $("camst"), v = $("cam");
   try {
-    const pc = new RTCPeerConnection();
-    pc.addTransceiver("video", {direction:"recvonly"});
+    const pc = new RTCPeerConnection({iceServers:[{urls:"stun:stun.l.google.com:19302"}]});
     pc.ontrack = ev => { v.srcObject = ev.streams[0]; st.textContent = "ao vivo — 1080p @15fps"; };
-    pc.onconnectionstatechange = () => { if (pc.connectionState === "failed") st.textContent = "conexão WebRTC falhou — use o card do Fluidd"; };
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    await new Promise(r => { if (pc.iceGatheringState === "complete") r(); else { pc.onicegatheringstatechange = () => { if (pc.iceGatheringState === "complete") r(); }; setTimeout(r, 1500); } });
-    const resp = await fetch("http://" + location.hostname + ":8000/call/webrtc_local", {
-      method: "POST", headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({type: pc.localDescription.type, sdp: pc.localDescription.sdp})});
-    if (!resp.ok) throw new Error("HTTP " + resp.status);
-    const j = await resp.json();
-    const ans = j.sdp ? j : (j.data && j.data.sdp ? j.data : (j.result && j.result.sdp ? j.result : null));
-    if (!ans) throw new Error("resposta sem SDP");
-    await pc.setRemoteDescription(ans);
+    pc.onicecandidate = async ev => {
+      if (ev.candidate !== null) return;
+      try {
+        const resp = await fetch("http://" + location.hostname + ":8000/call/webrtc_local", {
+          method: "POST", headers: {"Content-Type": "plain/text"},
+          body: btoa(JSON.stringify({type: "offer", sdp: pc.localDescription.sdp}))});
+        if (!resp.ok) throw new Error("HTTP " + resp.status);
+        const ans = JSON.parse(atob(await resp.text()));
+        if (ans.type === "answer") await pc.setRemoteDescription(new RTCSessionDescription(ans));
+        else throw new Error("resposta inesperada");
+      } catch(e) { st.textContent = "câmera indisponível: " + e.message; }
+    };
+    pc.addTransceiver("video", {direction: "sendrecv"});
+    const d = await pc.createOffer();
+    await pc.setLocalDescription(d);
   } catch(e) { st.textContent = "câmera indisponível: " + e.message; }
 }
 ligaCamera();
