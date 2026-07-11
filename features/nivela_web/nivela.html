@@ -40,6 +40,32 @@
   .gauge { width:78px; height:78px; flex:none; }
   #console { background:#0d0f13; border-radius:12px; margin-top:6px; height:220px; overflow-y:auto; padding:8px 10px; font-family:ui-monospace,Consolas,monospace; font-size:.76rem; line-height:1.45; }
   #console .e { color:#ef9a9a; } #console .i { color:#78909c; } #console .n { color:#c5e1a5; } #console .c { color:#eceff1; }
+  .cfs-head { display:flex; gap:14px; justify-content:center; font-size:.85rem; color:var(--mut); margin:2px 0 8px; flex-wrap:wrap; }
+  .cfs-head b { color:var(--txt); }
+  .cfs-head .off { color:#e57373; }
+  .slots { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+  .slot { background:var(--card); border-radius:12px; padding:10px 8px; border-top:5px solid #3c4654; text-align:center; position:relative; min-height:132px; display:flex; flex-direction:column; align-items:center; }
+  .slot.vazio { opacity:.5; }
+  .slot.ativo { box-shadow:0 0 0 2px var(--ok); }
+  .swatch { width:44px; height:44px; border-radius:50%; border:2px solid #0006; margin:2px auto 6px; }
+  .slot .tag { font-weight:800; font-size:.9rem; }
+  .slot .mat { font-size:.82rem; color:var(--txt); margin-top:1px; }
+  .slot .len { font-size:.72rem; color:var(--mut); margin-top:3px; }
+  .slot .rfid { font-size:.62rem; color:#78909c; margin-top:2px; }
+  .slot-btns { display:flex; gap:4px; margin-top:auto; padding-top:6px; width:100%; }
+  .slot-btns button { flex:1; padding:7px 2px; font-size:.72rem; border-radius:8px; }
+  .b-load { background:var(--acc); }
+  .b-edit { background:#37474f; }
+  .cfs-acoes { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+  dialog.editor { border:0; border-radius:16px; background:var(--card); color:var(--txt); padding:18px; max-width:340px; width:92%; }
+  dialog.editor::backdrop { background:#000a; }
+  dialog.editor h3 { margin-bottom:12px; font-size:1rem; }
+  dialog.editor label { display:block; font-size:.8rem; color:var(--mut); margin:10px 0 4px; }
+  dialog.editor input, dialog.editor select { width:100%; padding:9px; border-radius:8px; border:1px solid #37474f; background:#0d0f13; color:var(--txt); font-size:.9rem; }
+  dialog.editor .cores { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
+  dialog.editor .cores span { width:28px; height:28px; border-radius:50%; cursor:pointer; border:2px solid transparent; }
+  dialog.editor .cores span.sel { border-color:#fff; }
+  dialog.editor .ed-btns { display:flex; gap:8px; margin-top:16px; }
   .aviso { text-align:center; color:var(--mut); font-size:.78rem; margin-top:10px; line-height:1.5; }
 
 </style>
@@ -66,6 +92,34 @@
 <h2>📷 CÂMERA</h2>
 <video id="cam" autoplay playsinline muted style="width:100%;border-radius:12px;background:#000;max-height:340px"></video>
 <div id="camst" class="det" style="text-align:center;margin-top:4px">conectando câmera...</div>
+
+<h2>📦 CFS — CENTRAL DE FILAMENTOS</h2>
+<div class="cfs-head" id="cfshead"><span id="cfsconn">conectando ao CFS...</span></div>
+<div class="slots" id="slots"></div>
+<div class="cfs-acoes">
+  <button id="cfsrefresh" class="principal">🔄 RELER RFID DOS SLOTS</button>
+  <button id="cfsquit">Descarregar material atual</button>
+</div>
+
+<dialog class="editor" id="editor">
+  <h3 id="ed-titulo">Editar slot</h3>
+  <label>Tipo de material</label>
+  <select id="ed-tipo">
+    <option>PLA</option><option>PETG</option><option>ABS</option><option>ASA</option>
+    <option>TPU</option><option>PA</option><option>PC</option><option>PLA-CF</option>
+    <option>PETG-CF</option><option>PA-CF</option><option>HIPS</option><option>PVA</option>
+  </select>
+  <label>Cor</label>
+  <div class="cores" id="ed-cores"></div>
+  <input type="color" id="ed-cor" style="margin-top:8px;height:40px;padding:2px">
+  <label>Nome/apelido (opcional)</label>
+  <input type="text" id="ed-nome" placeholder="ex: Vermelho Voolt, PLA Silk...">
+  <div class="ed-btns">
+    <button class="salvar" id="ed-ok" style="flex:1">Salvar rótulo</button>
+    <button id="ed-limpa">Limpar</button>
+    <button id="ed-cancela">Cancelar</button>
+  </div>
+</dialog>
 
 <h2>🔩 NIVELAMENTO DOS PARAFUSOS</h2>
 <div class="botoes">
@@ -130,7 +184,7 @@ function conectaWS(){
     if (d.method === "notify_status_update") aplicaStatus(d.params[0]);
     else if (d.method === "notify_gcode_response") logLinha(d.params[0]);
     else if (d.method === "notify_klippy_disconnected") { klipperOk = false; setStatus("Klipper reiniciando...", "aguardando voltar", "busy"); }
-    else if (d.method === "notify_klippy_ready") { klipperOk = true; setStatus("Pronta", "Klipper ready", "on"); rpc("printer.objects.subscribe", {objects:{heater_bed:["temperature","target"],extruder:["temperature","target"],idle_timeout:["state"],display_status:["message"]}}); render().catch(()=>{}); }
+    else if (d.method === "notify_klippy_ready") { klipperOk = true; setStatus("Pronta", "Klipper ready", "on"); rpc("printer.objects.subscribe", {objects:{heater_bed:["temperature","target"],extruder:["temperature","target"],idle_timeout:["state"],display_status:["message"]}}); render().catch(()=>{}); renderCFS().catch(()=>{}); }
     else if (d.id && pend[d.id]) { const p = pend[d.id]; delete pend[d.id]; d.error ? p.rej(new Error(d.error.message)) : p.res(d.result); }
   };
   ws.onclose = () => { setStatus("Moonraker desconectado", "reconectando em 3s...", "err"); setTimeout(conectaWS, 3000); };
@@ -343,9 +397,112 @@ async function ligaCamera(){
     await pc.setLocalDescription(d);
   } catch(e) { st.textContent = "câmera indisponível: " + e.message; }
 }
+// ---------- CFS: leitura, render, acoes e rotulos locais ----------
+// Codigos de material da Creality -> nome legivel (fallback quando RFID traz codigo)
+const MAT_COD = {"000001":"PLA","003001":"ABS","002001":"PETG","004001":"TPU","005001":"ASA","006001":"PA","007001":"PC"};
+// Cor da Creality vem "0RRGGBB" (prefixo 0). Normaliza pra #RRGGBB.
+function corHex(v){ if(!v||v==="-1") return null; const h=String(v).replace(/^0/,""); return "#"+h.padStart(6,"0").slice(-6); }
+function matNome(v){ if(!v||v==="-1") return null; return MAT_COD[v] || v; }
+const PALETA = ["#e53935","#ff9800","#fdd835","#43a047","#00acc1","#1e88e5","#5e35b1","#d81b60","#6d4c41","#ffffff","#9e9e9e","#000000"];
+
+// Rotulos locais (override do usuario) por SN do CFS + slot; sem tocar no firmware
+function rotKey(sn, tnn){ return "cfsrot:" + sn + ":" + tnn; }
+function getRot(sn, tnn){ try { return JSON.parse(localStorage.getItem(rotKey(sn,tnn))||"null"); } catch(e){ return null; } }
+function setRot(sn, tnn, obj){ if(obj) localStorage.setItem(rotKey(sn,tnn), JSON.stringify(obj)); else localStorage.removeItem(rotKey(sn,tnn)); }
+
+let cfsSN = "-1", cfsEditando = null;
+
+async function renderCFS(){
+  const q = await rpc("printer.objects.query", {objects:{box:null, filament_rack:null}});
+  const box = q.status.box;
+  const head = $("cfshead"), slots = $("slots");
+  if (!box) { $("cfsconn").textContent = "objeto box indisponivel"; return; }
+  if (box.state !== "connect") {
+    head.innerHTML = '<span class="off">CFS desconectado (' + (box.state||"?") + ')</span>';
+    slots.innerHTML = "";
+    return;
+  }
+  const t1 = box.T1 || {};
+  cfsSN = t1.sn && t1.sn !== "-1" ? t1.sn : "cfs1";
+  const temp = t1.temperature, umid = t1.dry_and_humidity;
+  const rack = q.status.filament_rack || {};
+  const atualCor = corHex(rack.remain_material_color);
+  head.innerHTML =
+    '<span>🌡️ <b>' + (temp&&temp!=="None"?temp+"°C":"—") + '</b></span>' +
+    '<span>💧 Umidade <b>' + (umid&&umid!=="None"?umid+"%":"—") + '</b>' + (umid&&+umid>=60?' ⚠️':'') + '</span>' +
+    '<span>fw <b>' + (t1.version||"—") + '</b></span>' +
+    '<span>auto-refill <b>' + (box.auto_refill?"ON":"off") + '</b></span>';
+
+  const letras = ["A","B","C","D"];
+  slots.innerHTML = "";
+  for (let i = 0; i < 4; i++) {
+    const tnn = "T1" + letras[i];
+    const tipoRfid = matNome((t1.material_type||[])[i]);
+    const corRfid = corHex((t1.color_value||[])[i]);
+    const remain = (t1.remain_len||[])[i];
+    const vender = (t1.vender||[])[i];
+    const rot = getRot(cfsSN, tnn);
+    const temFilamento = (tipoRfid || rot) && String(remain) !== "-1";
+
+    const cor = (rot&&rot.cor) || corRfid || "#2b313c";
+    const tipo = (rot&&rot.tipo) || tipoRfid || "vazio";
+    const nome = rot&&rot.nome ? rot.nome : (vender&&vender!=="unknown"&&vender!=="-1"?vender:"");
+    const ativo = atualCor && cor.toLowerCase() === atualCor.toLowerCase();
+
+    const el = document.createElement("div");
+    el.className = "slot" + (temFilamento ? "" : " vazio") + (ativo ? " ativo" : "");
+    el.style.borderTopColor = temFilamento ? cor : "#3c4654";
+    el.innerHTML =
+      '<div class="swatch" style="background:' + cor + '"></div>' +
+      '<div class="tag">' + tnn + (ativo ? ' ●' : '') + '</div>' +
+      '<div class="mat">' + tipo + '</div>' +
+      (nome ? '<div class="len">' + nome + '</div>' : '') +
+      (temFilamento && String(remain)!=="-1" ? '<div class="len">~' + remain + '%</div>' : '') +
+      '<div class="rfid">' + (rot ? '✏️ rotulado' : (tipoRfid ? 'RFID' : 'sem tag')) + '</div>' +
+      '<div class="slot-btns">' +
+        '<button class="b-load" data-tnn="' + tnn + '" ' + (temFilamento?'':'disabled') + '>Carregar</button>' +
+        '<button class="b-edit" data-edit="' + tnn + '" data-tipo="' + (tipo!=="vazio"?tipo:"") + '" data-cor="' + cor + '" data-nome="' + (nome||"") + '">✏️</button>' +
+      '</div>';
+    slots.appendChild(el);
+  }
+  slots.querySelectorAll(".b-load").forEach(b => b.onclick = () => {
+    const tnn = b.dataset.tnn;
+    roda("BOX_LOAD_MATERIAL TNN=" + tnn, "Carregando material do slot " + tnn + " (aquece, corta, purga)", 8, () => renderCFS());
+  });
+  slots.querySelectorAll(".b-edit").forEach(b => b.onclick = () => abreEditor(b.dataset));
+}
+
+// ---------- Editor de rotulo local ----------
+function abreEditor(ds){
+  cfsEditando = ds.edit;
+  $("ed-titulo").textContent = "Rotular slot " + ds.edit;
+  $("ed-tipo").value = ds.tipo || "PLA";
+  $("ed-nome").value = ds.nome || "";
+  $("ed-cor").value = /^#[0-9a-f]{6}$/i.test(ds.cor) ? ds.cor : "#e53935";
+  const cores = $("ed-cores"); cores.innerHTML = "";
+  PALETA.forEach(hex => {
+    const s = document.createElement("span");
+    s.style.background = hex;
+    if (hex.toLowerCase() === (ds.cor||"").toLowerCase()) s.className = "sel";
+    s.onclick = () => { $("ed-cor").value = hex; cores.querySelectorAll("span").forEach(x=>x.className=""); s.className="sel"; };
+    cores.appendChild(s);
+  });
+  $("editor").showModal();
+}
+$("ed-ok").onclick = () => {
+  setRot(cfsSN, cfsEditando, {tipo:$("ed-tipo").value, cor:$("ed-cor").value, nome:$("ed-nome").value.trim()});
+  $("editor").close(); renderCFS();
+};
+$("ed-limpa").onclick = () => { setRot(cfsSN, cfsEditando, null); $("editor").close(); renderCFS(); };
+$("ed-cancela").onclick = () => $("editor").close();
+
+$("cfsrefresh").onclick = () => roda("BOX_INFO_REFRESH", "Relendo RFID de todos os slots", 3, () => setTimeout(renderCFS, 1500));
+$("cfsquit").onclick = () => roda("BOX_QUIT_MATERIAL", "Descarregando material atual", 6, () => renderCFS());
+
 ligaCamera();
 conectaWS();
 render().catch(()=>{});
+renderCFS().catch(()=>{});
 </script>
 </body>
 </html>
