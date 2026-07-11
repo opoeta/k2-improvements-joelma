@@ -543,7 +543,7 @@ function rotKey(sn, tnn){ return "cfsrot:" + sn + ":" + tnn; }
 function getRot(sn, tnn){ try { return JSON.parse(localStorage.getItem(rotKey(sn,tnn))||"null"); } catch(e){ return null; } }
 function setRot(sn, tnn, obj){ if(obj) localStorage.setItem(rotKey(sn,tnn), JSON.stringify(obj)); else localStorage.removeItem(rotKey(sn,tnn)); }
 
-let cfsSN = "-1", cfsEditando = null;
+let cfsSN = "-1", cfsEditando = null, cfsTentativas = 0;
 
 async function renderCFS(){
   await carregaSpools();
@@ -552,10 +552,19 @@ async function renderCFS(){
   const head = $("cfshead"), slots = $("slots");
   if (!box) { $("cfsconn").textContent = "objeto box indisponivel"; return; }
   if (box.state !== "connect") {
-    head.innerHTML = '<span class="off">CFS desconectado (' + (box.state||"?") + ')</span>';
+    // logo apos reinicio do Klipper o CFS reconecta pelo barramento 485 e pode
+    // reportar estado transitorio; tenta de novo algumas vezes antes de desistir
+    if (cfsTentativas < 6) {
+      cfsTentativas++;
+      head.innerHTML = '<span>CFS reconectando' + '.'.repeat(cfsTentativas) + ' (' + (box.state||"?") + ')</span>';
+      setTimeout(() => renderCFS().catch(()=>{}), 2500);
+      return;
+    }
+    head.innerHTML = '<span class="off">CFS desconectado (' + (box.state||"?") + ') \u2014 verifique se esta ligado</span>';
     slots.innerHTML = "";
     return;
   }
+  cfsTentativas = 0;
   const t1 = box.T1 || {};
   cfsSN = t1.sn && t1.sn !== "-1" ? t1.sn : "cfs1";
   const temp = t1.temperature, umid = t1.dry_and_humidity;
