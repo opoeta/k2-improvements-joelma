@@ -74,6 +74,18 @@ if [ -f "${FEAT_DIR}/spoolman_admin.py" ]; then
     cp "${FEAT_DIR}/spoolman_admin.py" /usr/share/moonraker/components/spoolman_admin.py
     echo "I: componente spoolman_admin.py copiado"
 fi
+if [ -f "${FEAT_DIR}/joelma_info.py" ]; then
+    cp "${FEAT_DIR}/joelma_info.py" /usr/share/moonraker/components/joelma_info.py
+    echo "I: componente joelma_info.py copiado"
+fi
+if ! grep -q '^\[joelma_info\]' ${CONF}; then
+    cat >> ${CONF} <<'JINFO'
+
+[joelma_info]
+JINFO
+    MUDOU=1
+    echo "I: [joelma_info] ativado (versao do firmware da impressora)"
+fi
 if ! grep -q '^\[spoolman_admin\]' ${CONF}; then
     cat >> ${CONF} <<'SPADM'
 
