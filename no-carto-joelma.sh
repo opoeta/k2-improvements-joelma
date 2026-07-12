@@ -51,6 +51,8 @@ run_step macros/m191        features/macros/m191/install.sh
 run_step macros/start_print features/macros/start_print/install.sh
 run_step macros/overrides   features/macros/overrides/install.sh
 run_step macros/nivela      features/macros/nivela_parafusos/install.sh
+# blindagem do bug key171/key60 (BOX_SET_PRE_LOADING com ADDR/NUM vazios)
+run_step macros/box_guard   features/macros/box_guard/install.sh
 # camera legada (registro webrtc-creality no DB) - substituida pelo
 # moonraker-upgrade, que traz a [webcam Default] via iframe
 #run_step camera             features/camera/install.sh

@@ -520,6 +520,9 @@
   <input type="color" id="ed-cor" style="margin-top:8px;height:40px;padding:2px">
   <label>Nome/apelido (opcional)</label>
   <input type="text" id="ed-nome" placeholder="ex: Vermelho Voolt, PLA Silk...">
+  <label>Spool do Spoolman</label>
+  <select id="ed-spool"><option value="">— sem vínculo —</option></select>
+  <div class="dica" style="margin-top:10px">Em slot com tag RFID, material e cor vêm da tag (igual ao Orca/Creality Print); sem tag, valem o spool vinculado ou o rótulo. O apelido aparece sempre.</div>
   <div class="ed-btns">
     <button class="salvar" id="ed-ok" style="flex:1">Salvar rótulo</button>
     <button id="ed-limpa">Limpar</button>
@@ -1207,11 +1210,16 @@ async function renderCFS(){
     const remain = (t1.remain_len||[])[i];
     const vender = (t1.vender||[])[i];
     const rot = getRot(cfsSN, tnn);
-    const temFilamento = (tipoRfid || rot) && String(remain) !== "-1";
+    // tag RFID ou spool vinculado = slot ocupado, mesmo com remain -1;
+    // rotulo local sozinho so conta se o CFS reporta filamento no slot
+    const temFilamento = !!tipoRfid || !!(spoolCache && spoolCache[tnn]) || !!(rot && String(remain) !== "-1");
 
-    const cor = (rot&&rot.cor) || corRfid || "#2b313c";
-    const tipo = (rot&&rot.tipo) || tipoRfid || "vazio";
     const spool = spoolCache && spoolCache[tnn];
+    const spF = (spool && spool.filament) || null;
+    // RFID manda; sem tag valem o spool do Spoolman e depois o rotulo local —
+    // senao um rotulo antigo mascara a cor real que o Orca/Creality Print veem
+    const cor = corRfid || (spF && spF.color_hex ? "#" + String(spF.color_hex).slice(0,6) : null) || (rot&&rot.cor) || "#2b313c";
+    const tipo = tipoRfid || (spF && spF.material) || (rot&&rot.tipo) || "vazio";
     const spNome = spool && spool.filament ? ((spool.filament.vendor&&spool.filament.vendor.name?spool.filament.vendor.name+" ":"")+spool.filament.name) : "";
     const nome = rot&&rot.nome ? rot.nome : (spNome || (vender&&vender!=="unknown"&&vender!=="-1"?vender:""));
     const ativo = atualCor && cor.toLowerCase() === atualCor.toLowerCase();
@@ -1225,7 +1233,8 @@ async function renderCFS(){
       '<div class="mat">' + tipo + '</div>' +
       (nome ? '<div class="len">' + nome + '</div>' : '') +
       (temFilamento && String(remain)!=="-1" ? '<div class="len">~' + remain + '%</div>' : '') +
-      '<div class="rfid">' + (rot ? svgIc("edit")+' rotulado' : (spool ? svgIc("spool")+' #'+spool.id : (tipoRfid ? svgIc("tag")+' RFID' : 'sem tag'))) + '</div>' +
+      (spool && spool.remaining_weight != null ? '<div class="len">' + Math.round(spool.remaining_weight) + 'g no Spoolman</div>' : '') +
+      '<div class="rfid">' + (tipoRfid ? svgIc("tag")+' RFID' + (rot ? ' +rótulo' : '') : (rot ? svgIc("edit")+' rotulado' : (spool ? svgIc("spool")+' #'+spool.id : 'sem tag'))) + '</div>' +
       '<div class="slot-btns">' +
         '<button class="b-load" data-tnn="' + tnn + '" ' + (temFilamento?'':'disabled') + '>' + svgIc("load") + ' Carregar</button>' +
         '<button class="b-edit" data-edit="' + tnn + '" data-tipo="' + (tipo!=="vazio"?tipo:"") + '" data-cor="' + cor + '" data-nome="' + (nome||"") + '">' + svgIc("edit") + '</button>' +
@@ -1255,9 +1264,54 @@ function abreEditor(ds){
     cores.appendChild(s);
   });
   $("editor").showModal();
+  carregaSpoolSelect(ds.edit);
 }
-$("ed-ok").onclick = () => {
+// ---------- Spoolman no editor do slot: vinculo spool <-> TNN ----------
+// O vinculo e gravado no PROPRIO Spoolman (extra.tag = TNN), a mesma marca
+// que o "Sincronizar" usa — vale pra qualquer cliente, nao so este navegador.
+async function carregaSpoolSelect(tnn){
+  const sel = $("ed-spool");
+  sel.innerHTML = '<option value="">— sem vínculo —</option>';
+  try {
+    const sp = await spoolProxy("GET", "/v1/spool");
+    (Array.isArray(sp)?sp:[]).forEach(s => {
+      if (s.archived) return;
+      const f = s.filament || {};
+      const nome = (f.vendor&&f.vendor.name ? f.vendor.name+" " : "") + (f.name || ("spool #"+s.id));
+      const t = spoolTnn(s);
+      const o = document.createElement("option");
+      o.value = s.id;
+      o.textContent = "#" + s.id + " " + nome + " (" + (f.material||"?") +
+        (s.remaining_weight!=null ? ", " + Math.round(s.remaining_weight) + "g" : "") + ")" +
+        (t && t !== tnn ? " → " + t : "");
+      if (t === tnn) o.selected = true;
+      sel.appendChild(o);
+    });
+  } catch(e) {
+    sel.innerHTML = '<option value="">Spoolman indisponível</option>';
+  }
+}
+async function vinculaSpool(tnn, spoolId){
+  await carregaSpools();
+  const atual = spoolCache && spoolCache[tnn];
+  if (atual && atual.id !== spoolId) {
+    const ex = Object.assign({}, atual.extra); delete ex.tag;
+    await spoolProxy("PATCH", "/v1/spool/" + atual.id, {extra: ex});
+    logLinha("[SPOOLMAN] " + tnn + " desvinculado do spool #" + atual.id);
+  }
+  if (spoolId && (!atual || atual.id !== spoolId)) {
+    const s = await spoolProxy("GET", "/v1/spool/" + spoolId);
+    const ex = Object.assign({}, s.extra || {});
+    ex.tag = JSON.stringify(tnn);
+    await spoolProxy("PATCH", "/v1/spool/" + spoolId, {extra: ex});
+    logLinha("[SPOOLMAN] " + tnn + " vinculado ao spool #" + spoolId);
+  }
+}
+$("ed-ok").onclick = async () => {
   setRot(cfsSN, cfsEditando, {tipo:$("ed-tipo").value, cor:$("ed-cor").value, nome:$("ed-nome").value.trim()});
+  const alvo = $("ed-spool").value;
+  try { await vinculaSpool(cfsEditando, alvo ? +alvo : null); }
+  catch(e) { logLinha("!! Spoolman: " + e.message); }
   $("editor").close(); renderCFS();
 };
 $("ed-limpa").onclick = () => { setRot(cfsSN, cfsEditando, null); $("editor").close(); renderCFS(); };
@@ -1304,10 +1358,11 @@ $("cfssync").onclick = async () => {
       const corRfid = corHex((t1.color_value||[])[i]);
       const remain = (t1.remain_len||[])[i];
       const rot = getRot(cfsSN, tnn);
-      const temFilamento = (tipoRfid || rot) && String(remain) !== "-1";
+      const temFilamento = !!tipoRfid || !!(rot && String(remain) !== "-1");
       if (!temFilamento) continue;
-      const tipo = (rot&&rot.tipo) || tipoRfid || "PLA";
-      const corH = ((rot&&rot.cor) || corRfid || "#cccccc").replace("#","");
+      // mesma precedencia do renderCFS: RFID manda, rotulo preenche lacuna
+      const tipo = tipoRfid || (rot&&rot.tipo) || "PLA";
+      const corH = (corRfid || (rot&&rot.cor) || "#cccccc").replace("#","");
       const pct = String(remain)!=="-1" ? +remain : 100;
       try {
         const r = await syncSlot(tnn, tipo, corH, pct);
