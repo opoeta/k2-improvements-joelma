@@ -95,6 +95,13 @@ menu_update_installer()  {
     if [ -d "$INSTALLER_DIR/.git" ]; then
         info "git pull in $INSTALLER_DIR"
         ( cd "$INSTALLER_DIR" && git pull --ff-only )
+        # O pull so atualiza o repo; a Central de Calibracao e uma COPIA em
+        # /usr/share/fluidd (features/nivela_web/install.sh). Sem redeploy,
+        # a pagina servida na :4408 fica presa na versao antiga.
+        if [ -f "$INSTALLER_DIR/features/nivela_web/install.sh" ] && [ -d /usr/share/fluidd ]; then
+            info "redeploy da Central de Calibracao (calibra.html)"
+            sh "$INSTALLER_DIR/features/nivela_web/install.sh"
+        fi
     else
         warn "$INSTALLER_DIR is not a git checkout — can't auto-update."
         warn "Re-run bootstrap.sh from the host to refresh."
