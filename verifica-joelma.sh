@@ -22,6 +22,7 @@ fi
 echo ""
 echo "[1] Firmware detectado: ${FW:-DESCONHECIDO}"
 case "$FW" in
+    1.1.6.*)  echo "    OK - rota da Joelma (no-carto-joelma.sh, adaptado ao 1.1.6.x)" ;;
     1.1.5.2)  echo "    OK - rota principal deste fork (testada)" ;;
     1.1.3.13) echo "    OK - suportado (rota do upstream Jacob10383)" ;;
     1.1.2.*)  echo "    ATENCAO - firmware 1.1.2.x tem bugs conhecidos (homing invertido)."
@@ -84,6 +85,29 @@ if [ -n "$CFG_DIR" ]; then
 else
     echo "    PULADO - config nao encontrado"
 fi
+
+# ---------- 6. Pecas do k2-improvements (se ja instalado) ----------
+echo ""
+echo "[6] Pecas do k2-improvements ja instaladas:"
+ok()  { echo "    OK    - $1"; }
+falta(){ echo "    FALTA - $1"; }
+[ -f /usr/share/fluidd/calibra.html ] \
+    && ok "Central de Calibracao (calibra.html)" || falta "Central de Calibracao"
+grep -q "sensEl" /usr/share/fluidd/calibra.html 2>/dev/null \
+    && ok "calibra.html na versao atual (render in-place)" \
+    || falta "calibra.html atualizado (rode: joelma update)"
+[ -f /usr/share/moonraker/components/joelma_info.py ] \
+    && ok "componente joelma_info" || falta "componente joelma_info"
+[ -f /usr/share/moonraker/components/spoolman_admin.py ] \
+    && ok "componente spoolman_admin" || falta "componente spoolman_admin"
+[ -f /usr/share/moonraker/components/joelma_resonances.py ] \
+    && ok "componente joelma_resonances (graficos de ressonancia)" \
+    || falta "componente joelma_resonances"
+grep -q '^\[joelma_resonances\]' /usr/share/moonraker/moonraker.conf 2>/dev/null \
+    && ok "[joelma_resonances] no moonraker.conf" || falta "[joelma_resonances] no conf"
+[ -e /mnt/UDISK/printer_data/config/custom/box_guard.cfg ] \
+    && ok "box_guard (blindagem do bug key171 do BOX_INFO_REFRESH)" \
+    || falta "box_guard (macro de protecao do CFS)"
 
 echo ""
 echo "=========================================="

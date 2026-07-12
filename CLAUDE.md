@@ -41,11 +41,13 @@ devem ser **idempotentes** (`grep -q` antes de acrescentar).
 
 ## Bugs conhecidos — não tropece
 
-1. **`BOX_INFO_REFRESH` derruba o Klipper.** Emite internamente
-   `BOX_SET_PRE_LOADING ADDR= NUM= ACTION=RUN` com parâmetros **vazios**; o parser quebra
-   (`key171`) e o Klipper vai pra **shutdown** (`key60`). Recupera com `FIRMWARE_RESTART`.
-   O botão "RELER RFID DOS SLOTS" da Central é o gatilho.
-   **→ DECISÃO PENDENTE do Israel: remover / pedir confirmação / manter.**
+1. **`BOX_INFO_REFRESH` derrubava o Klipper.** Emite internamente
+   `BOX_SET_PRE_LOADING ADDR= NUM= ACTION=RUN` com parâmetros **vazios**; dentro do blob
+   compilado da Creality (`box_wrapper.cpython-39.so`, sem fonte público) isso vira `None`
+   (`NoneType &= int`) e o Klipper cai (`key171` + `key60`). Recupera com `FIRMWARE_RESTART`.
+   **→ MITIGADO (jul/2026):** feature `macros/box_guard` intercepta o comando via
+   `rename_existing` (ADDR/NUM vazios = no-op logado); a Central pede confirmação no botão
+   e mostra "Recuperar (FIRMWARE_RESTART)" se cair. Validar no 1º `joelma update`.
 2. **O daemon do Docker no NAS cai sozinho** (já caiu 2×). Quando cai, o Spoolman some e o
    Moonraker mostra `spoolman_connected: false`. Comando pra subir em `CLAUDE.local.md`.
 3. Containers `prometheus` e `PufferPanel` ficam em restart loop no NAS — fora de escopo.
@@ -53,7 +55,14 @@ devem ser **idempotentes** (`grep -q` antes de acrescentar).
 ## Fatos técnicos que NÃO devem ser redescobertos
 
 - **CFS = objeto Klipper `box`** (+ `filament_rack`), lido pelo Moonraker como qualquer
-  temperatura. A **porta 9999 não é REST** (404 em tudo) — não perca tempo lá.
+  temperatura. A **porta 9999 é WebSocket, não HTTP** (curl dá 404) — é por ela que o
+  **OrcaSlicer** lê o `boxsInfo` no sync do CFS (espera cor `"#0RRGGBB"`, ignora slot sem
+  `type`+`vendor`). `scripts/dump_cfs_9999.py` (roda no PC) captura o payload pra diagnóstico.
+- **Precedência de exibição na Central:** rótulo local > RFID > spool vinculado. O rótulo vive
+  só no navegador — o Orca lê o RFID direto da impressora e nunca vê o rótulo.
+- **Nome/tema do Fluidd:** banco do Moonraker —
+  `GET /server/database/item?namespace=fluidd&key=uiSettings.general.instanceName` (nome) e
+  `key=uiSettings.theme` (cor primária/claro-escuro). A Central usa os dois.
 - **Cor** do CFS vem como `"0RRGGBB"` (prefixo `0`) → normalizar pra `#RRGGBB`.
 - **Materiais:** `000001`=PLA `002001`=PETG `003001`=ABS `004001`=TPU `005001`=ASA
   `006001`=PA `007001`=PC
@@ -72,6 +81,9 @@ devem ser **idempotentes** (`grep -q` antes de acrescentar).
 - **Componentes próprios** (em `features/moonraker-upgrade/`, copiados pelo `install.sh`):
   - `spoolman_admin.py` → `/server/spoolman_admin/config` (GET/POST) e `/scan` (GET)
   - `joelma_info.py` → `/server/joelma/info` → `{firmware, board, modelo, modelo_cod}`
+  - `joelma_resonances.py` → `/server/joelma/resonances` (lista os CSVs de
+    TEST_RESONANCES/SHAPER_CALIBRATE em `/tmp`) e `/server/joelma/resonances/csv?nome=X`
+    (colunas + dados) — a Central desenha os gráficos com isso.
 
 ## Verificação rápida
 
@@ -90,7 +102,11 @@ pesquisa do CFS no OrcaSlicer, receitas de curl. **Leia sob demanda.**
 
 ## Pendências (nada de código bloqueado — tudo está no ar)
 
-- **Decidir** o que fazer com o botão "RELER RFID DOS SLOTS" (bug 1 acima).
+- **Validar ao vivo no 1º `joelma update`:** (a) `box_guard` segura o RELER RFID — o console
+  da Central deve logar `BOX_SET_PRE_LOADING ignorado: ADDR/NUM vazios` e o Klipper seguir
+  ready; se o boot reclamar do `rename_existing`, remover `[include box_guard.cfg]` de
+  `custom/main.cfg`; (b) gráficos de ressonância após um TEST_RESONANCES;
+  (c) vínculo Spoolman no editor do slot.
 - **Teste físico** da inversão APERTAR/SOLTAR: aperta um canto e remede. Se o desvio **diminuir**
   → convenção certa. Se **aumentar** → inverter 1 linha em
   `features/screws_tilt_adjust/screws_tilt_adjust.py` (`_acao_pt`) **e** o

@@ -38,8 +38,9 @@ No NAS, **Spoolman 0.23.1** em `http://10.10.1.254:7912`. Catálogo: **24 spools
 | `1e3d830` | **Menu completo de calibrações** + renomeia `nivela.html` → `calibra.html` (com redirect) |
 | `c0062e0` | Painel de todos os sensores (auto-descoberto) + barra de sistema com firmware (`joelma_info` lê `fw_printenv`) + **mesh 3D interativo** |
 | `5dd6e5a` | Mostra a versão da API quando o Moonraker não carimba a versão |
+| `0cf0a05`…`4081a30` (jul/2026, PRs #1–#7) | Confirmação + botão de recuperação no RELER RFID · fix da piscada dos sensores (render in-place) · `joelma update` redeploya a Central · nome **e tema** do Fluidd aplicados na página · versão do CFS na sysbar · identidade visual Fluidd + **E-STOP** + painel de movimento (jog/Home XYZ) + aquecimento com presets + envio de G-code no console + filtro EMA das temperaturas · **gráficos de ressonância via REST** (componente `joelma_resonances`) · plano z=0 no mesh 3D · precedência rótulo/RFID/spool + **vínculo Spoolman no editor do slot** · **`box_guard`** (intercepta o bug key171) · reconexão automática do CFS pós-restart · `scripts/dump_cfs_9999.py` |
 
-**Tudo acima está aplicado e no ar.** Não há pacote de código pendente.
+**Tudo acima está mergeado na `main`.** Pendente de validação ao vivo: ver §7.1 e as Pendências.
 
 ---
 
@@ -56,10 +57,16 @@ No NAS, **Spoolman 0.23.1** em `http://10.10.1.254:7912`. Catálogo: **24 spools
   **sincronizar com Spoolman**
 - **Servidor Spoolman:** configurar pela UI + **scan da rede**
 - **Calibrações:** nivelamento dos parafusos (gauges), Z_TILT_ADJUST, mesh (**heatmap 3D
-  interativo**), probe & Z-offset, PID (mesa + bico + câmara), input shaper (LIS2DW),
-  pressure advance, extrusora, rotation distance, velocidade, diagnóstico
-  (endstops/fan/probe/sensor de filamento), CFS cut-pos, firmware restart
-- **Console ao vivo**
+  interativo com plano de referência z=0**), probe & Z-offset, PID (mesa + bico + câmara),
+  input shaper (LIS2DW) com **gráficos de ressonância** (CSVs de `/tmp` via
+  `joelma_resonances`), pressure advance, extrusora, rotation distance, velocidade,
+  diagnóstico (endstops/fan/probe/sensor de filamento), CFS cut-pos, firmware restart
+- **Identidade visual do Fluidd** (Roboto, cards Material) com **nome e tema** puxados do
+  próprio Fluidd (banco do Moonraker, `uiSettings`)
+- **E-STOP** na app bar (dupla confirmação) + **Movimento** (jog XY/Z, Home XY/Z/XYZ, passo
+  0.1–50 mm, desligar motores, posição ao vivo) + **Aquecimento** (alvos + presets)
+- **Console ao vivo** com **envio de G-code** (Enter envia) e carimbo da data da cópia servida
+- Sensores com **filtro EMA** (sem tremer) · slots CFS com **vínculo Spoolman** no editor
 
 ---
 
