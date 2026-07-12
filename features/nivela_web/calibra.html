@@ -752,7 +752,6 @@
 </div>
 <script>
 const base = location.protocol + "//" + location.hostname + ":7125";
-const wsUrl = (location.protocol === "https:" ? "wss://" : "ws://") + location.hostname + ":7125/websocket";
 const $ = id => document.getElementById(id);
 
 // ---------- Icones SVG (lucide-like), injetados nos <i data-ic="..."> ----------
@@ -833,7 +832,7 @@ function ocupaBotao(btn, ocupado, textoOcupado){
     btn.disabled = false;
   }
 }
-let ws = null, rpcId = 1, temps = [], klipperOk = false, ocupado = false;
+let temps = [], klipperOk = false, ocupado = false;
 
 // ---------- Estado / status ----------
 function setStatus(fazendo, detalhe, modo){
@@ -848,33 +847,72 @@ function trava(v){
     .forEach(b => { if (!b.classList.contains("busy")) b.disabled = v; });
 }
 
-// ---------- WebSocket Moonraker ----------
-function conectaWS(){
-  ws = new WebSocket(wsUrl);
-  ws.onopen = () => {
-    setStatus("Conectado", "aguardando dados...", "on");
-    rpc("printer.objects.subscribe", {objects: objsSub()});
-    rpc("server.gcode_store", {count:60}).then(r => (r.gcode_store||[]).forEach(m => logLinha(m.message)));
-  };
-  ws.onmessage = ev => {
-    const d = JSON.parse(ev.data);
-    if (d.method === "notify_status_update") aplicaStatus(d.params[0]);
-    else if (d.method === "notify_gcode_response") logLinha(d.params[0]);
-    else if (d.method === "notify_klippy_disconnected") { klipperOk = false; setStatus("Klipper reiniciando...", "aguardando voltar", "busy"); }
-    else if (d.method === "notify_klippy_ready") { klipperOk = true; setStatus("Pronta", "Klipper ready", "on"); rpc("printer.objects.subscribe", {objects: objsSub()}); render().catch(()=>{}); renderCFS().catch(()=>{}); leCalib(); }
-    else if (d.id && pend[d.id]) { const p = pend[d.id]; delete pend[d.id]; d.error ? p.rej(new Error(d.error.message)) : p.res(d.result); }
-  };
-  ws.onclose = () => { setStatus("Moonraker desconectado", "reconectando em 3s...", "err"); setTimeout(conectaWS, 3000); };
-  ws.onerror = () => ws.close();
+// ---------- Transporte: 100% REST (HTTP polling, sem WebSocket) ----------
+// O estado vem de GET /printer/objects/query + GET /printer/info a cada 1s e
+// o console de GET /server/gcode_store. rpc() vira um shim REST com a MESMA
+// assinatura de antes — nenhum call site da logica precisou mudar.
+let klipperEstado = null;   // ready / shutdown / error / startup
+let consoleT = 0;           // timestamp da ultima linha ja mostrada no console
+
+function qsObjetos(objects){
+  return Object.keys(objects).map(k => {
+    const v = objects[k];
+    return encodeURIComponent(k) + (Array.isArray(v) && v.length ? "=" + v.join(",") : "");
+  }).join("&");
 }
-const pend = {};
-function rpc(method, params){
-  return new Promise((res, rej) => {
-    const id = rpcId++;
-    pend[id] = {res, rej};
-    ws.send(JSON.stringify({jsonrpc:"2.0", method, params:params||{}, id}));
-    setTimeout(() => { if (pend[id]) { delete pend[id]; rej(new Error("timeout rpc")); } }, 15000);
-  });
+async function rpc(method, params){
+  params = params || {};
+  if (method === "printer.objects.query") {
+    const r = await fetch(base + "/printer/objects/query?" + qsObjetos(params.objects || {}));
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return (await r.json()).result;
+  }
+  if (method === "server.gcode_store") {
+    const r = await fetch(base + "/server/gcode_store?count=" + (params.count || 60));
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return (await r.json()).result;
+  }
+  return null;   // subscribe e afins: o polling ja cobre, nada a registrar
+}
+async function pollConsole(){
+  try {
+    const d = await rpc("server.gcode_store", {count: 100});
+    (d.gcode_store || []).forEach(m => {
+      if (m.time > consoleT) { consoleT = m.time; logLinha(m.message); }
+    });
+  } catch(e) {}
+}
+async function pollEstado(){
+  try {
+    const info = (await (await fetch(base + "/printer/info")).json()).result;
+    const st = info.state;
+    if (st !== klipperEstado) {
+      if (st === "ready") {
+        klipperOk = true;
+        setStatus("Pronta", "Klipper ready", "on");
+        $("recuperar").style.display = "none";
+        render().catch(()=>{}); renderCFS().catch(()=>{}); leCalib();
+      } else {
+        klipperOk = false;
+        setStatus("Klipper " + st, st === "shutdown" ? "use Recuperar (FIRMWARE_RESTART)" : "aguardando ficar pronto...", st === "shutdown" || st === "error" ? "err" : "busy");
+        if (st === "shutdown" || st === "error") $("recuperar").style.display = "";
+      }
+      klipperEstado = st;
+    }
+    if (st === "ready") {
+      const q = await rpc("printer.objects.query", {objects: objsSub()});
+      aplicaStatus(q.status);
+    }
+  } catch(e) {
+    klipperOk = false;
+    setStatus("Moonraker fora do ar", "tentando de novo em 1s...", "err");
+  }
+  pollConsole();
+}
+function conectaWS(){   // nome historico mantido; hoje inicia o polling REST
+  setStatus("Conectando ao Moonraker...", "REST polling 1s", "busy");
+  pollEstado();
+  setInterval(pollEstado, 1000);
 }
 let ultimo = {bed:null,bedT:null,ext:null,extT:null,cam:null,idle:"?"};
 function aplicaStatus(st){
@@ -1918,8 +1956,7 @@ async function descobreSensores(){
     const peso = o => o.obj === "extruder" ? 0 : o.obj === "heater_bed" ? 1 :
                       o.obj.indexOf("chamber") >= 0 ? 2 : 3;
     SENSORES.sort((a,b) => peso(a) - peso(b));
-    // ja conectado? re-assina incluindo os novos objetos
-    if (ws && ws.readyState === 1) rpc("printer.objects.subscribe", {objects: objsSub()});
+    // sem assinatura: o proximo ciclo do polling ja consulta os objetos novos
     renderSensores();
   } catch(e) { logLinha("!! sensores: " + e.message); }
 }
