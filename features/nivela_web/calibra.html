@@ -1641,34 +1641,44 @@ function iconeSensor(s){
   if (s.tipo === "aquecedor") return "flame";
   return "thermo";
 }
+// Monta cada card UMA vez e depois so atualiza os valores no lugar: recriar o
+// painel a cada status update reiniciava a animacao floatIn e ficava piscando.
+const sensEl = {};          // obj -> card montado no painel
 function renderSensores(){
   const el = $("sensores");
   if (!el || !SENSORES.length) return;
-  el.innerHTML = "";
   SENSORES.forEach(s => {
+    let d = sensEl[s.obj];
+    if (!d || d.parentNode !== el) {
+      d = document.createElement("div");
+      d.className = "sens frio";
+      d.innerHTML = svgIc(iconeSensor(s)) +
+        '<div class="sens-txt">' +
+          '<div class="sens-nome">' + s.nome + '</div>' +
+          '<div class="sens-val">\u2014</div>' +
+          '<div class="sens-alvo" style="display:none"></div>' +
+          '<div class="sens-pot" style="display:none"><i></i></div>' +
+        '</div>';
+      sensEl[s.obj] = d;
+      el.appendChild(d);
+    }
     const v = sensVal[s.obj] || {};
     const t = v.temperature;
     const alvo = v.target;
     const pot = v.power;             // aquecedores: 0..1
     const vel = v.speed;             // ventoinhas: 0..1
-    const d = document.createElement("div");
     d.className = "sens " + classeTemp(s, t);
-    let extra = "";
+    d.querySelector(".sens-val").textContent = t !== undefined && t !== null ? (+t).toFixed(1) + "\u00b0C" : "\u2014";
+    const ex = d.querySelector(".sens-alvo");
     if (alvo !== undefined && alvo !== null) {
-      extra = '<div class="sens-alvo">alvo <b>' + Math.round(alvo) + '\u00b0C</b></div>';
+      ex.style.display = ""; ex.innerHTML = 'alvo <b>' + Math.round(alvo) + '\u00b0C</b>';
     } else if (v.rpm !== undefined && v.rpm !== null) {
-      extra = '<div class="sens-alvo">' + Math.round(v.rpm) + ' rpm</div>';
-    }
-    let barra = "";
+      ex.style.display = ""; ex.textContent = Math.round(v.rpm) + ' rpm';
+    } else ex.style.display = "none";
     const frac = pot !== undefined && pot !== null ? pot : (vel !== undefined && vel !== null ? vel : null);
-    if (frac !== null) barra = '<div class="sens-pot"><i style="width:' + Math.round(frac*100) + '%"></i></div>';
-    d.innerHTML = svgIc(iconeSensor(s)) +
-      '<div class="sens-txt">' +
-        '<div class="sens-nome">' + s.nome + '</div>' +
-        '<div class="sens-val">' + (t !== undefined && t !== null ? (+t).toFixed(1) + '\u00b0C' : '\u2014') + '</div>' +
-        extra + barra +
-      '</div>';
-    el.appendChild(d);
+    const barra = d.querySelector(".sens-pot");
+    if (frac !== null) { barra.style.display = ""; barra.firstChild.style.width = Math.round(frac*100) + "%"; }
+    else barra.style.display = "none";
   });
 }
 
