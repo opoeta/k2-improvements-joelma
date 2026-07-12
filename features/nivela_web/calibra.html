@@ -251,6 +251,9 @@
   dialog.editor {
     border:0; border-radius:6px; background:var(--card); color:var(--txt);
     padding:22px; max-width:380px; width:92%; box-shadow:var(--elev2); animation:pop .3s ease both;
+    /* o reset '* {margin:0}' anula o margin:auto que centraliza o <dialog>
+       nativo — repoe aqui, senao o modal cola no canto superior esquerdo */
+    inset:0; margin:auto;
   }
   dialog.editor::backdrop { background:rgba(0,0,0,.6); backdrop-filter:blur(2px); }
   dialog.editor h3 { margin-bottom:14px; font-size:1.02rem; font-weight:500; display:flex; align-items:center; gap:8px; }
@@ -522,7 +525,7 @@
   <input type="text" id="ed-nome" placeholder="ex: Vermelho Voolt, PLA Silk...">
   <label>Spool do Spoolman</label>
   <select id="ed-spool"><option value="">— sem vínculo —</option></select>
-  <div class="dica" style="margin-top:10px">Em slot com tag RFID, material e cor vêm da tag (igual ao Orca/Creality Print); sem tag, valem o spool vinculado ou o rótulo. O apelido aparece sempre.</div>
+  <div class="dica" style="margin-top:10px">O rótulo que você define aqui manda na exibição desta Central. Sem rótulo, valem a tag RFID (o que o Orca/Creality Print leem) e depois o spool vinculado. O rótulo vive só aqui — o Orca lê o RFID direto da impressora.</div>
   <div class="ed-btns">
     <button class="salvar" id="ed-ok" style="flex:1">Salvar rótulo</button>
     <button id="ed-limpa">Limpar</button>
@@ -1225,10 +1228,12 @@ async function renderCFS(){
 
     const spool = spoolCache && spoolCache[tnn];
     const spF = (spool && spool.filament) || null;
-    // RFID manda; sem tag valem o spool do Spoolman e depois o rotulo local —
-    // senao um rotulo antigo mascara a cor real que o Orca/Creality Print veem
-    const cor = corRfid || (spF && spF.color_hex ? "#" + String(spF.color_hex).slice(0,6) : null) || (rot&&rot.cor) || "#2b313c";
-    const tipo = tipoRfid || (spF && spF.material) || (rot&&rot.tipo) || "vazio";
+    // Precedencia de EXIBICAO: o rotulo manual e a vontade explicita do usuario,
+    // entao manda; sem rotulo, vale o RFID (o que o Orca/Creality Print leem) e
+    // depois o spool do Spoolman. O rotulo so vive nesta Central — o Orca le o
+    // RFID direto da impressora, entao editar aqui nao muda o que o Orca ve.
+    const cor = (rot&&rot.cor) || corRfid || (spF && spF.color_hex ? "#" + String(spF.color_hex).slice(0,6) : null) || "#2b313c";
+    const tipo = (rot&&rot.tipo) || tipoRfid || (spF && spF.material) || "vazio";
     const spNome = spool && spool.filament ? ((spool.filament.vendor&&spool.filament.vendor.name?spool.filament.vendor.name+" ":"")+spool.filament.name) : "";
     const nome = rot&&rot.nome ? rot.nome : (spNome || (vender&&vender!=="unknown"&&vender!=="-1"?vender:""));
     const ativo = atualCor && cor.toLowerCase() === atualCor.toLowerCase();
@@ -1369,9 +1374,9 @@ $("cfssync").onclick = async () => {
       const rot = getRot(cfsSN, tnn);
       const temFilamento = !!tipoRfid || !!(rot && String(remain) !== "-1");
       if (!temFilamento) continue;
-      // mesma precedencia do renderCFS: RFID manda, rotulo preenche lacuna
-      const tipo = tipoRfid || (rot&&rot.tipo) || "PLA";
-      const corH = (corRfid || (rot&&rot.cor) || "#cccccc").replace("#","");
+      // mesma precedencia do renderCFS: rotulo manual manda, RFID preenche
+      const tipo = (rot&&rot.tipo) || tipoRfid || "PLA";
+      const corH = ((rot&&rot.cor) || corRfid || "#cccccc").replace("#","");
       const pct = String(remain)!=="-1" ? +remain : 100;
       try {
         const r = await syncSlot(tnn, tipo, corH, pct);
