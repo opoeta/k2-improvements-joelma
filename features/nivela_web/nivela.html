@@ -19,9 +19,10 @@
   @keyframes pop { 0% { opacity:0; transform:scale(.9); } 60% { transform:scale(1.02); } 100% { opacity:1; transform:scale(1); } }
   @keyframes pisca { 0%,100% { opacity:1; box-shadow:0 0 0 0 var(--glow); } 50% { opacity:.5; box-shadow:0 0 0 5px transparent; } }
   @keyframes pulseRing { 0% { box-shadow:0 0 0 0 rgba(34,197,94,.5); } 70% { box-shadow:0 0 0 8px rgba(34,197,94,0); } 100% { box-shadow:0 0 0 0 rgba(34,197,94,0); } }
-  @keyframes shimmer { 0% { background-position:-200% 0; } 100% { background-position:200% 0; } }
-  @keyframes spin { to { transform:rotate(360deg); } }
   @keyframes floatIn { from { opacity:0; transform:translateY(8px) scale(.96); } to { opacity:1; transform:translateY(0) scale(1); } }
+  @keyframes girar { to { transform:rotate(360deg); } }
+  @keyframes ripple { to { transform:scale(4); opacity:0; } }
+  @keyframes radar { 0% { transform:scale(.8); opacity:.8; } 100% { transform:scale(2.2); opacity:0; } }
   body {
     background:radial-gradient(1200px 600px at 50% -10%, #131826 0%, var(--bg) 55%) fixed;
     color:var(--txt); font-family:'Inter',system-ui,-apple-system,Roboto,sans-serif;
@@ -29,10 +30,14 @@
   }
   h1 {
     font-size:1.32rem; text-align:center; font-weight:800; letter-spacing:-.02em;
-    background:linear-gradient(135deg,#f1f5f9 0%,#94a3b8 100%); -webkit-background-clip:text;
-    background-clip:text; -webkit-text-fill-color:transparent; animation:surge .5s ease both;
+    display:flex; align-items:center; justify-content:center; gap:9px;
+    animation:surge .5s ease both;
   }
+  h1 .ic { width:24px; height:24px; color:var(--acc); }
   .sub { text-align:center; color:var(--mut); font-size:.8rem; margin-bottom:14px; animation:surge .5s .05s ease both; }
+  .ic { width:16px; height:16px; flex:none; stroke:currentColor; fill:none; stroke-width:2;
+        stroke-linecap:round; stroke-linejoin:round; vertical-align:-2px; }
+  .ic.girando { animation:girar 1s linear infinite; }
   .statusbar {
     background:var(--glass); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
     border:1px solid var(--line); border-radius:16px; padding:12px 16px; margin-bottom:12px;
@@ -48,18 +53,24 @@
     font-size:.7rem; color:var(--dim); margin:20px 0 10px; letter-spacing:.14em; text-transform:uppercase;
     font-weight:700; display:flex; align-items:center; gap:8px; animation:surge .4s ease both;
   }
+  h2 .ic { width:14px; height:14px; color:var(--acc); }
   h2::after { content:""; flex:1; height:1px; background:linear-gradient(90deg,var(--line),transparent); }
   .botoes { display:flex; gap:8px; flex-wrap:wrap; }
   button {
     border:0; border-radius:12px; padding:12px 16px; font-size:.9rem; font-weight:700; color:#fff; cursor:pointer;
     background:linear-gradient(135deg,#3a4252,#2a3141); border:1px solid rgba(255,255,255,.06);
-    transition:transform .15s cubic-bezier(.34,1.56,.64,1), box-shadow .2s, filter .2s; position:relative; overflow:hidden;
+    transition:transform .15s cubic-bezier(.34,1.56,.64,1), box-shadow .2s, filter .2s;
+    position:relative; overflow:hidden; display:inline-flex; align-items:center; justify-content:center; gap:7px;
   }
-  button:active { transform:scale(.95); }
+  button:active:not(:disabled) { transform:scale(.95); }
   button:hover:not(:disabled) { filter:brightness(1.12); box-shadow:0 6px 18px rgba(0,0,0,.35); transform:translateY(-1px); }
   button.principal { background:linear-gradient(135deg,var(--acc),var(--accg)); flex:1 1 100%; font-size:1.02rem; box-shadow:0 4px 16px var(--glow); }
   button.salvar { background:linear-gradient(135deg,#fbbf24,#f59e0b); color:#1a1206; animation:pop .4s ease both; }
-  button:disabled { opacity:.35; cursor:not-allowed; }
+  button.ghost { background:rgba(148,163,184,.08); border:1px solid var(--line); color:var(--txt); }
+  button:disabled { opacity:.4; cursor:not-allowed; }
+  button.busy { pointer-events:none; }
+  .ripple { position:absolute; border-radius:50%; transform:scale(0); animation:ripple .6s linear;
+            background:rgba(255,255,255,.35); pointer-events:none; }
   canvas { width:100%; height:180px; background:linear-gradient(180deg,var(--card),var(--bg2)); border:1px solid var(--line); border-radius:16px; margin-top:6px; box-shadow:inset 0 1px 0 rgba(255,255,255,.03); animation:floatIn .5s ease both; }
   .temps { display:flex; gap:16px; font-size:.85rem; color:var(--mut); margin-top:8px; justify-content:center; flex-wrap:wrap; }
   .temps span { display:flex; align-items:center; gap:5px; }
@@ -83,7 +94,7 @@
   .warn { border-left-color:var(--warn); } .warn .acao { color:#fbbf24; }
   .bad { border-left-color:var(--bad); } .bad .acao { color:#f87171; }
   .base { border-left-color:var(--base); } .base .acao { color:#60a5fa; font-size:1rem; }
-  svg { width:30px; height:30px; flex:none; }
+  svg.seta { width:30px; height:30px; flex:none; }
   .gauge { width:80px; height:80px; flex:none; filter:drop-shadow(0 2px 6px rgba(0,0,0,.4)); transition:transform .4s cubic-bezier(.34,1.56,.64,1); }
   .canto:hover .gauge { transform:scale(1.06) rotate(-3deg); }
   #console {
@@ -94,6 +105,27 @@
   #console div { animation:surge .25s ease both; }
   #console .e { color:#fca5a5; } #console .i { color:#7dd3fc; } #console .n { color:#bef264; } #console .c { color:#e2e8f0; }
   #console::-webkit-scrollbar { width:6px; } #console::-webkit-scrollbar-thumb { background:rgba(148,163,184,.25); border-radius:3px; }
+  .luz-bar {
+    display:flex; align-items:center; gap:12px; margin-top:8px; padding:10px 14px;
+    background:var(--glass); backdrop-filter:blur(8px); border:1px solid var(--line);
+    border-radius:14px; animation:floatIn .5s ease both;
+  }
+  .luz-bar button { padding:9px 12px; font-size:.8rem; flex:none; }
+  .luz-bar button.aceso { background:linear-gradient(135deg,#fbbf24,#f59e0b); color:#1a1206; box-shadow:0 0 16px rgba(251,191,36,.4); }
+  .luz-bar button.aceso .ic { filter:drop-shadow(0 0 3px rgba(255,255,255,.6)); }
+  .luz-bar input[type=range] {
+    flex:1; -webkit-appearance:none; appearance:none; height:6px; border-radius:3px;
+    background:linear-gradient(90deg,var(--dim),#fbbf24); outline:0; cursor:pointer;
+  }
+  .luz-bar input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance:none; width:18px; height:18px; border-radius:50%; background:#fff;
+    box-shadow:0 2px 6px rgba(0,0,0,.5); cursor:pointer; transition:transform .2s;
+  }
+  .luz-bar input[type=range]::-webkit-slider-thumb:hover { transform:scale(1.2); }
+  .luz-bar input[type=range]::-moz-range-thumb {
+    width:18px; height:18px; border:0; border-radius:50%; background:#fff; box-shadow:0 2px 6px rgba(0,0,0,.5); cursor:pointer;
+  }
+  .luz-pct { font-size:.8rem; color:var(--mut); font-variant-numeric:tabular-nums; min-width:38px; text-align:right; font-weight:700; }
   .cfs-head { display:flex; gap:10px; justify-content:center; font-size:.8rem; color:var(--mut); margin:2px 0 12px; flex-wrap:wrap; }
   .cfs-head span { background:var(--glass); border:1px solid var(--line); border-radius:20px; padding:5px 12px; display:flex; align-items:center; gap:5px; backdrop-filter:blur(8px); animation:pop .4s ease both; }
   .cfs-head b { color:var(--txt); font-variant-numeric:tabular-nums; }
@@ -115,18 +147,46 @@
   .slot .tag { font-weight:800; font-size:.92rem; letter-spacing:.02em; }
   .slot .mat { font-size:.8rem; color:var(--txt); margin-top:2px; font-weight:600; }
   .slot .len { font-size:.7rem; color:var(--mut); margin-top:3px; }
-  .slot .rfid { font-size:.6rem; color:var(--dim); margin-top:3px; letter-spacing:.03em; }
+  .slot .rfid { font-size:.6rem; color:var(--dim); margin-top:3px; letter-spacing:.03em; display:flex; align-items:center; justify-content:center; gap:3px; }
+  .slot .rfid .ic { width:10px; height:10px; }
   .slot-btns { display:flex; gap:5px; margin-top:auto; padding-top:8px; width:100%; }
-  .slot-btns button { flex:1; padding:8px 2px; font-size:.7rem; border-radius:9px; }
+  .slot-btns button { flex:1; padding:8px 2px; font-size:.7rem; border-radius:9px; gap:4px; }
+  .slot-btns button .ic { width:12px; height:12px; }
   .b-load { background:linear-gradient(135deg,var(--acc),var(--accg)); }
-  .b-edit { background:linear-gradient(135deg,#3a4252,#2a3141); flex:0 0 34px; }
+  .b-edit { background:linear-gradient(135deg,#3a4252,#2a3141); flex:0 0 36px; }
   .cfs-acoes { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .sp-card {
+    background:var(--glass); backdrop-filter:blur(10px); border:1px solid var(--line); border-radius:16px;
+    padding:12px 14px; display:flex; align-items:center; gap:12px; box-shadow:0 4px 16px rgba(0,0,0,.25);
+    animation:floatIn .5s ease both;
+  }
+  .sp-card .sp-info { flex:1; min-width:0; }
+  .sp-url { font-weight:700; font-size:.9rem; font-family:'JetBrains Mono',monospace; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .sp-st { color:var(--mut); font-size:.75rem; margin-top:2px; }
+  .sp-st.ok { color:#4ade80; } .sp-st.err { color:#f87171; }
+  .sp-card button { padding:9px 13px; font-size:.8rem; }
+  #sp-found { margin-top:10px; display:flex; flex-direction:column; gap:6px; }
+  .sp-hit {
+    background:var(--bg2); border:1px solid var(--line); border-radius:10px; padding:10px 12px;
+    display:flex; align-items:center; gap:9px; cursor:pointer; transition:border-color .2s, transform .2s, background .2s;
+    animation:floatIn .35s ease both;
+  }
+  .sp-hit:hover { border-color:var(--acc); transform:translateX(3px); background:rgba(14,165,165,.08); }
+  .sp-hit.sel { border-color:var(--acc); background:rgba(14,165,165,.12); }
+  .sp-hit .ic { color:var(--acc); }
+  .sp-hit .hit-url { font-family:'JetBrains Mono',monospace; font-size:.82rem; font-weight:700; }
+  .sp-hit .hit-v { color:var(--mut); font-size:.7rem; margin-left:auto; }
+  .sp-vazio { color:var(--mut); font-size:.78rem; text-align:center; padding:10px; }
+  .escaneando { display:flex; align-items:center; justify-content:center; gap:8px; color:var(--mut); font-size:.8rem; padding:12px; }
+  .radar-dot { width:10px; height:10px; border-radius:50%; background:var(--acc); position:relative; }
+  .radar-dot::after { content:""; position:absolute; inset:0; border-radius:50%; background:var(--acc); animation:radar 1.4s ease-out infinite; }
   dialog.editor {
     border:1px solid var(--line); border-radius:20px; background:linear-gradient(135deg,var(--card2),var(--card)); color:var(--txt);
-    padding:22px; max-width:360px; width:92%; box-shadow:0 24px 64px rgba(0,0,0,.6); animation:pop .3s ease both;
+    padding:22px; max-width:380px; width:92%; box-shadow:0 24px 64px rgba(0,0,0,.6); animation:pop .3s ease both;
   }
   dialog.editor::backdrop { background:rgba(5,7,12,.7); backdrop-filter:blur(4px); }
-  dialog.editor h3 { margin-bottom:14px; font-size:1.05rem; font-weight:800; letter-spacing:-.01em; }
+  dialog.editor h3 { margin-bottom:14px; font-size:1.05rem; font-weight:800; letter-spacing:-.01em; display:flex; align-items:center; gap:8px; }
+  dialog.editor h3 .ic { width:18px; height:18px; color:var(--acc); }
   dialog.editor label { display:block; font-size:.75rem; color:var(--mut); margin:12px 0 5px; letter-spacing:.04em; text-transform:uppercase; font-weight:600; }
   dialog.editor input, dialog.editor select {
     width:100%; padding:11px; border-radius:10px; border:1px solid var(--line); background:var(--bg2); color:var(--txt);
@@ -137,15 +197,42 @@
   dialog.editor .cores span { width:30px; height:30px; border-radius:50%; cursor:pointer; border:2px solid transparent; box-shadow:0 2px 6px rgba(0,0,0,.3); transition:transform .2s; }
   dialog.editor .cores span:hover { transform:scale(1.15); }
   dialog.editor .cores span.sel { border-color:#fff; transform:scale(1.15); }
-  dialog.editor .ed-btns { display:flex; gap:8px; margin-top:18px; }
+  dialog.editor .ed-btns { display:flex; gap:8px; margin-top:16px; }
   .aviso {
     text-align:center; color:var(--mut); font-size:.78rem; margin-top:14px; line-height:1.6;
     background:var(--glass); border:1px solid var(--line); border-radius:14px; padding:12px 16px; backdrop-filter:blur(8px); animation:surge .5s ease both;
   }
+  @media (max-width:640px) {
+    body { padding:10px; }
+    h1 { font-size:1.1rem; } h1 .ic { width:20px; height:20px; }
+    .sub { font-size:.72rem; }
+    .statusbar { padding:10px 12px; border-radius:14px; }
+    #fazendo { font-size:.88rem; } #detalhe { font-size:.72rem; }
+    canvas { height:150px; }
+    .temps { gap:10px; font-size:.78rem; }
+    .botoes button { flex:1 1 100%; }
+    .canto { padding:11px; min-height:auto; }
+    .acao { font-size:1rem; } .qtd { font-size:.84rem; } .det { font-size:.7rem; }
+    .gauge { width:64px; height:64px; }
+    .slots { grid-template-columns:repeat(2,1fr); }
+    .slot:nth-child(3) { animation-delay:.1s; } .slot:nth-child(4) { animation-delay:.15s; }
+    .cfs-head { gap:6px; font-size:.72rem; }
+    .cfs-head span { padding:4px 9px; }
+    .cfs-acoes button { flex:1 1 100%; }
+    #console { height:180px; font-size:.7rem; }
+    .sp-card { flex-wrap:wrap; }
+    .sp-card button { flex:1 1 100%; }
+    .aviso { font-size:.72rem; }
+  }
+  @media (max-width:400px) {
+    .slot { min-height:128px; padding:10px 6px; }
+    .swatch { width:38px; height:38px; }
+    .slot .mat { font-size:.74rem; }
+  }
 </style>
 </head>
 <body>
-<h1>🔧 Central de Calibração — Joelma</h1>
+<h1><i data-ic="wrench"></i> Central de Calibração — Joelma</h1>
 <div class="sub">K2 Plus — vista de cima, a FRENTE da impressora é você (embaixo)</div>
 
 <div class="statusbar">
@@ -156,25 +243,56 @@
   </div>
 </div>
 
-<h2>🌡 TEMPERATURAS (10 min)</h2>
+<h2><i data-ic="thermo"></i> TEMPERATURAS (10 min)</h2>
 <canvas id="grafico" width="800" height="180"></canvas>
 <div class="temps">
   <span style="color:#ffb74d">■</span><span>Mesa <b id="tBed">—</b> / <span id="tBedT">—</span></span>
   <span style="color:#e57373">■</span><span>Bico <b id="tExt">—</b> / <span id="tExtT">—</span></span>
 </div>
 
-<h2>📷 CÂMERA</h2>
+<h2><i data-ic="camera"></i> CÂMERA</h2>
 <video id="cam" autoplay playsinline muted style="width:100%;border-radius:12px;background:#000;max-height:340px"></video>
 <div id="camst" class="det" style="text-align:center;margin-top:4px">conectando câmera...</div>
+<div class="luz-bar">
+  <button id="luztog" class="ghost"><i data-ic="bulb"></i> <span id="luztxt">Luz</span></button>
+  <input type="range" id="luzdim" min="0" max="100" step="5" value="0">
+  <span class="luz-pct" id="luzpct">0%</span>
+</div>
 
-<h2>📦 CFS — CENTRAL DE FILAMENTOS</h2>
+<h2><i data-ic="box"></i> CFS — CENTRAL DE FILAMENTOS</h2>
 <div class="cfs-head" id="cfshead"><span id="cfsconn">conectando ao CFS...</span></div>
 <div class="slots" id="slots"></div>
 <div class="cfs-acoes">
-  <button id="cfsrefresh" class="principal">🔄 RELER RFID DOS SLOTS</button>
-  <button id="cfssync">🧵 Sincronizar com Spoolman</button>
-  <button id="cfsquit">Descarregar material atual</button>
+  <button id="cfsrefresh" class="principal"><i data-ic="refresh"></i> RELER RFID DOS SLOTS</button>
+  <button id="cfssync"><i data-ic="spool"></i> Sincronizar com Spoolman</button>
+  <button id="cfsquit"><i data-ic="eject"></i> Descarregar material atual</button>
 </div>
+
+<h2><i data-ic="spool"></i> SERVIDOR SPOOLMAN</h2>
+<div class="sp-card">
+  <div class="dot" id="spdot"></div>
+  <div class="sp-info">
+    <div class="sp-url" id="spurl">carregando...</div>
+    <div class="sp-st" id="spst">—</div>
+  </div>
+  <button id="spcfg" class="ghost"><i data-ic="settings"></i> Configurar</button>
+</div>
+
+<dialog class="editor" id="spdlg">
+  <h3><i data-ic="spool"></i> Servidor Spoolman</h3>
+  <label>Endereço do servidor</label>
+  <input type="text" id="sp-url-in" placeholder="http://10.10.1.254:7912" autocomplete="off">
+  <label>Sincronia (segundos)</label>
+  <input type="number" id="sp-rate" min="1" max="60" value="5">
+  <div class="ed-btns">
+    <button id="sp-scan" class="ghost" style="flex:1"><i data-ic="search"></i> Buscar na rede</button>
+  </div>
+  <div id="sp-found"></div>
+  <div class="ed-btns">
+    <button class="salvar" id="sp-save" style="flex:1"><i data-ic="save"></i> Salvar e reiniciar</button>
+    <button id="sp-cancel" class="ghost">Cancelar</button>
+  </div>
+</dialog>
 
 <dialog class="editor" id="editor">
   <h3 id="ed-titulo">Editar slot</h3>
@@ -196,11 +314,11 @@
   </div>
 </dialog>
 
-<h2>🔩 NIVELAMENTO DOS PARAFUSOS</h2>
+<h2><i data-ic="screw"></i> NIVELAMENTO DOS PARAFUSOS</h2>
 <div class="botoes">
-  <button id="medir" class="principal">📏 MEDIR (aquece mesa a 60°C)</button>
-  <button id="frio">Medir a frio</button>
-  <button id="reler">Reler</button>
+  <button id="medir" class="principal"><i data-ic="ruler"></i> MEDIR (aquece mesa a 60°C)</button>
+  <button id="frio"><i data-ic="snow"></i> Medir a frio</button>
+  <button id="reler"><i data-ic="refresh"></i> Reler</button>
 </div>
 <div class="mesa-wrap">
   <div class="canto" id="screw4"><h3>TRASEIRO ESQUERDO</h3><div class="acao">—</div></div>
@@ -210,17 +328,17 @@
   <div class="canto" id="screw2"><h3>FRENTE DIREITO</h3><div class="acao">—</div></div>
 </div>
 
-<h2>⚙️ OUTRAS CALIBRAÇÕES</h2>
+<h2><i data-ic="settings"></i> OUTRAS CALIBRAÇÕES</h2>
 <div class="botoes">
   <button id="pidmesa">PID Mesa 60°C (~10 min)</button>
   <button id="pidbico">PID Bico 220°C (~10 min)</button>
-  <button id="salvar" class="salvar" style="display:none">💾 SALVAR (SAVE_CONFIG — reinicia)</button>
+  <button id="salvar" class="salvar" style="display:none"><i data-ic="save"></i> SALVAR (SAVE_CONFIG — reinicia)</button>
   <button id="mesh">Criar mesh 60°C (mesa toda)</button>
-  <button id="home">Homing (G28)</button>
-  <button id="off">Desligar aquecedores</button>
+  <button id="home"><i data-ic="home"></i> Homing (G28)</button>
+  <button id="off"><i data-ic="power"></i> Desligar aquecedores</button>
 </div>
 
-<h2>🖥 CONSOLE AO VIVO</h2>
+<h2><i data-ic="terminal"></i> CONSOLE AO VIVO</h2>
 <div id="console"></div>
 
 <div class="aviso">
@@ -230,9 +348,71 @@
 <script>
 const base = location.protocol + "//" + location.hostname + ":7125";
 const wsUrl = (location.protocol === "https:" ? "wss://" : "ws://") + location.hostname + ":7125/websocket";
-const HOR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>';
-const ANT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v6h6"/></svg>';
 const $ = id => document.getElementById(id);
+
+// ---------- Icones SVG (lucide-like), injetados nos <i data-ic="..."> ----------
+const ICONS = {
+  wrench: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>',
+  thermo: '<path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0z"/>',
+  camera: '<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>',
+  box:    '<path d="M21 8v8a2 2 0 0 1-1 1.73l-7 4a2 2 0 0 1-2 0l-7-4A2 2 0 0 1 3 16V8a2 2 0 0 1 1-1.73l7-4a2 2 0 0 1 2 0l7 4A2 2 0 0 1 21 8z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
+  screw:  '<circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/>',
+  settings:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
+  terminal:'<polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>',
+  refresh:'<path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/>',
+  spool:  '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/>',
+  eject:  '<path d="M5 17h14"/><path d="m12 4-7 9h14z"/>',
+  ruler:  '<path d="M3 8h18v8H3z"/><path d="M7 8v3M11 8v4M15 8v3M19 8v4"/>',
+  snow:   '<path d="M12 2v20M4.9 7l14.2 10M19.1 7 4.9 17"/>',
+  save:   '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>',
+  home:   '<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',
+  power:  '<path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/>',
+  search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>',
+  server: '<rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/>',
+  edit:   '<path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/>',
+  load:   '<path d="M12 3v12"/><polyline points="7 10 12 15 17 10"/><path d="M20 21H4"/>',
+  check:  '<polyline points="20 6 9 17 4 12"/>',
+  tag:    '<path d="M20.59 13.41 12 22l-9-9V3h10l7.59 7.59a2 2 0 0 1 0 2.82z"/><circle cx="7.5" cy="7.5" r="1.5"/>',
+  bulb:   '<path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/>',
+  spinner:'<path d="M21 12a9 9 0 1 1-6.22-8.56"/>'
+};
+function svgIc(nome, cls){
+  return '<svg class="ic' + (cls ? " " + cls : "") + '" viewBox="0 0 24 24">' + (ICONS[nome] || "") + '</svg>';
+}
+function pintaIcones(raiz){
+  (raiz || document).querySelectorAll("i[data-ic]").forEach(el => {
+    const s = document.createElement("span");
+    s.innerHTML = svgIc(el.dataset.ic);
+    el.replaceWith(s.firstChild);
+  });
+}
+
+// ---------- Botoes: ripple + estado ocupado ----------
+document.addEventListener("click", ev => {
+  const b = ev.target.closest("button");
+  if (!b || b.disabled) return;
+  const r = b.getBoundingClientRect();
+  const d = Math.max(r.width, r.height);
+  const sp = document.createElement("span");
+  sp.className = "ripple";
+  sp.style.width = sp.style.height = d + "px";
+  sp.style.left = (ev.clientX - r.left - d/2) + "px";
+  sp.style.top = (ev.clientY - r.top - d/2) + "px";
+  b.appendChild(sp);
+  setTimeout(() => sp.remove(), 620);
+});
+function ocupaBotao(btn, ocupado, textoOcupado){
+  if (ocupado) {
+    btn.dataset.htmlOrig = btn.innerHTML;
+    btn.innerHTML = svgIc("spinner", "girando") + " " + (textoOcupado || "aguarde...");
+    btn.classList.add("busy");
+    btn.disabled = true;
+  } else {
+    if (btn.dataset.htmlOrig) btn.innerHTML = btn.dataset.htmlOrig;
+    btn.classList.remove("busy");
+    btn.disabled = false;
+  }
+}
 let ws = null, rpcId = 1, temps = [], klipperOk = false, ocupado = false;
 
 // ---------- Estado / status ----------
@@ -251,7 +431,7 @@ function conectaWS(){
   ws = new WebSocket(wsUrl);
   ws.onopen = () => {
     setStatus("Conectado", "aguardando dados...", "on");
-    rpc("printer.objects.subscribe", {objects:{heater_bed:["temperature","target"],extruder:["temperature","target"],idle_timeout:["state"],display_status:["message"]}});
+    rpc("printer.objects.subscribe", {objects:{heater_bed:["temperature","target"],extruder:["temperature","target"],idle_timeout:["state"],display_status:["message"],"output_pin LED":["value"]}});
     rpc("server.gcode_store", {count:60}).then(r => (r.gcode_store||[]).forEach(m => logLinha(m.message)));
   };
   ws.onmessage = ev => {
@@ -259,7 +439,7 @@ function conectaWS(){
     if (d.method === "notify_status_update") aplicaStatus(d.params[0]);
     else if (d.method === "notify_gcode_response") logLinha(d.params[0]);
     else if (d.method === "notify_klippy_disconnected") { klipperOk = false; setStatus("Klipper reiniciando...", "aguardando voltar", "busy"); }
-    else if (d.method === "notify_klippy_ready") { klipperOk = true; setStatus("Pronta", "Klipper ready", "on"); rpc("printer.objects.subscribe", {objects:{heater_bed:["temperature","target"],extruder:["temperature","target"],idle_timeout:["state"],display_status:["message"]}}); render().catch(()=>{}); renderCFS().catch(()=>{}); }
+    else if (d.method === "notify_klippy_ready") { klipperOk = true; setStatus("Pronta", "Klipper ready", "on"); rpc("printer.objects.subscribe", {objects:{heater_bed:["temperature","target"],extruder:["temperature","target"],idle_timeout:["state"],display_status:["message"],"output_pin LED":["value"]}}); render().catch(()=>{}); renderCFS().catch(()=>{}); }
     else if (d.id && pend[d.id]) { const p = pend[d.id]; delete pend[d.id]; d.error ? p.rej(new Error(d.error.message)) : p.res(d.result); }
   };
   ws.onclose = () => { setStatus("Moonraker desconectado", "reconectando em 3s...", "err"); setTimeout(conectaWS, 3000); };
@@ -280,6 +460,7 @@ function aplicaStatus(st){
   if (st.extruder) { if (st.extruder.temperature !== undefined) ultimo.ext = st.extruder.temperature; if (st.extruder.target !== undefined) ultimo.extT = st.extruder.target; }
   if (st.idle_timeout && st.idle_timeout.state) ultimo.idle = st.idle_timeout.state;
   if (st.display_status && st.display_status.message) $("detalhe").textContent = st.display_status.message;
+  if (st["output_pin LED"] && st["output_pin LED"].value !== undefined) pintaLuz(+st["output_pin LED"].value);
   if (!ocupado) {
     klipperOk = true;
     if (ultimo.idle === "Printing") setStatus("Executando comando...", null, "busy");
@@ -603,10 +784,10 @@ async function renderCFS(){
       '<div class="mat">' + tipo + '</div>' +
       (nome ? '<div class="len">' + nome + '</div>' : '') +
       (temFilamento && String(remain)!=="-1" ? '<div class="len">~' + remain + '%</div>' : '') +
-      '<div class="rfid">' + (rot ? '✏️ rotulado' : (spool ? '🧵 #'+spool.id : (tipoRfid ? 'RFID' : 'sem tag'))) + '</div>' +
+      '<div class="rfid">' + (rot ? svgIc("edit")+' rotulado' : (spool ? svgIc("spool")+' #'+spool.id : (tipoRfid ? svgIc("tag")+' RFID' : 'sem tag'))) + '</div>' +
       '<div class="slot-btns">' +
-        '<button class="b-load" data-tnn="' + tnn + '" ' + (temFilamento?'':'disabled') + '>Carregar</button>' +
-        '<button class="b-edit" data-edit="' + tnn + '" data-tipo="' + (tipo!=="vazio"?tipo:"") + '" data-cor="' + cor + '" data-nome="' + (nome||"") + '">✏️</button>' +
+        '<button class="b-load" data-tnn="' + tnn + '" ' + (temFilamento?'':'disabled') + '>' + svgIc("load") + ' Carregar</button>' +
+        '<button class="b-edit" data-edit="' + tnn + '" data-tipo="' + (tipo!=="vazio"?tipo:"") + '" data-cor="' + cor + '" data-nome="' + (nome||"") + '">' + svgIc("edit") + '</button>' +
       '</div>';
     slots.appendChild(el);
   }
@@ -645,7 +826,7 @@ $("cfsrefresh").onclick = () => roda("BOX_INFO_REFRESH", "Relendo RFID de todos 
 $("cfsquit").onclick = () => roda("BOX_QUIT_MATERIAL", "Descarregando material atual", 6, () => renderCFS());
 $("cfssync").onclick = async () => {
   const btn = $("cfssync");
-  btn.disabled = true; btn.textContent = "🧵 sincronizando...";
+  ocupaBotao(btn, true, "sincronizando...");
   try {
     const q = await rpc("printer.objects.query", {objects:{box:null}});
     const box = q.status.box;
@@ -674,13 +855,159 @@ $("cfssync").onclick = async () => {
   } catch(e) {
     logLinha("!! sync Spoolman: " + e.message);
     setStatus("Falha no Spoolman", e.message, "err");
-  } finally { btn.disabled = false; btn.textContent = "🧵 Sincronizar com Spoolman"; }
+  } finally { ocupaBotao(btn, false); }
 };
 
+// ---------- Luz da camara (output_pin LED, PWM 0..1) ----------
+let luzNivel = 0;        // 0..1 (espelha o pino)
+let luzUltima = 1;       // ultimo brilho usado ao ligar
+let luzEnviando = null;  // debounce do slider
+function pintaLuz(v){
+  luzNivel = v;
+  if (v > 0) luzUltima = v;
+  const tog = $("luztog"), dim = $("luzdim");
+  const pct = Math.round(v * 100);
+  tog.classList.toggle("aceso", v > 0);
+  $("luztxt").textContent = v > 0 ? "Acesa" : "Luz";
+  $("luzpct").textContent = pct + "%";
+  if (document.activeElement !== dim) dim.value = pct;
+}
+async function luzSet(v){
+  v = Math.max(0, Math.min(1, v));
+  try {
+    await fetch(base + "/printer/gcode/script", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({script: "SET_PIN PIN=LED VALUE=" + v.toFixed(2)})});
+    pintaLuz(v);
+  } catch(e) { logLinha("!! luz: " + e.message); }
+}
+$("luztog").onclick = () => luzSet(luzNivel > 0 ? 0 : (luzUltima || 1));
+$("luzdim").oninput = () => {
+  const v = +$("luzdim").value / 100;
+  $("luzpct").textContent = $("luzdim").value + "%";
+  clearTimeout(luzEnviando);
+  luzEnviando = setTimeout(() => luzSet(v), 180);   // debounce: nao floodar o Klipper
+};
+
+// ---------- Spoolman ADMIN: configura o servidor e escaneia a rede (REST) ----------
+// Endpoints do componente spoolman_admin.py (roda no Moonraker):
+//   GET  /server/spoolman_admin/config -> {server, sync_rate, configurado}
+//   POST /server/spoolman_admin/config -> grava e reinicia o Moonraker
+//   GET  /server/spoolman_admin/scan   -> {encontrados:[{ip,porta,url,versao}]}
+let spEscolhido = null;
+
+async function spAdmin(metodo, caminho, corpo){
+  const opt = {method: metodo};
+  if (corpo) { opt.headers = {"Content-Type":"application/json"}; opt.body = JSON.stringify(corpo); }
+  const r = await fetch(base + "/server/spoolman_admin/" + caminho, opt);
+  if (!r.ok) { const j = await r.json().catch(()=>({})); throw new Error((j.error&&j.error.message)||("HTTP "+r.status)); }
+  const d = await r.json();
+  return d.result !== undefined ? d.result : d;
+}
+async function spRender(){
+  const url = $("spurl"), st = $("spst"), dot = $("spdot");
+  try {
+    const cfg = await spAdmin("GET", "config");
+    url.textContent = cfg.server || "nao configurado";
+    let conectado = false;
+    try {
+      const r = await fetch(base + "/server/spoolman/status");
+      const d = await r.json();
+      conectado = !!(d.result && d.result.spoolman_connected);
+    } catch(e) {}
+    if (!cfg.server) {
+      dot.className = "dot"; st.className = "sp-st"; st.textContent = "clique em Configurar para apontar o servidor";
+    } else if (conectado) {
+      dot.className = "dot on"; st.className = "sp-st ok";
+      st.textContent = "conectado - sincronizando a cada " + (cfg.sync_rate||5) + "s";
+    } else {
+      dot.className = "dot err"; st.className = "sp-st err";
+      st.textContent = "sem resposta - o servidor esta ligado?";
+    }
+  } catch(e) {
+    url.textContent = "indisponivel";
+    dot.className = "dot err"; st.className = "sp-st err";
+    st.textContent = "componente spoolman_admin ausente (rode: joelma update)";
+  }
+}
+async function spScan(){
+  const btn = $("sp-scan"), lista = $("sp-found");
+  ocupaBotao(btn, true, "escaneando...");
+  lista.innerHTML = '<div class="escaneando"><span class="radar-dot"></span> varrendo a rede local...</div>';
+  try {
+    const r = await spAdmin("GET", "scan");
+    const achados = r.encontrados || [];
+    if (!achados.length) {
+      lista.innerHTML = '<div class="sp-vazio">nenhum servidor Spoolman encontrado em ' +
+        r.subnet + '.x<br>verifique se o container esta rodando</div>';
+      return;
+    }
+    lista.innerHTML = "";
+    achados.forEach(a => {
+      const el = document.createElement("div");
+      el.className = "sp-hit";
+      el.innerHTML = svgIc("server") +
+        '<span class="hit-url">' + a.url + '</span>' +
+        '<span class="hit-v">v' + (a.versao||"?") + '</span>';
+      el.onclick = () => {
+        lista.querySelectorAll(".sp-hit").forEach(x => x.classList.remove("sel"));
+        el.classList.add("sel");
+        $("sp-url-in").value = a.url;
+        spEscolhido = a.url;
+      };
+      lista.appendChild(el);
+    });
+    if (achados.length === 1) lista.querySelector(".sp-hit").click();
+  } catch(e) {
+    lista.innerHTML = '<div class="sp-vazio">falha no scan: ' + e.message + '</div>';
+  } finally { ocupaBotao(btn, false); }
+}
+async function spSalvar(){
+  const btn = $("sp-save");
+  const url = $("sp-url-in").value.trim();
+  const rate = Math.max(1, Math.min(60, +$("sp-rate").value || 5));
+  if (!url) { logLinha("!! informe o endereco do servidor"); return; }
+  ocupaBotao(btn, true, "salvando...");
+  try {
+    const r = await spAdmin("POST", "config", {server: url, sync_rate: rate});
+    logLinha("[SPOOLMAN] servidor gravado: " + r.server + " (Moonraker reiniciando)");
+    $("spdlg").close();
+    setStatus("Moonraker reiniciando...", "aplicando o novo servidor Spoolman", "busy");
+    for (let i = 0; i < 20; i++) {
+      await new Promise(res => setTimeout(res, 1500));
+      try {
+        const ok = await fetch(base + "/server/info");
+        if (ok.ok) break;
+      } catch(e) {}
+    }
+    setStatus("Pronta", "Spoolman reconfigurado", "on");
+    spRender();
+    renderCFS().catch(()=>{});
+  } catch(e) {
+    logLinha("!! falha ao salvar: " + e.message);
+    setStatus("Falha ao salvar", e.message, "err");
+  } finally { ocupaBotao(btn, false); }
+}
+$("spcfg").onclick = async () => {
+  $("sp-found").innerHTML = "";
+  spEscolhido = null;
+  try {
+    const cfg = await spAdmin("GET", "config");
+    $("sp-url-in").value = cfg.server || "";
+    $("sp-rate").value = cfg.sync_rate || 5;
+  } catch(e) { $("sp-url-in").value = ""; }
+  $("spdlg").showModal();
+};
+$("sp-scan").onclick = spScan;
+$("sp-save").onclick = spSalvar;
+$("sp-cancel").onclick = () => $("spdlg").close();
+
+pintaIcones();
 ligaCamera();
 conectaWS();
 render().catch(()=>{});
 renderCFS().catch(()=>{});
+spRender().catch(()=>{});
 </script>
 </body>
 </html>

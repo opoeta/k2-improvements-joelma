@@ -52,6 +52,37 @@ if ! grep -q '10.10.1.240:4408' ${CONF}; then
     echo "I: cors_domains com origens exatas da LAN"
 fi
 
+# Spoolman: componente cliente aponta para o servidor Docker na LAN
+# (o servidor roda em 10.10.1.254:7912 - NAS). O proxy do Moonraker
+# permite a Central falar a API sem CORS.
+if ! grep -q '^\[spoolman\]' ${CONF}; then
+    cat >> ${CONF} <<'SPOOL'
+
+[spoolman]
+server: http://10.10.1.254:7912
+sync_rate: 5
+SPOOL
+    MUDOU=1
+    echo "I: [spoolman] apontando para http://10.10.1.254:7912"
+fi
+
+# spoolman_admin: componente proprio que expoe endpoints para configurar o
+# servidor Spoolman pela interface (sem editar arquivos) e escanear a rede.
+# Copiado para components/ e ativado via secao [spoolman_admin] no conf.
+FEAT_DIR=$(dirname "$0")
+if [ -f "${FEAT_DIR}/spoolman_admin.py" ]; then
+    cp "${FEAT_DIR}/spoolman_admin.py" /usr/share/moonraker/components/spoolman_admin.py
+    echo "I: componente spoolman_admin.py copiado"
+fi
+if ! grep -q '^\[spoolman_admin\]' ${CONF}; then
+    cat >> ${CONF} <<'SPADM'
+
+[spoolman_admin]
+SPADM
+    MUDOU=1
+    echo "I: [spoolman_admin] ativado (config + scan de rede pela interface)"
+fi
+
 if [ "$MUDOU" = "0" ]; then
     echo "I: moonraker upstream ja instalado e configurado - nada a fazer"
     exit 0
@@ -73,7 +104,7 @@ try:
     req = urllib.request.Request(
         "http://127.0.0.1:7125/server/webcams/item?name=Joelma", method="DELETE")
     urllib.request.urlopen(req, timeout=5)
-    print("I: registro antigo Joelma (webrtc-creality) removido do DB")
+    print("I: registro antigo 'Joelma' (webrtc-creality) removido do DB")
 except Exception:
     pass
 print("I: moonraker upstream ativo - camera no Fluidd via [webcam Default]")
