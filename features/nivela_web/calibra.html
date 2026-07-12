@@ -202,6 +202,61 @@
     text-align:center; color:var(--mut); font-size:.78rem; margin-top:14px; line-height:1.6;
     background:var(--glass); border:1px solid var(--line); border-radius:14px; padding:12px 16px; backdrop-filter:blur(8px); animation:surge .5s ease both;
   }
+  /* accordion de calibracoes */
+  details.acc {
+    background:linear-gradient(135deg,var(--card2),var(--card)); border:1px solid var(--line);
+    border-radius:16px; margin-bottom:8px; overflow:hidden; box-shadow:0 4px 16px rgba(0,0,0,.22);
+    animation:floatIn .45s ease both;
+  }
+  details.acc summary {
+    cursor:pointer; list-style:none; padding:14px 16px; display:flex; align-items:center; gap:10px;
+    font-weight:700; font-size:.9rem; user-select:none; transition:background .2s;
+  }
+  details.acc summary::-webkit-details-marker { display:none; }
+  details.acc summary:hover { background:rgba(148,163,184,.06); }
+  details.acc summary .ic { width:16px; height:16px; color:var(--acc); }
+  details.acc summary::after {
+    content:""; margin-left:auto; width:8px; height:8px; border-right:2px solid var(--dim);
+    border-bottom:2px solid var(--dim); transform:rotate(45deg); transition:transform .25s; flex:none;
+  }
+  details.acc[open] summary::after { transform:rotate(-135deg); }
+  details.acc[open] summary { border-bottom:1px solid var(--line); }
+  .acc-body { padding:14px 16px 16px; animation:surge .3s ease both; }
+  .acc-body > .botoes { margin-top:10px; }
+  .acc-tag {
+    margin-left:8px; font-size:.72rem; font-weight:700; color:var(--acc); background:rgba(14,165,165,.12);
+    border:1px solid rgba(14,165,165,.25); border-radius:20px; padding:2px 9px; font-family:'JetBrains Mono',monospace;
+  }
+  .acc-tag.vazio { color:var(--dim); background:transparent; border-color:var(--line); }
+  .dica { color:var(--mut); font-size:.76rem; line-height:1.55; margin-bottom:10px; }
+  .dica b { color:var(--txt); }
+  /* linha com input numerico + botoes */
+  .lin { display:flex; align-items:center; gap:8px; margin-top:8px; flex-wrap:wrap; }
+  .lin label { font-size:.76rem; color:var(--mut); min-width:74px; text-transform:uppercase; letter-spacing:.04em; font-weight:600; }
+  .lin input[type=number], .lin input[type=text] {
+    width:96px; padding:9px 10px; border-radius:9px; border:1px solid var(--line); background:var(--bg2);
+    color:var(--txt); font-size:.86rem; font-family:'JetBrains Mono',monospace; transition:border-color .2s, box-shadow .2s;
+  }
+  .lin input:focus { outline:0; border-color:var(--acc); box-shadow:0 0 0 3px var(--glow); }
+  .lin button { padding:9px 12px; font-size:.78rem; }
+  .lin .val { font-family:'JetBrains Mono',monospace; font-weight:700; color:var(--txt); font-variant-numeric:tabular-nums; }
+  .chips { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+  .chips button { padding:7px 12px; font-size:.75rem; border-radius:20px; background:rgba(148,163,184,.08); border:1px solid var(--line); }
+  /* heatmap do mesh */
+  #meshmap { width:100%; height:230px; border-radius:14px; background:linear-gradient(180deg,var(--card),var(--bg2)); border:1px solid var(--line); }
+  .mesh-leg { display:flex; align-items:center; gap:8px; justify-content:center; margin-top:6px; font-size:.72rem; color:var(--mut); font-family:'JetBrains Mono',monospace; }
+  .mesh-grad { width:120px; height:8px; border-radius:4px; background:linear-gradient(90deg,#3b82f6,#22c55e,#f59e0b,#ef4444); }
+  /* barra fixa de acoes globais */
+  .barra-global { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
+  .barra-global button { flex:1 1 auto; }
+  button.perigo { background:linear-gradient(135deg,#ef4444,#dc2626); }
+  @media (max-width:640px) {
+    details.acc summary { padding:12px 13px; font-size:.84rem; }
+    .acc-body { padding:12px 13px 14px; }
+    .lin label { min-width:100%; }
+    .lin input[type=number], .lin input[type=text] { flex:1; width:auto; }
+    #meshmap { height:190px; }
+  }
   @media (max-width:640px) {
     body { padding:10px; }
     h1 { font-size:1.1rem; } h1 .ic { width:20px; height:20px; }
@@ -314,28 +369,189 @@
   </div>
 </dialog>
 
-<h2><i data-ic="screw"></i> NIVELAMENTO DOS PARAFUSOS</h2>
-<div class="botoes">
-  <button id="medir" class="principal"><i data-ic="ruler"></i> MEDIR (aquece mesa a 60°C)</button>
-  <button id="frio"><i data-ic="snow"></i> Medir a frio</button>
-  <button id="reler"><i data-ic="refresh"></i> Reler</button>
-</div>
-<div class="mesa-wrap">
-  <div class="canto" id="screw4"><h3>TRASEIRO ESQUERDO</h3><div class="acao">—</div></div>
-  <div class="canto" id="screw3"><h3>TRASEIRO DIREITO</h3><div class="acao">—</div></div>
-  <div class="mesa">MESA — FRENTE ⬇ (você)</div>
-  <div class="canto" id="screw1"><h3>FRENTE ESQUERDO</h3><div class="acao">—</div></div>
-  <div class="canto" id="screw2"><h3>FRENTE DIREITO</h3><div class="acao">—</div></div>
-</div>
+<h2><i data-ic="settings"></i> CALIBRAÇÕES</h2>
 
-<h2><i data-ic="settings"></i> OUTRAS CALIBRAÇÕES</h2>
-<div class="botoes">
-  <button id="pidmesa">PID Mesa 60°C (~10 min)</button>
-  <button id="pidbico">PID Bico 220°C (~10 min)</button>
+<details class="acc" open>
+  <summary><i data-ic="screw"></i> Nivelamento dos parafusos <span class="acc-tag vazio" id="tag-nivel">—</span></summary>
+  <div class="acc-body">
+    <div class="dica">Mede os 4 cantos com o probe e diz quanto girar cada knob. Repita até todos ficarem <b>✓ OK</b> (≤ 18°).</div>
+    <div class="botoes">
+      <button id="medir" class="principal"><i data-ic="ruler"></i> MEDIR (aquece mesa a 60°C)</button>
+      <button id="frio"><i data-ic="snow"></i> Medir a frio</button>
+      <button id="reler"><i data-ic="refresh"></i> Reler</button>
+    </div>
+    <div class="mesa-wrap">
+      <div class="canto" id="screw4"><h3>TRASEIRO ESQUERDO</h3><div class="acao">—</div></div>
+      <div class="canto" id="screw3"><h3>TRASEIRO DIREITO</h3><div class="acao">—</div></div>
+      <div class="mesa">MESA — FRENTE ⬇ (você)</div>
+      <div class="canto" id="screw1"><h3>FRENTE ESQUERDO</h3><div class="acao">—</div></div>
+      <div class="canto" id="screw2"><h3>FRENTE DIREITO</h3><div class="acao">—</div></div>
+    </div>
+    <div class="botoes" style="margin-top:10px">
+      <button id="ztilt"><i data-ic="target"></i> Z_TILT_ADJUST (alinhar os fusos Z)</button>
+    </div>
+  </div>
+</details>
+
+<details class="acc">
+  <summary><i data-ic="grid"></i> Mesh da mesa <span class="acc-tag vazio" id="tag-mesh">—</span></summary>
+  <div class="acc-body">
+    <div class="dica">Mapa de altura da mesa. O <b>mesh</b> compensa as ondulações que os parafusos não corrigem — nivele os parafusos <i>antes</i> de criar o mesh.</div>
+    <canvas id="meshmap" width="600" height="230"></canvas>
+    <div class="mesh-leg"><span id="meshmin">—</span><span class="mesh-grad"></span><span id="meshmax">—</span></div>
+    <div class="botoes">
+      <button id="meshcal" class="principal"><i data-ic="grid"></i> CRIAR MESH (mesa toda)</button>
+      <button id="mesh">Mesh a 60°C (se necessário)</button>
+      <button id="meshout"><i data-ic="terminal"></i> Ver valores</button>
+      <button id="meshclear">Limpar mesh</button>
+    </div>
+  </div>
+</details>
+
+<details class="acc">
+  <summary><i data-ic="target"></i> Probe &amp; Z-offset <span class="acc-tag vazio" id="tag-zoff">—</span></summary>
+  <div class="acc-body">
+    <div class="dica">Ajuste fino da primeira camada. <b>Negativo</b> = bico mais perto da mesa. Ajuste durante a impressão e depois grave.</div>
+    <div class="lin">
+      <label>Offset Z</label>
+      <button id="zm05"><i data-ic="minus"></i> 0.05</button>
+      <button id="zm01"><i data-ic="minus"></i> 0.01</button>
+      <span class="val" id="zoffval">0.000 mm</span>
+      <button id="zp01"><i data-ic="plus"></i> 0.01</button>
+      <button id="zp05"><i data-ic="plus"></i> 0.05</button>
+    </div>
+    <div class="botoes" style="margin-top:10px">
+      <button id="zapply" class="salvar"><i data-ic="save"></i> Gravar offset no probe</button>
+      <button id="zzero">Zerar offset</button>
+      <button id="probeacc"><i data-ic="activity"></i> Testar repetibilidade (PROBE_ACCURACY)</button>
+    </div>
+  </div>
+</details>
+
+<details class="acc">
+  <summary><i data-ic="thermo"></i> PID dos aquecedores</summary>
+  <div class="acc-body">
+    <div class="dica">Ajusta a resposta térmica. Rode um de cada vez (~10 min) e depois <b>SALVAR</b>. A K2 Plus tem aquecedor de câmara — vale calibrar também.</div>
+    <div class="botoes">
+      <button id="pidmesa">Mesa @60°C</button>
+      <button id="pidmesa100">Mesa @100°C</button>
+      <button id="pidbico">Bico @220°C</button>
+      <button id="pidbico260">Bico @260°C</button>
+      <button id="pidcamara">Câmara @50°C</button>
+    </div>
+  </div>
+</details>
+
+<details class="acc">
+  <summary><i data-ic="wave"></i> Input Shaper &amp; ressonância <span class="acc-tag vazio" id="tag-shaper">—</span></summary>
+  <div class="acc-body">
+    <div class="dica">A Joelma tem acelerômetro <b>LIS2DW</b> no bico. O shaper mata o ringing (ghosting) nas paredes. Rode o teste de cada eixo e depois <b>SALVAR</b>.</div>
+    <div class="botoes">
+      <button id="shapercal" class="principal"><i data-ic="wave"></i> CALIBRAR AUTOMÁTICO (X + Y, ~5 min)</button>
+      <button id="resx">Testar eixo X</button>
+      <button id="resy">Testar eixo Y</button>
+      <button id="accq"><i data-ic="activity"></i> Testar acelerômetro</button>
+      <button id="axnoise">Medir ruído dos eixos</button>
+    </div>
+  </div>
+</details>
+
+<details class="acc">
+  <summary><i data-ic="gauge"></i> Pressure Advance <span class="acc-tag vazio" id="tag-pa">—</span></summary>
+  <div class="acc-body">
+    <div class="dica">Compensa a pressão no bico nos cantos e no fim das linhas. Direct drive costuma ficar entre <b>0.02 e 0.05</b>. Vale por filamento.</div>
+    <div class="lin">
+      <label>Advance</label>
+      <input type="number" id="painput" step="0.001" min="0" max="1" value="0.038">
+      <button id="paset" class="salvar">Aplicar</button>
+      <span class="val" id="paval">—</span>
+    </div>
+    <div class="chips">
+      <button data-pa="0.020">0.020</button>
+      <button data-pa="0.030">0.030</button>
+      <button data-pa="0.038">0.038</button>
+      <button data-pa="0.045">0.045</button>
+      <button data-pa="0.060">0.060</button>
+    </div>
+    <div class="botoes" style="margin-top:10px">
+      <button id="patower"><i data-ic="ruler"></i> Torre de PA (TUNING_TOWER)</button>
+    </div>
+  </div>
+</details>
+
+<details class="acc">
+  <summary><i data-ic="load"></i> Extrusora &amp; fluxo</summary>
+  <div class="acc-body">
+    <div class="dica">Marque 120mm no filamento, mande extrudar 100mm, meça o que sobrou. Se sumiu ≠ 100mm, corrija o <b>rotation_distance</b>.</div>
+    <div class="lin">
+      <label>Rot. dist.</label>
+      <span class="val" id="rotval">—</span>
+      <button id="ext100"><i data-ic="load"></i> Extrudar 100mm (aquece 220°C)</button>
+    </div>
+    <div class="lin">
+      <label>Extrudiu</label>
+      <input type="number" id="extreal" step="0.1" placeholder="ex: 97.5">
+      <span style="color:var(--mut);font-size:.78rem">mm reais</span>
+      <button id="extcalc">Calcular novo valor</button>
+    </div>
+    <div class="lin">
+      <label>Novo valor</label>
+      <input type="number" id="rotnovo" step="0.001" placeholder="—">
+      <button id="rotset" class="salvar">Aplicar</button>
+    </div>
+  </div>
+</details>
+
+<details class="acc">
+  <summary><i data-ic="zap"></i> Velocidade &amp; aceleração <span class="acc-tag vazio" id="tag-vel">—</span></summary>
+  <div class="acc-body">
+    <div class="dica">Limites em tempo real (não gravam no config). Útil pra testar antes de mexer no perfil do slicer.</div>
+    <div class="lin">
+      <label>Accel</label>
+      <input type="number" id="accinput" step="500" min="500" max="40000">
+      <label style="min-width:auto">SCV</label>
+      <input type="number" id="scvinput" step="1" min="1" max="30">
+      <button id="velset" class="salvar">Aplicar</button>
+    </div>
+    <div class="chips">
+      <button data-vel="5000,5">Conservador 5k</button>
+      <button data-vel="12000,8">Médio 12k</button>
+      <button data-vel="20000,10">Rápido 20k</button>
+      <button data-vel="30000,10">Stock 30k</button>
+    </div>
+  </div>
+</details>
+
+<details class="acc">
+  <summary><i data-ic="activity"></i> Diagnóstico</summary>
+  <div class="acc-body">
+    <div class="dica">Consultas rápidas — o resultado aparece no console abaixo.</div>
+    <div class="botoes">
+      <button id="qendstops">Fins de curso</button>
+      <button id="qprobe">Probe</button>
+      <button id="qfilament">Sensor de filamento</button>
+      <button id="qfan">Ventoinhas</button>
+      <button id="buzzx">Testar motor X</button>
+      <button id="buzzy">Testar motor Y</button>
+    </div>
+  </div>
+</details>
+
+<details class="acc">
+  <summary><i data-ic="box"></i> CFS avançado</summary>
+  <div class="acc-body">
+    <div class="dica">Calibra a posição da lâmina de corte do CFS. Rode se o filamento está sendo cortado no lugar errado.</div>
+    <div class="botoes">
+      <button id="cutpos">Calibrar posição do corte</button>
+    </div>
+  </div>
+</details>
+
+<div class="barra-global">
   <button id="salvar" class="salvar" style="display:none"><i data-ic="save"></i> SALVAR (SAVE_CONFIG — reinicia)</button>
-  <button id="mesh">Criar mesh 60°C (mesa toda)</button>
   <button id="home"><i data-ic="home"></i> Homing (G28)</button>
   <button id="off"><i data-ic="power"></i> Desligar aquecedores</button>
+  <button id="fwrestart" class="perigo"><i data-ic="restart"></i> FIRMWARE_RESTART</button>
 </div>
 
 <h2><i data-ic="terminal"></i> CONSOLE AO VIVO</h2>
@@ -373,6 +589,15 @@ const ICONS = {
   load:   '<path d="M12 3v12"/><polyline points="7 10 12 15 17 10"/><path d="M20 21H4"/>',
   check:  '<polyline points="20 6 9 17 4 12"/>',
   tag:    '<path d="M20.59 13.41 12 22l-9-9V3h10l7.59 7.59a2 2 0 0 1 0 2.82z"/><circle cx="7.5" cy="7.5" r="1.5"/>',
+  grid:   '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/>',
+  target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
+  wave:   '<path d="M2 12c2 0 2-6 4-6s2 12 4 12 2-12 4-12 2 6 4 6 2-3 2-3"/>',
+  gauge:  '<path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/><path d="m13.4 10.6 4.6-4.6"/><path d="M20.5 15a9 9 0 1 0-17 0"/>',
+  zap:    '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',
+  activity:'<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>',
+  restart:'<path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v6h6"/>',
+  plus:   '<path d="M12 5v14M5 12h14"/>',
+  minus:  '<path d="M5 12h14"/>',
   bulb:   '<path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/>',
   spinner:'<path d="M21 12a9 9 0 1 1-6.22-8.56"/>'
 };
@@ -423,7 +648,9 @@ function setStatus(fazendo, detalhe, modo){
 }
 function trava(v){
   ocupado = v;
-  for (const id of ["medir","frio","reler","pidmesa","pidbico","mesh","home","off"]) $(id).disabled = v;
+  // desabilita tudo que dispara gcode; deixa a luz e o console livres
+  document.querySelectorAll("details.acc button, .barra-global button, .cfs-acoes button, .slot-btns button")
+    .forEach(b => { if (!b.classList.contains("busy")) b.disabled = v; });
 }
 
 // ---------- WebSocket Moonraker ----------
@@ -439,7 +666,7 @@ function conectaWS(){
     if (d.method === "notify_status_update") aplicaStatus(d.params[0]);
     else if (d.method === "notify_gcode_response") logLinha(d.params[0]);
     else if (d.method === "notify_klippy_disconnected") { klipperOk = false; setStatus("Klipper reiniciando...", "aguardando voltar", "busy"); }
-    else if (d.method === "notify_klippy_ready") { klipperOk = true; setStatus("Pronta", "Klipper ready", "on"); rpc("printer.objects.subscribe", {objects:{heater_bed:["temperature","target"],extruder:["temperature","target"],idle_timeout:["state"],display_status:["message"],"output_pin LED":["value"]}}); render().catch(()=>{}); renderCFS().catch(()=>{}); }
+    else if (d.method === "notify_klippy_ready") { klipperOk = true; setStatus("Pronta", "Klipper ready", "on"); rpc("printer.objects.subscribe", {objects:{heater_bed:["temperature","target"],extruder:["temperature","target"],idle_timeout:["state"],display_status:["message"],"output_pin LED":["value"]}}); render().catch(()=>{}); renderCFS().catch(()=>{}); leCalib(); }
     else if (d.id && pend[d.id]) { const p = pend[d.id]; delete pend[d.id]; d.error ? p.rej(new Error(d.error.message)) : p.res(d.result); }
   };
   ws.onclose = () => { setStatus("Moonraker desconectado", "reconectando em 3s...", "err"); setTimeout(conectaWS, 3000); };
@@ -858,6 +1085,233 @@ $("cfssync").onclick = async () => {
   } finally { ocupaBotao(btn, false); }
 };
 
+// ---------- Calibracoes: le os valores atuais e pinta as etiquetas ----------
+function tag(id, txt, ok){
+  const el = $(id);
+  if (!el) return;
+  el.textContent = txt;
+  el.className = "acc-tag" + (ok ? "" : " vazio");
+}
+async function leCalib(){
+  try {
+    const q = await rpc("printer.objects.query", {objects:{
+      extruder:null, toolhead:null, gcode_move:null, bed_mesh:null,
+      configfile:["settings"], screws_tilt_adjust:null}});
+    const s = q.status;
+
+    // Pressure Advance
+    const pa = s.extruder && s.extruder.pressure_advance;
+    if (pa !== undefined && pa !== null) {
+      tag("tag-pa", pa.toFixed(3), true);
+      $("paval").textContent = pa.toFixed(3);
+      if (document.activeElement !== $("painput")) $("painput").value = pa.toFixed(3);
+    }
+
+    // Velocidade / aceleracao
+    const th = s.toolhead || {};
+    if (th.max_accel) {
+      tag("tag-vel", Math.round(th.max_accel) + " mm/s2", true);
+      if (document.activeElement !== $("accinput")) $("accinput").value = Math.round(th.max_accel);
+      if (document.activeElement !== $("scvinput")) $("scvinput").value = th.square_corner_velocity || 5;
+    }
+
+    // Z-offset (gcode_move.homing_origin[2])
+    const zo = (s.gcode_move && s.gcode_move.homing_origin) ? s.gcode_move.homing_origin[2] : 0;
+    $("zoffval").textContent = zo.toFixed(3) + " mm";
+    tag("tag-zoff", zo.toFixed(3), Math.abs(zo) > 0.0005);
+
+    // rotation_distance do extruder (do config)
+    const cfg = s.configfile && s.configfile.settings;
+    if (cfg && cfg.extruder && cfg.extruder.rotation_distance) {
+      $("rotval").textContent = (+cfg.extruder.rotation_distance).toFixed(3);
+    }
+    // Input shaper (do config)
+    if (cfg && cfg.input_shaper) {
+      const i = cfg.input_shaper;
+      const tx = (i.shaper_type_x || "?").toUpperCase();
+      const fx = i.shaper_freq_x ? Math.round(i.shaper_freq_x) : "?";
+      const fy = i.shaper_freq_y ? Math.round(i.shaper_freq_y) : "?";
+      tag("tag-shaper", tx + " " + fx + "/" + fy + "Hz", true);
+    }
+
+    // Mesh
+    desenhaMesh(s.bed_mesh);
+
+    // Nivelamento: quantos cantos OK
+    const st = s.screws_tilt_adjust;
+    if (st && st.results && Object.keys(st.results).length) {
+      let ruins = 0, tot = 0;
+      for (const k in st.results) {
+        const d = st.results[k];
+        if (d.is_base) continue;
+        tot++;
+        const [v,m] = (d.adjust_raw || d.adjust).split(":").map(Number);
+        if (v*60 + m > 3) ruins++;
+      }
+      tag("tag-nivel", ruins ? ruins + "/" + tot + " a ajustar" : "todos OK", ruins === 0);
+    }
+  } catch(e) { /* silencioso */ }
+}
+
+// ---------- Heatmap do mesh ----------
+function corMesh(t){  // t em 0..1 -> azul/verde/ambar/vermelho
+  const paradas = [[59,130,246],[34,197,94],[245,158,11],[239,68,68]];
+  const x = Math.max(0, Math.min(0.999, t)) * (paradas.length - 1);
+  const i = Math.floor(x), f = x - i;
+  const a = paradas[i], b = paradas[i+1] || a;
+  return "rgb(" + Math.round(a[0]+(b[0]-a[0])*f) + "," +
+                  Math.round(a[1]+(b[1]-a[1])*f) + "," +
+                  Math.round(a[2]+(b[2]-a[2])*f) + ")";
+}
+function desenhaMesh(bm){
+  const cv = $("meshmap"); if (!cv) return;
+  const g = cv.getContext("2d");
+  const W = cv.width = cv.clientWidth * 2, H = cv.height = 460;
+  g.clearRect(0,0,W,H);
+  const m = bm && (bm.probed_matrix || bm.mesh_matrix);
+  if (!m || !m.length || !m[0] || !m[0].length) {
+    tag("tag-mesh", "sem mesh", false);
+    g.fillStyle = "#64748b"; g.font = "24px system-ui"; g.textAlign = "center";
+    g.fillText("nenhum mesh carregado", W/2, H/2);
+    $("meshmin").textContent = "—"; $("meshmax").textContent = "—";
+    return;
+  }
+  let min = Infinity, max = -Infinity;
+  m.forEach(l => l.forEach(v => { if (v < min) min = v; if (v > max) max = v; }));
+  const span = (max - min) || 1;
+  tag("tag-mesh", (max-min).toFixed(3) + " mm", true);
+  $("meshmin").textContent = min.toFixed(3);
+  $("meshmax").textContent = max.toFixed(3);
+
+  const ly = m.length, lx = m[0].length;
+  const pad = 30, cw = (W - pad*2) / lx, ch = (H - pad*2) / ly;
+  for (let y = 0; y < ly; y++) {
+    for (let x = 0; x < lx; x++) {
+      const v = m[ly-1-y][x];               // inverte Y: frente embaixo
+      g.fillStyle = corMesh((v - min) / span);
+      g.fillRect(pad + x*cw, pad + y*ch, cw+1, ch+1);
+    }
+  }
+  // valores por celula (se couber)
+  if (lx <= 9 && ly <= 9) {
+    g.font = "600 15px 'JetBrains Mono',monospace"; g.textAlign = "center"; g.textBaseline = "middle";
+    for (let y = 0; y < ly; y++) {
+      for (let x = 0; x < lx; x++) {
+        const v = m[ly-1-y][x];
+        g.fillStyle = "rgba(0,0,0,.55)";
+        g.fillText(v.toFixed(2), pad + x*cw + cw/2, pad + y*ch + ch/2);
+      }
+    }
+  }
+  g.fillStyle = "#94a3b8"; g.font = "18px system-ui"; g.textAlign = "center"; g.textBaseline = "alphabetic";
+  g.fillText("FRENTE (voce)", W/2, H - 8);
+}
+
+// redesenha o heatmap ao abrir a secao (canvas fechado mede zero)
+document.querySelectorAll("details.acc").forEach(d => d.addEventListener("toggle", () => {
+  if (d.open) leCalib();
+}));
+
+// ---------- Handlers das calibracoes ----------
+// nivelamento
+$("ztilt").onclick = () => roda("Z_TILT_ADJUST", "Alinhando os fusos Z", 15, () => { leCalib(); $("salvar").style.display = ""; });
+// mesh
+$("meshcal").onclick  = () => roda("BED_MESH_CALIBRATE", "Criando mesh da mesa toda", 25, () => { leCalib(); $("salvar").style.display = ""; });
+$("meshout").onclick  = () => roda("BED_MESH_OUTPUT", "Lendo valores do mesh", 2);
+$("meshclear").onclick= () => roda("BED_MESH_CLEAR", "Limpando o mesh ativo", 2, () => leCalib());
+// probe / z-offset
+function zAjusta(d){ roda("SET_GCODE_OFFSET Z_ADJUST=" + d + " MOVE=1", "Ajustando offset Z em " + d + "mm", 2, () => leCalib()); }
+$("zm05").onclick = () => zAjusta(-0.05);
+$("zm01").onclick = () => zAjusta(-0.01);
+$("zp01").onclick = () => zAjusta(0.01);
+$("zp05").onclick = () => zAjusta(0.05);
+$("zzero").onclick = () => roda("SET_GCODE_OFFSET Z=0 MOVE=1", "Zerando o offset Z", 2, () => leCalib());
+$("zapply").onclick = () => roda("Z_OFFSET_APPLY_PROBE", "Gravando o offset no probe", 3, () => { leCalib(); $("salvar").style.display = ""; });
+$("probeacc").onclick = () => roda("PROBE_ACCURACY", "Testando repetibilidade do probe", 8);
+// PID
+$("pidmesa").onclick    = () => roda("PID_CALIBRATE HEATER=heater_bed TARGET=60", "PID da mesa @60C", 25, () => $("salvar").style.display = "");
+$("pidmesa100").onclick = () => roda("PID_CALIBRATE HEATER=heater_bed TARGET=100", "PID da mesa @100C", 30, () => $("salvar").style.display = "");
+$("pidbico").onclick    = () => roda("PID_CALIBRATE HEATER=extruder TARGET=220", "PID do bico @220C", 25, () => $("salvar").style.display = "");
+$("pidbico260").onclick = () => roda("PID_CALIBRATE HEATER=extruder TARGET=260", "PID do bico @260C", 30, () => $("salvar").style.display = "");
+$("pidcamara").onclick  = () => roda("PID_CALIBRATE HEATER=chamber_heater TARGET=50", "PID da camara @50C", 35, () => $("salvar").style.display = "");
+// input shaper
+$("shapercal").onclick = () => roda("SHAPER_CALIBRATE", "Calibrando input shaper (X e Y)", 20, () => { leCalib(); $("salvar").style.display = ""; });
+$("resx").onclick = () => roda("TEST_RESONANCES AXIS=X", "Teste de ressonancia no eixo X", 15, () => $("salvar").style.display = "");
+$("resy").onclick = () => roda("TEST_RESONANCES AXIS=Y", "Teste de ressonancia no eixo Y", 15, () => $("salvar").style.display = "");
+$("accq").onclick = () => roda("ACCELEROMETER_QUERY", "Consultando o acelerometro LIS2DW", 3);
+$("axnoise").onclick = () => roda("MEASURE_AXES_NOISE", "Medindo o ruido de base dos eixos", 5);
+// pressure advance
+function paAplica(v){
+  const n = Math.max(0, Math.min(1, +v));
+  roda("SET_PRESSURE_ADVANCE ADVANCE=" + n.toFixed(3), "Aplicando Pressure Advance " + n.toFixed(3), 2, () => leCalib());
+}
+$("paset").onclick = () => paAplica($("painput").value);
+document.querySelectorAll("[data-pa]").forEach(b => b.onclick = () => {
+  $("painput").value = b.dataset.pa;
+  paAplica(b.dataset.pa);
+});
+$("patower").onclick = () => roda(
+  "TUNING_TOWER COMMAND=SET_PRESSURE_ADVANCE PARAMETER=ADVANCE START=0 FACTOR=.005",
+  "Torre de PA armada (imprima o objeto de teste agora)", 3);
+// extrusora
+$("ext100").onclick = () => roda(
+  "M109 S220\nG91\nG1 E100 F60\nG90", "Extrudando 100mm a 220C (leva ~2 min)", 8);
+$("extcalc").onclick = () => {
+  const atual = parseFloat($("rotval").textContent);
+  const real = parseFloat($("extreal").value);
+  if (!atual || !real) { logLinha("!! preencha quanto extrudiu de verdade"); return; }
+  const novo = atual * (real / 100);
+  $("rotnovo").value = novo.toFixed(3);
+  logLinha("[CALIB] rotation_distance: " + atual.toFixed(3) + " -> " + novo.toFixed(3) +
+           " (pediu 100mm, saiu " + real + "mm)");
+};
+$("rotset").onclick = () => {
+  const v = parseFloat($("rotnovo").value);
+  if (!v) { logLinha("!! calcule o novo valor primeiro"); return; }
+  roda("SET_EXTRUDER_ROTATION_DISTANCE EXTRUDER=extruder DISTANCE=" + v.toFixed(3),
+       "Aplicando rotation_distance " + v.toFixed(3), 3, () => { leCalib(); $("salvar").style.display = ""; });
+};
+// velocidade
+$("velset").onclick = () => {
+  const a = +$("accinput").value, s = +$("scvinput").value;
+  roda("SET_VELOCITY_LIMIT ACCEL=" + a + " SQUARE_CORNER_VELOCITY=" + s,
+       "Aplicando accel " + a + " / SCV " + s, 2, () => leCalib());
+};
+document.querySelectorAll("[data-vel]").forEach(b => b.onclick = () => {
+  const [a, s] = b.dataset.vel.split(",");
+  $("accinput").value = a; $("scvinput").value = s;
+  roda("SET_VELOCITY_LIMIT ACCEL=" + a + " SQUARE_CORNER_VELOCITY=" + s,
+       "Aplicando accel " + a + " / SCV " + s, 2, () => leCalib());
+});
+// diagnostico
+$("qendstops").onclick = () => roda("QUERY_ENDSTOPS", "Consultando fins de curso", 3);
+$("qprobe").onclick    = () => roda("QUERY_PROBE", "Consultando o probe", 3);
+$("qfilament").onclick = () => roda("QUERY_FILAMENT_SENSOR SENSOR=filament_sensor", "Consultando o sensor de filamento", 3);
+$("qfan").onclick      = () => roda("QUERY_FAN_CHECK", "Consultando as ventoinhas", 3);
+$("buzzx").onclick     = () => roda("STEPPER_BUZZ STEPPER=stepper_x", "Testando o motor X", 3);
+$("buzzy").onclick     = () => roda("STEPPER_BUZZ STEPPER=stepper_y", "Testando o motor Y", 3);
+// CFS
+$("cutpos").onclick = () => roda("CALIBRATE_CUT_POS", "Calibrando a posicao do corte do CFS", 8);
+// firmware restart (recupera de shutdown)
+$("fwrestart").onclick = async () => {
+  const btn = $("fwrestart");
+  ocupaBotao(btn, true, "reiniciando...");
+  setStatus("Reiniciando o firmware...", "aguarde o Klipper voltar", "busy");
+  try {
+    await fetch(base + "/printer/firmware_restart", {method:"POST"});
+    for (let i = 0; i < 30; i++) {
+      await new Promise(r => setTimeout(r, 2500));
+      try {
+        const d = await (await fetch(base + "/printer/info")).json();
+        if (d.result && d.result.state === "ready") break;
+      } catch(e) {}
+    }
+    setStatus("Pronta", "firmware reiniciado", "on");
+    render().catch(()=>{}); renderCFS().catch(()=>{}); leCalib();
+  } catch(e) { setStatus("Falha no restart", e.message, "err"); }
+  finally { ocupaBotao(btn, false); }
+};
+
 // ---------- Luz da camara (output_pin LED, PWM 0..1) ----------
 let luzNivel = 0;        // 0..1 (espelha o pino)
 let luzUltima = 1;       // ultimo brilho usado ao ligar
@@ -1008,6 +1462,8 @@ conectaWS();
 render().catch(()=>{});
 renderCFS().catch(()=>{});
 spRender().catch(()=>{});
+leCalib();
+setInterval(leCalib, 8000);
 </script>
 </body>
 </html>
