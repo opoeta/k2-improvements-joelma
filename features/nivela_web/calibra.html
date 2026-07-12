@@ -1055,10 +1055,12 @@ async function renderCFS(){
     }
     head.innerHTML = '<span class="off">CFS desconectado (' + (box.state||"?") + ') \u2014 verifique se esta ligado</span>';
     slots.innerHTML = "";
+    $("fwCfs").textContent = "off";
     return;
   }
   cfsTentativas = 0;
   const t1 = box.T1 || {};
+  $("fwCfs").textContent = t1.version && t1.version !== "None" ? t1.version : "?";
   cfsSN = t1.sn && t1.sn !== "-1" ? t1.sn : "cfs1";
   const temp = t1.temperature, umid = t1.dry_and_humidity;
   const rack = q.status.filament_rack || {};
@@ -1870,6 +1872,9 @@ $("sp-cancel").onclick = () => $("spdlg").close();
 
 pintaIcones();
 pintaNome();
+// carimbo no console: data da COPIA servida em /usr/share/fluidd — diagnostica
+// na hora se um "joelma update" realmente trocou a pagina
+logLinha("// Central de Calibracao — pagina copiada em " + document.lastModified);
 descobreSensores();
 pintaSistema();
 ligaCamera();
