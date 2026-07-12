@@ -78,6 +78,20 @@ if [ -f "${FEAT_DIR}/joelma_info.py" ]; then
     cp "${FEAT_DIR}/joelma_info.py" /usr/share/moonraker/components/joelma_info.py
     echo "I: componente joelma_info.py copiado"
 fi
+# joelma_resonances: expoe os CSVs de TEST_RESONANCES/SHAPER_CALIBRATE (/tmp)
+# via REST para a Central desenhar os graficos de ressonancia no navegador.
+if [ -f "${FEAT_DIR}/joelma_resonances.py" ]; then
+    cp "${FEAT_DIR}/joelma_resonances.py" /usr/share/moonraker/components/joelma_resonances.py
+    echo "I: componente joelma_resonances.py copiado"
+fi
+if ! grep -q '^\[joelma_resonances\]' ${CONF}; then
+    cat >> ${CONF} <<'JRES'
+
+[joelma_resonances]
+JRES
+    MUDOU=1
+    echo "I: [joelma_resonances] ativado (graficos de ressonancia via REST)"
+fi
 if ! grep -q '^\[joelma_info\]' ${CONF}; then
     cat >> ${CONF} <<'JINFO'
 
