@@ -150,7 +150,21 @@ key60:  Internal error on command:BOX_SET_PRE_LOADING
 
 **Recuperação:** `FIRMWARE_RESTART` (ready em ~30 s).
 
-**DECISÃO PENDENTE:** remover o botão, pedir confirmação antes, ou manter sabendo do risco.
+**Causa raiz observada (log de jul/2026):** `unsupported operand type(s) for &=: 'NoneType' and 'int'`
+— o `ADDR=` vazio vira `None` dentro do módulo compilado da Creality
+(`box_wrapper.cpython-39.so`, sem fonte publicado no K2_Series_Klipper).
+
+**MITIGADO (2 camadas):**
+1. A Central pede **confirmação** antes do RELER RFID e mostra o botão
+   **Recuperar (FIRMWARE_RESTART)** se o Klipper cair.
+2. Feature **`macros/box_guard`**: override de `BOX_SET_PRE_LOADING` via
+   `rename_existing` — com `ADDR`/`NUM` vazios vira no-op logado; chamada
+   legítima repassa `rawparams` intacto ao comando original. Como o comando
+   interno passa pelo interpretador de G-code (evidência: o key171 é erro de
+   parse), o override intercepta antes do módulo quebrado.
+   ⚠️ Validar ao vivo no primeiro `joelma update` após esta feature: se o
+   Klipper reclamar do `rename_existing` no boot, remover a linha
+   `[include box_guard.cfg]` de `custom/main.cfg` e reportar.
 
 ### 7.2 Daemon do Docker no NAS cai sozinho
 
@@ -170,7 +184,7 @@ decode com `python3` na impressora, conferindo `sha256`.
 ## 8. Pendências
 
 **Decisões do Israel:**
-- [ ] **Botão RELER RFID:** remover / pedir confirmação / manter? (bug §7.1)
+- [x] **Botão RELER RFID:** mantido com confirmação + botão de recuperação + guarda `box_guard` (bug §7.1)
 - [ ] **Teste físico da inversão APERTAR/SOLTAR:** aperta um canto e remede. Se o desvio
       **diminuir** → convenção certa. Se **aumentar** → inverter 1 linha em
       `features/screws_tilt_adjust/screws_tilt_adjust.py` (`_acao_pt`) **e** o
