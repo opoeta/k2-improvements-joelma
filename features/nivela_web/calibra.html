@@ -326,6 +326,8 @@
     box-shadow:var(--elev); cursor:grab; display:block;
   }
   #meshmap.arrastando { cursor:grabbing; }
+  #resmap { width:100%; height:260px; border-radius:6px; background:var(--card2);
+            box-shadow:var(--elev); display:none; margin-top:8px; }
   .mesh-ctl { display:flex; align-items:center; gap:10px; margin-top:8px; flex-wrap:wrap; }
   .mesh-ctl button { padding:6px 12px; min-height:28px; font-size:.7rem; border-radius:16px; box-shadow:none; border:1px solid var(--line); background:transparent; }
   .mesh-ctl button.on { background:var(--primary); border-color:transparent; color:#fff; }
@@ -431,7 +433,10 @@
         <button data-step="10" class="on">10</button><button data-step="50">50</button>
         <span style="align-self:center;color:var(--dim);font-size:.7rem">mm</span>
       </div>
-      <div class="botoes"><button id="motoroff" class="ghost"><i data-ic="power"></i> Desligar motores</button></div>
+      <div class="botoes">
+        <button id="jhomeall" class="principal" style="flex:1 1 auto"><i data-ic="home"></i> Home XYZ (G28)</button>
+        <button id="motoroff" class="ghost"><i data-ic="power"></i> Desligar motores</button>
+      </div>
     </div>
   </div>
 </div>
@@ -609,7 +614,7 @@
   </div>
 </details>
 
-<details class="acc">
+<details class="acc" id="acc-shaper">
   <summary><i data-ic="wave"></i> Input Shaper &amp; ressonância <span class="acc-tag vazio" id="tag-shaper">—</span></summary>
   <div class="acc-body">
     <div class="dica">A Joelma tem acelerômetro <b>LIS2DW</b> no bico. O shaper mata o ringing (ghosting) nas paredes. Rode o teste de cada eixo e depois <b>SALVAR</b>.</div>
@@ -620,6 +625,13 @@
       <button id="accq"><i data-ic="activity"></i> Testar acelerômetro</button>
       <button id="axnoise">Medir ruído dos eixos</button>
     </div>
+    <div class="lin" style="margin-top:12px">
+      <label>Gráfico</label>
+      <select id="ressel" style="flex:1;min-width:180px;padding:9px 10px;border-radius:4px;border:1px solid var(--line);background:var(--card2);color:var(--txt);font-size:.8rem"></select>
+      <button id="resref" class="ghost"><i data-ic="refresh"></i> Atualizar</button>
+    </div>
+    <canvas id="resmap" width="600" height="260"></canvas>
+    <div class="mesh-leg" id="resleg"></div>
   </div>
 </details>
 
@@ -1467,6 +1479,18 @@ function desenhaMesh3D(g, W, H, m, min, max, span){
     g.strokeStyle = "rgba(148,163,184,.25)"; g.lineWidth = 2; g.stroke();
   });
 
+  // plano de referencia z=0 (nivel nominal da mesa), como no Fluidd:
+  // grade atras da superficie + contorno tracejado por cima (depois dos quads)
+  const z0 = wz(0);
+  g.strokeStyle = "rgba(148,163,184,.28)"; g.lineWidth = 1;
+  for (let k = 0; k <= 8; k++) {
+    const t = -1 + k / 4;
+    let a = proj(t, -1, z0), b = proj(t, 1, z0);
+    g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke();
+    a = proj(-1, t, z0); b = proj(1, t, z0);
+    g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke();
+  }
+
   // luz difusa
   const LUZ = [-0.35, -0.45, 0.82];
   function lambert(p1, p2, p3){
@@ -1504,6 +1528,13 @@ function desenhaMesh3D(g, W, H, m, min, max, span){
     g.fill();
     g.strokeStyle = "rgba(0,0,0,.28)"; g.lineWidth = 1; g.stroke();
   });
+
+  // contorno do plano z=0 por cima, tracejado — a referencia "atravessa" a superficie
+  const c0 = [[-1,-1],[1,-1],[1,1],[-1,1]].map(q => proj(q[0], q[1], z0));
+  g.beginPath();
+  c0.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]));
+  g.closePath();
+  g.strokeStyle = "rgba(226,232,240,.4)"; g.lineWidth = 2; g.setLineDash([6,6]); g.stroke(); g.setLineDash([]);
 
   // rotulo da frente, sempre grudado na borda frontal da mesa
   const f = proj(0, -1, wz(min) - 0.30);
@@ -1590,6 +1621,93 @@ function desenhaMesh2D(g, W, H, m, min, span){
   window.addEventListener("resize", () => { if (meshBM) repinta(); });
 })();
 
+// ---------- Graficos de ressonancia (CSV do Klipper via REST) ----------
+// O Klipper grava os CSVs dos testes em /tmp; o componente joelma_resonances
+// (moonraker-upgrade) os expoe em /server/joelma/resonances[/csv].
+const RES_CORES = ["#42a5f5","#66bb6a","#ffa726","#ef5350","#ab47bc","#26c6da","#d4e157","#8d6e63"];
+async function resLista(){
+  const sel = $("ressel");
+  try {
+    const r = await fetch(base + "/server/joelma/resonances");
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const d = await r.json();
+    const arqs = (d.result || d).arquivos || [];
+    sel.innerHTML = "";
+    if (!arqs.length) {
+      sel.innerHTML = '<option value="">nenhum CSV em /tmp — rode um teste acima</option>';
+      $("resmap").style.display = "none"; $("resleg").innerHTML = "";
+      return;
+    }
+    arqs.forEach(a => {
+      const o = document.createElement("option");
+      o.value = a.nome;
+      o.textContent = a.nome.replace(".csv","") + " — " + new Date(a.mtime * 1000).toLocaleString("pt-BR");
+      sel.appendChild(o);
+    });
+    resDesenha(sel.value).catch(e => logLinha("!! grafico: " + e.message));
+  } catch(e) {
+    sel.innerHTML = '<option value="">componente ausente — rode joelma update</option>';
+    $("resmap").style.display = "none";
+  }
+}
+async function resDesenha(nome){
+  if (!nome) return;
+  const r = await fetch(base + "/server/joelma/resonances/csv?nome=" + encodeURIComponent(nome));
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  const d = await r.json();
+  const j = d.result || d;
+  const cols = j.colunas || [], dados = j.dados || [];
+  const cv = $("resmap");
+  cv.style.display = "block";
+  const g = cv.getContext("2d");
+  const W = cv.width = cv.clientWidth * 2, H = cv.height = 520;
+  g.clearRect(0, 0, W, H);
+  $("resleg").innerHTML = "";
+  if (dados.length < 2 || cols.length < 2) return;
+
+  const fmin = dados[0][0], fmax = dados[dados.length - 1][0] || 1;
+  // series psd_* dividem a mesma escala; colunas de shaper (zv, mzv, ei...) sao 0..1
+  let psdMax = 0;
+  for (let c = 1; c < cols.length; c++) {
+    if (cols[c].indexOf("psd") !== 0) continue;
+    for (const l of dados) psdMax = Math.max(psdMax, l[c] || 0);
+  }
+  psdMax = psdMax || 1;
+  const px = f => 50 + ((f - fmin) / (fmax - fmin || 1)) * (W - 62);
+  const py = t => H - 30 - t * (H - 48);
+
+  // grade de frequencia a cada 25 Hz
+  g.strokeStyle = "rgba(148,163,184,.14)"; g.fillStyle = "#8a94a6"; g.font = "18px system-ui"; g.lineWidth = 1;
+  for (let f = Math.ceil(fmin / 25) * 25; f <= fmax; f += 25) {
+    g.beginPath(); g.moveTo(px(f), 12); g.lineTo(px(f), H - 28); g.stroke();
+    g.fillText(f + "Hz", px(f) - 16, H - 8);
+  }
+
+  let pico = {f: 0, v: -1};
+  for (let c = 1; c < cols.length && c <= RES_CORES.length; c++) {
+    const ehPsd = cols[c].indexOf("psd") === 0;
+    g.strokeStyle = RES_CORES[c - 1]; g.lineWidth = cols[c] === "psd_xyz" ? 4 : 2;
+    g.setLineDash(ehPsd ? [] : [7, 6]);
+    g.beginPath();
+    dados.forEach((l, i) => {
+      const t = ehPsd ? (l[c] || 0) / psdMax : Math.max(0, Math.min(1, l[c] || 0));
+      if (i) g.lineTo(px(l[0]), py(t)); else g.moveTo(px(l[0]), py(t));
+      if (cols[c] === "psd_xyz" && l[c] > pico.v) pico = {f: l[0], v: l[c]};
+    });
+    g.stroke(); g.setLineDash([]);
+    $("resleg").innerHTML += '<span style="color:' + RES_CORES[c - 1] + '">— ' + cols[c] + '</span>';
+  }
+  if (pico.v > 0) {
+    g.strokeStyle = "rgba(255,255,255,.5)"; g.setLineDash([4, 4]);
+    g.beginPath(); g.moveTo(px(pico.f), 12); g.lineTo(px(pico.f), H - 28); g.stroke(); g.setLineDash([]);
+    g.fillStyle = "#e2e8f0"; g.font = "600 20px system-ui";
+    g.fillText("pico ~" + Math.round(pico.f) + " Hz", px(pico.f) + 8, 30);
+  }
+}
+$("resref").onclick = () => resLista();
+$("ressel").onchange = () => resDesenha($("ressel").value).catch(e => logLinha("!! grafico: " + e.message));
+$("acc-shaper").addEventListener("toggle", () => { if ($("acc-shaper").open) resLista(); });
+
 // redesenha o heatmap ao abrir a secao (canvas fechado mede zero)
 document.querySelectorAll("details.acc").forEach(d => d.addEventListener("toggle", () => {
   if (d.open) leCalib();
@@ -1618,9 +1736,9 @@ $("pidbico").onclick    = () => roda("PID_CALIBRATE HEATER=extruder TARGET=220",
 $("pidbico260").onclick = () => roda("PID_CALIBRATE HEATER=extruder TARGET=260", "PID do bico @260C", 30, () => $("salvar").style.display = "");
 $("pidcamara").onclick  = () => roda("PID_CALIBRATE HEATER=chamber_heater TARGET=50", "PID da camara @50C", 35, () => $("salvar").style.display = "");
 // input shaper
-$("shapercal").onclick = () => roda("SHAPER_CALIBRATE", "Calibrando input shaper (X e Y)", 20, () => { leCalib(); $("salvar").style.display = ""; });
-$("resx").onclick = () => roda("TEST_RESONANCES AXIS=X", "Teste de ressonancia no eixo X", 15, () => $("salvar").style.display = "");
-$("resy").onclick = () => roda("TEST_RESONANCES AXIS=Y", "Teste de ressonancia no eixo Y", 15, () => $("salvar").style.display = "");
+$("shapercal").onclick = () => roda("SHAPER_CALIBRATE", "Calibrando input shaper (X e Y)", 20, () => { leCalib(); resLista(); $("salvar").style.display = ""; });
+$("resx").onclick = () => roda("TEST_RESONANCES AXIS=X", "Teste de ressonancia no eixo X", 15, () => { resLista(); $("salvar").style.display = ""; });
+$("resy").onclick = () => roda("TEST_RESONANCES AXIS=Y", "Teste de ressonancia no eixo Y", 15, () => { resLista(); $("salvar").style.display = ""; });
 $("accq").onclick = () => roda("ACCELEROMETER_QUERY", "Consultando o acelerometro LIS2DW", 3);
 $("axnoise").onclick = () => roda("MEASURE_AXES_NOISE", "Medindo o ruido de base dos eixos", 5);
 // pressure advance
@@ -1882,6 +2000,7 @@ document.querySelectorAll("[data-jog]").forEach(b => b.onclick = () => {
 });
 $("jhome").onclick  = () => roda("G28 X Y", "Homing XY", 5);
 $("jhomez").onclick = () => roda("G28 Z", "Homing Z", 5);
+$("jhomeall").onclick = () => roda("G28", "Homing XYZ", 6);
 $("motoroff").onclick = () => gcode("M84", 1)
   .then(() => logLinha("// motores desligados (M84)"))
   .catch(e => logLinha("!! " + e.message));
