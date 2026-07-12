@@ -880,6 +880,14 @@ function aplicaStatus(st){
   if (st.idle_timeout && st.idle_timeout.state) ultimo.idle = st.idle_timeout.state;
   if (st.display_status && st.display_status.message) $("detalhe").textContent = st.display_status.message;
   if (st["output_pin LED"] && st["output_pin LED"].value !== undefined) pintaLuz(+st["output_pin LED"].value);
+  // CFS voltou do transitorio pos-restart (485)? re-renderiza na hora
+  if (st.box && st.box.state !== undefined) {
+    if (st.box.state === "connect" && cfsUltimoEstado !== "connect") {
+      cfsTentativas = 0;
+      renderCFS().catch(()=>{});
+    }
+    cfsUltimoEstado = st.box.state;
+  }
   if (st.toolhead) {
     if (st.toolhead.position) {
       $("posx").textContent = st.toolhead.position[0].toFixed(1);
@@ -1166,7 +1174,7 @@ function rotKey(sn, tnn){ return "cfsrot:" + sn + ":" + tnn; }
 function getRot(sn, tnn){ try { return JSON.parse(localStorage.getItem(rotKey(sn,tnn))||"null"); } catch(e){ return null; } }
 function setRot(sn, tnn, obj){ if(obj) localStorage.setItem(rotKey(sn,tnn), JSON.stringify(obj)); else localStorage.removeItem(rotKey(sn,tnn)); }
 
-let cfsSN = "-1", cfsEditando = null, cfsTentativas = 0;
+let cfsSN = "-1", cfsEditando = null, cfsTentativas = 0, cfsUltimoEstado = null;
 
 async function renderCFS(){
   await carregaSpools();
@@ -1175,15 +1183,16 @@ async function renderCFS(){
   const head = $("cfshead"), slots = $("slots");
   if (!box) { $("cfsconn").textContent = "objeto box indisponivel"; return; }
   if (box.state !== "connect") {
-    // logo apos reinicio do Klipper o CFS reconecta pelo barramento 485 e pode
-    // reportar estado transitorio; tenta de novo algumas vezes antes de desistir
-    if (cfsTentativas < 6) {
+    // logo apos reinicio do Klipper o CFS renegocia o barramento 485 e pode
+    // levar ~1 min; alem do retry, a assinatura de box.state no WebSocket
+    // (aplicaStatus) re-renderiza sozinha assim que o estado virar connect
+    if (cfsTentativas < 24) {
       cfsTentativas++;
-      head.innerHTML = '<span>CFS reconectando' + '.'.repeat(cfsTentativas) + ' (' + (box.state||"?") + ')</span>';
+      head.innerHTML = '<span>CFS reconectando' + '.'.repeat(1 + cfsTentativas % 3) + ' (' + (box.state||"?") + ', ' + (cfsTentativas*2.5).toFixed(0) + 's)</span>';
       setTimeout(() => renderCFS().catch(()=>{}), 2500);
       return;
     }
-    head.innerHTML = '<span class="off">CFS desconectado (' + (box.state||"?") + ') \u2014 verifique se esta ligado</span>';
+    head.innerHTML = '<span class="off">CFS desconectado (' + (box.state||"?") + ') \u2014 verifique energia/cabo; reconecto sozinho quando voltar</span>';
     slots.innerHTML = "";
     $("fwCfs").textContent = "off";
     return;
@@ -1913,7 +1922,7 @@ function objsSub(){
   const o = {
     heater_bed:["temperature","target"], extruder:["temperature","target"],
     idle_timeout:["state"], display_status:["message"], "output_pin LED":["value"],
-    toolhead:["position","homed_axes"]
+    toolhead:["position","homed_axes"], box:["state"]
   };
   SENSORES.forEach(s => { if (!o[s.obj]) o[s.obj] = null; });
   return o;
