@@ -1649,7 +1649,10 @@ async function pintaSistema(){
   try {
     const r = await fetch(base + "/server/info");
     const d = (await r.json()).result;
-    $("fwMoon").textContent = (d.moonraker_version || "?").split("-")[0];
+    // o build do DnG nao carimba moonraker_version (vem "?"); cai pra API
+    const mv = d.moonraker_version && d.moonraker_version !== "?"
+             ? d.moonraker_version.split("-")[0] : null;
+    $("fwMoon").textContent = mv || ("API " + (d.api_version_string || "?"));
   } catch(e) { $("fwMoon").textContent = "?"; }
   // Firmware da impressora (componente joelma_info)
   try {
