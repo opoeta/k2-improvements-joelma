@@ -336,7 +336,7 @@
 </style>
 </head>
 <body>
-<h1><i data-ic="wrench"></i> Central de Calibração — Joelma</h1>
+<h1><i data-ic="wrench"></i> Central de Calibração — <span id="nomeImpressora">Joelma</span></h1>
 <div class="sub">K2 Plus — vista de cima, a FRENTE da impressora é você (embaixo)</div>
 
 <div class="statusbar">
@@ -1682,6 +1682,21 @@ function renderSensores(){
   });
 }
 
+// ---------- Nome da impressora: puxa o configurado no Fluidd ----------
+// O Fluidd grava o nome da instancia no banco do Moonraker
+// (namespace "fluidd", chave uiSettings.general.instanceName).
+async function pintaNome(){
+  try {
+    const r = await fetch(base + "/server/database/item?namespace=fluidd&key=uiSettings.general.instanceName");
+    if (!r.ok) return;                          // sem nome configurado: mantem "Joelma"
+    const nome = (await r.json()).result.value;
+    if (nome && typeof nome === "string") {
+      $("nomeImpressora").textContent = nome;
+      document.title = "Central de Calibração — " + nome;
+    }
+  } catch(e) {}
+}
+
 // ---------- Sistema: versoes de firmware ----------
 async function pintaSistema(){
   // Klipper
@@ -1854,6 +1869,7 @@ $("sp-save").onclick = spSalvar;
 $("sp-cancel").onclick = () => $("spdlg").close();
 
 pintaIcones();
+pintaNome();
 descobreSensores();
 pintaSistema();
 ligaCamera();
