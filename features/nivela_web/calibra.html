@@ -345,6 +345,7 @@
     <div id="fazendo">Conectando ao Moonraker...</div>
     <div id="detalhe">—</div>
   </div>
+  <button id="recuperar" class="perigo" style="display:none;flex:none;padding:9px 12px;font-size:.78rem"><i data-ic="restart"></i> Recuperar (FIRMWARE_RESTART)</button>
 </div>
 
 <div class="sysbar" id="sysbar">
@@ -419,6 +420,15 @@
     <button class="salvar" id="ed-ok" style="flex:1">Salvar rótulo</button>
     <button id="ed-limpa">Limpar</button>
     <button id="ed-cancela">Cancelar</button>
+  </div>
+</dialog>
+
+<dialog class="editor" id="rfiddlg">
+  <h3><i data-ic="alert"></i> Reler RFID — comando arriscado</h3>
+  <div class="dica" style="margin-bottom:0">Bug conhecido do firmware da Creality: este comando pode derrubar o Klipper.<br>A recuperação é feita com <b>FIRMWARE_RESTART</b> (~30s).</div>
+  <div class="ed-btns">
+    <button id="rfid-cancela" class="ghost" style="flex:1">Cancelar</button>
+    <button id="rfid-ok" class="perigo" style="flex:1"><i data-ic="refresh"></i> Executar mesmo assim</button>
   </div>
 </dialog>
 
@@ -661,7 +671,8 @@ const ICONS = {
   fan:    '<path d="M12 12c0-3 2.5-5 5-4s2 4-1 5-4 1-4-1"/><path d="M12 12c3 0 5 2.5 4 5s-4 2-5-1-1-4 1-4"/><path d="M12 12c0 3-2.5 5-5 4s-2-4 1-5 4-1 4 1"/><path d="M12 12c-3 0-5-2.5-4-5s4-2 5 1 1 4-1 4"/>',
   cube:   '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
   chip:   '<rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 2v2M15 2v2M9 20v2M15 20v2M2 9h2M2 15h2M20 9h2M20 15h2"/>',
-  spinner:'<path d="M21 12a9 9 0 1 1-6.22-8.56"/>'
+  spinner:'<path d="M21 12a9 9 0 1 1-6.22-8.56"/>',
+  alert:  '<path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>'
 };
 function svgIc(nome, cls){
   return '<svg class="ic' + (cls ? " " + cls : "") + '" viewBox="0 0 24 24">' + (ICONS[nome] || "") + '</svg>';
@@ -1123,7 +1134,31 @@ $("ed-ok").onclick = () => {
 $("ed-limpa").onclick = () => { setRot(cfsSN, cfsEditando, null); $("editor").close(); renderCFS(); };
 $("ed-cancela").onclick = () => $("editor").close();
 
-$("cfsrefresh").onclick = () => roda("BOX_INFO_REFRESH", "Relendo RFID de todos os slots", 3, () => setTimeout(renderCFS, 1500));
+// BOX_INFO_REFRESH emite BOX_SET_PRE_LOADING com ADDR=/NUM= vazios; o parser da
+// Creality quebra (key171) e o Klipper vai pra shutdown (key60). Ver docs/JOELMA-HANDOFF.md §7.1.
+async function vigiaShutdownRfid(){
+  for (let i = 0; i < 8; i++) {
+    await new Promise(res => setTimeout(res, 2500));
+    try {
+      const d = await (await fetch(base + "/printer/info")).json();
+      const st = d.result && d.result.state;
+      if (st === "ready") { $("recuperar").style.display = "none"; return; }
+      if (st === "shutdown" || st === "error") {
+        $("recuperar").style.display = "";
+        setStatus("Klipper caiu (bug do BOX_INFO_REFRESH)", "clique em Recuperar ao lado (~30s)", "err");
+        return;
+      }
+    } catch(e) {}
+  }
+}
+$("cfsrefresh").onclick = () => $("rfiddlg").showModal();
+$("rfid-cancela").onclick = () => $("rfiddlg").close();
+$("rfid-ok").onclick = () => {
+  $("rfiddlg").close();
+  roda("BOX_INFO_REFRESH", "Relendo RFID de todos os slots", 3, () => setTimeout(renderCFS, 1500));
+  vigiaShutdownRfid();
+};
+$("recuperar").onclick = () => { $("recuperar").style.display = "none"; $("fwrestart").onclick(); };
 $("cfsquit").onclick = () => roda("BOX_QUIT_MATERIAL", "Descarregando material atual", 6, () => renderCFS());
 $("cfssync").onclick = async () => {
   const btn = $("cfssync");
