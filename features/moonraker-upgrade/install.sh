@@ -92,6 +92,20 @@ JRES
     MUDOU=1
     echo "I: [joelma_resonances] ativado (graficos de ressonancia via REST)"
 fi
+# joelma_cfs_edit: edita material/cor de slot do CFS gravando nos JSONs do
+# firmware (os mesmos que a tela usa) — sincroniza tela/Creality Print/Orca.
+if [ -f "${FEAT_DIR}/joelma_cfs_edit.py" ]; then
+    cp "${FEAT_DIR}/joelma_cfs_edit.py" /usr/share/moonraker/components/joelma_cfs_edit.py
+    echo "I: componente joelma_cfs_edit.py copiado"
+fi
+if ! grep -q '^\[joelma_cfs_edit\]' ${CONF}; then
+    cat >> ${CONF} <<'JCFS'
+
+[joelma_cfs_edit]
+JCFS
+    MUDOU=1
+    echo "I: [joelma_cfs_edit] ativado (edicao de slot gravada no firmware)"
+fi
 if ! grep -q '^\[joelma_info\]' ${CONF}; then
     cat >> ${CONF} <<'JINFO'
 
