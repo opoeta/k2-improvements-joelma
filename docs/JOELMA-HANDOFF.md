@@ -164,13 +164,17 @@ key60:  Internal error on command:BOX_SET_PRE_LOADING
 **MITIGADO (2 camadas):**
 1. A Central pede **confirmação** antes do RELER RFID e mostra o botão
    **Recuperar (FIRMWARE_RESTART)** se o Klipper cair.
-2. Feature **`macros/box_guard`**: override de `BOX_SET_PRE_LOADING` via
-   `rename_existing` — com `ADDR`/`NUM` vazios vira no-op logado; chamada
-   legítima repassa `rawparams` intacto ao comando original. Como o comando
-   interno passa pelo interpretador de G-code (evidência: o key171 é erro de
-   parse), o override intercepta antes do módulo quebrado.
-   ⚠️ Validar ao vivo no primeiro `joelma update` após esta feature: se o
-   Klipper reclamar do `rename_existing` no boot, remover a linha
+2. Feature **`macros/box_guard`**: overrides via `rename_existing` — com
+   `ADDR`/`NUM` vazios o comando vira no-op logado; chamada legítima repassa
+   `rawparams` intacto ao original. Como os comandos internos passam pelo
+   interpretador de G-code (evidência: o key171 é erro de parse), o override
+   intercepta antes do módulo quebrado.
+   **Validado ao vivo (jul/2026):** o guard do `BOX_SET_PRE_LOADING` funcionou
+   ("ignorado: ADDR/NUM vazios" no console) — e revelou que o refresh emite uma
+   **sequência**: na sequência veio `BOX_GET_RFID ADDR= NUM=`, que derrubou o
+   Klipper do mesmo jeito e ganhou guard idêntico. Se aparecer key171 de OUTRO
+   `BOX_*` com parâmetros vazios, adicionar mais um bloco no `box_guard.cfg`.
+   ⚠️ Se o Klipper reclamar de `rename_existing` no boot, remover a linha
    `[include box_guard.cfg]` de `custom/main.cfg` e reportar.
 
 ### 7.2 Daemon do Docker no NAS cai sozinho
