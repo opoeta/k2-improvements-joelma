@@ -73,4 +73,9 @@ for f in camera.html snapshot.html; do
 done
 sh ${SCRIPT_DIR}/../nivela_web/install.sh
 
+# reinicia o Moonraker pra o [update_manager fluidd] reler o path recem-instalado
+# (agora com release_info.json valido) e ja mostrar o Fluidd atualizavel
+/etc/init.d/moonraker restart 2>/dev/null || true
+
 echo "I: fluidd ${REMOTA:-novo} instalado em ${DEST} - http://IP:4408 (Ctrl+F5)"
+echo "I: atualizacoes futuras: aba Machine do Fluidd -> Update (ou joelma update)"

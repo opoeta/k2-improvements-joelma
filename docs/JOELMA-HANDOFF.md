@@ -19,6 +19,8 @@ Na Joelma roda o Moonraker **upstream** (fork DnG-Crafts/K2-Camera), API 1.4.0 �
 build cortado da Creality. Na `:4408`, **Fluidd upstream (última release de fluidd-core/fluidd)**
 via feature `fluidd-upstream` — o build da Creality fica de backup em `/usr/share/fluidd_backup`
 (rollback: `rm -rf /usr/share/fluidd && cp -r /usr/share/fluidd_backup /usr/share/fluidd`).
+Atualização pela própria UI: **aba Machine → Update** (`[update_manager fluidd]` no
+`moonraker.conf`, `type: web`, `repo: fluidd-core/fluidd`, `path: /usr/share/fluidd`).
 
 No NAS, **Spoolman 0.23.1** em `http://10.10.1.254:7912`. Catálogo: **24 spools, 20 filamentos,
 4 fabricantes** (Masterprint, Voolt3D, Genérico, Generic).
