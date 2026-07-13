@@ -4,7 +4,10 @@
 # porta, na mensagem "boxsInfo", esperando cor "#0RRGGBB" e type/vendor por
 # slot; este script mostra o payload REAL que a impressora envia.
 #
-# Roda no PC (mesma rede da impressora), so escuta — nao envia comando algum:
+# Roda no PC (mesma rede da impressora). Alem de escutar, envia a MESMA
+# requisicao que o OrcaSlicer usa no sync (segura, o Orca a faz o tempo todo):
+#   {"method":"get","params":{"boxsInfo":1}}
+#
 #   python scripts\dump_cfs_9999.py            (padrao: 10.10.1.240, 20s)
 #   python scripts\dump_cfs_9999.py 10.10.1.240 30
 #
@@ -78,6 +81,10 @@ def frames(dados):
 
 
 s.settimeout(2)
+# pede o boxsInfo ativamente — mesma requisicao do OrcaSlicer (CrealityPrint.cpp)
+envia_texto = lambda obj: envia(1, json.dumps(obj).encode())
+envia_texto({"method": "get", "params": {"boxsInfo": 1}})
+
 fim = time.time() + DUR
 achou_box = False
 while time.time() < fim:
