@@ -180,6 +180,13 @@ key60:  Internal error on command:BOX_SET_PRE_LOADING
    `BOX_*` com parâmetros vazios, adicionar mais um bloco no `box_guard.cfg`.
    ⚠️ Se o Klipper reclamar de `rename_existing` no boot, remover a linha
    `[include box_guard.cfg]` de `custom/main.cfg` e reportar.
+3. **`BOX_LOAD_MATERIAL` em slot SEM filamento físico → `!! None` + shutdown**
+   (jul/2026). A cadeia `BOX_LOAD_MATERIAL → BOX_LOAD_MATERIAL_EXTRUDE_MATERIAL
+   → BOX_EXTRUDE_MATERIAL` estoura com `None` quando o slot não tem filamento
+   presente. **Não** dá pra blindar por `rename_existing` (não é erro de parse e
+   o extrude é essencial à carga). **Mitigação:** a Central só habilita "Carregar"
+   quando o hardware reporta presença física (`remain_len != -1`) — rótulo/spool
+   vinculado deixam o slot cheio na tela mas **não** liberam o Carregar.
 
 ### 7.2 Daemon do Docker no NAS cai sozinho
 

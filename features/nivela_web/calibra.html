@@ -1339,6 +1339,11 @@ async function renderCFS(){
     // tag RFID ou spool vinculado = slot ocupado, mesmo com remain -1;
     // rotulo local sozinho so conta se o CFS reporta filamento no slot
     const temFilamento = !!tipoRfid || !!(spoolCache && spoolCache[tnn]) || !!(rot && String(remain) !== "-1");
+    // PRESENCA FISICA (o que o hardware reporta): so isto pode CARREGAR. Rotulo
+    // ou spool vinculado deixam o slot "cheio" na tela, mas mandar
+    // BOX_LOAD_MATERIAL num slot sem filamento fisico faz o BOX_EXTRUDE_MATERIAL
+    // estourar com None e derrubar o Klipper (visto ao vivo jul/2026).
+    const presente = !!tipoRfid || (String(remain) !== "-1" && String(remain) !== "" && remain != null);
 
     const spool = spoolCache && spoolCache[tnn];
     const spF = (spool && spool.filament) || null;
@@ -1370,12 +1375,13 @@ async function renderCFS(){
         tipoRfid   ? svgIc("tag")+' tag?' :
                      'sem tag') + '</div>' +
       '<div class="slot-btns">' +
-        '<button class="b-load" data-tnn="' + tnn + '" ' + (temFilamento?'':'disabled') + '>' + svgIc("load") + ' Carregar</button>' +
+        '<button class="b-load" data-tnn="' + tnn + '"' + (presente?'':' disabled title="sem filamento fisico neste slot"') + '>' + svgIc("load") + ' Carregar</button>' +
         '<button class="b-edit" data-edit="' + tnn + '" data-tipo="' + (tipo!=="vazio"?tipo:"") + '" data-cor="' + cor + '" data-nome="' + (nome||"") + '">' + svgIc("edit") + '</button>' +
       '</div>';
     slots.appendChild(el);
   }
   slots.querySelectorAll(".b-load").forEach(b => b.onclick = () => {
+    if (b.disabled) return;
     const tnn = b.dataset.tnn;
     roda("BOX_LOAD_MATERIAL TNN=" + tnn, "Carregando material do slot " + tnn + " (aquece, corta, purga)", 8, () => renderCFS());
   });
