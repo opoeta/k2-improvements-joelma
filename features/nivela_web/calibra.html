@@ -1360,7 +1360,27 @@ async function vinculaSpool(tnn, spoolId){
   }
 }
 $("ed-ok").onclick = async () => {
-  setRot(cfsSN, cfsEditando, {tipo:$("ed-tipo").value, cor:$("ed-cor").value, nome:$("ed-nome").value.trim()});
+  // 1a opcao: gravar NO FIRMWARE (componente joelma_cfs_edit escreve nos
+  // JSONs que a tela usa) — tela, Creality Print e Orca passam a ver igual.
+  // Sem o componente (update pendente), cai no rotulo local de sempre.
+  let gravouFw = false;
+  try {
+    const r = await fetch(base + "/server/joelma/cfs/edit", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({tnn: cfsEditando, materialType: $("ed-tipo").value,
+                            color: $("ed-cor").value, name: $("ed-nome").value.trim()})});
+    gravouFw = r.ok;
+    if (r.ok) {
+      const d = await r.json();
+      const res = d.result || d;
+      logLinha("[CFS] " + cfsEditando + " gravado no firmware (" + res.materialType + " " + res.color + ") — tela/CP/Orca sincronizados");
+    }
+  } catch(e) {}
+  if (gravouFw) setRot(cfsSN, cfsEditando, null);   // rotulo local vira redundante
+  else {
+    setRot(cfsSN, cfsEditando, {tipo:$("ed-tipo").value, cor:$("ed-cor").value, nome:$("ed-nome").value.trim()});
+    logLinha("!! componente cfs_edit ausente — salvei so o rotulo local (rode: joelma update)");
+  }
   const alvo = $("ed-spool").value;
   try { await vinculaSpool(cfsEditando, alvo ? +alvo : null); }
   catch(e) { logLinha("!! Spoolman: " + e.message); }
