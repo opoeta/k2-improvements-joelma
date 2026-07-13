@@ -52,6 +52,23 @@ if ! grep -q '10.10.1.240:4408' ${CONF}; then
     echo "I: cors_domains com origens exatas da LAN"
 fi
 
+# update_manager do Fluidd: faz o proprio Fluidd aparecer como atualizavel na
+# aba Machine (botao Update) puxando a ultima release de fluidd-core/fluidd
+# direto do GitHub. Le o path (/usr/share/fluidd) que a feature fluidd-upstream
+# instala com release_info.json. type:web = frontend distribuido como zip.
+if ! grep -q '^\[update_manager fluidd\]' ${CONF}; then
+    cat >> ${CONF} <<'UMFL'
+
+[update_manager fluidd]
+type: web
+channel: stable
+repo: fluidd-core/fluidd
+path: /usr/share/fluidd
+UMFL
+    MUDOU=1
+    echo "I: [update_manager fluidd] ativado (Update do Fluidd pela aba Machine)"
+fi
+
 # Spoolman: componente cliente aponta para o servidor Docker na LAN
 # (o servidor roda em 10.10.1.254:7912 - NAS). O proxy do Moonraker
 # permite a Central falar a API sem CORS.
