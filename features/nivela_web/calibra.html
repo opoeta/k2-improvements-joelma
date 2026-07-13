@@ -1159,14 +1159,17 @@ async function spoolProxy(method, path, body){
 }
 // tag do Spoolman guarda o TNN do slot (ex "T1A"); normaliza aspas extras
 function spoolTnn(sp){ let t = (sp.extra&&sp.extra.tag)||""; t = String(t).replace(/["\\]/g,"").trim(); return /^T[1-4][A-D]$/.test(t) ? t : null; }
-// carrega spools e indexa por TNN
+// carrega spools: indexa por TNN (spoolCache) e guarda a lista toda (spoolTodos,
+// pro match por material+cor dos slots com RFID)
+let spoolTodos = null;
 async function carregaSpools(){
   try {
     const sp = await spoolProxy("GET", "/v1/spool");
     spoolCache = {};
-    (Array.isArray(sp)?sp:[]).forEach(s => { const t = spoolTnn(s); if (t) spoolCache[t] = s; });
+    spoolTodos = Array.isArray(sp) ? sp : [];
+    spoolTodos.forEach(s => { const t = spoolTnn(s); if (t) spoolCache[t] = s; });
     return spoolCache;
-  } catch(e) { spoolCache = null; return null; }
+  } catch(e) { spoolCache = null; spoolTodos = null; return null; }
 }
 // acha um filament existente que combine material+cor (pra nao duplicar)
 async function achaFilament(material, corHexSemHash){
@@ -1216,9 +1219,70 @@ function getRot(sn, tnn){ try { return JSON.parse(localStorage.getItem(rotKey(sn
 function setRot(sn, tnn, obj){ if(obj) localStorage.setItem(rotKey(sn,tnn), JSON.stringify(obj)); else localStorage.removeItem(rotKey(sn,tnn)); }
 
 let cfsSN = "-1", cfsEditando = null, cfsTentativas = 0, cfsUltimoEstado = null;
+const cfsComTag = {};   // TNN -> tem tag RFID fisica? (preenchido no renderCFS)
+function tagDoSlot(tnn){ return !!cfsComTag[tnn]; }
+
+// ---------- Deteccao de RFID: fonte confiavel = firmware (joelma_cfs_edit) ----------
+// O objeto 'box' do Klipper nao diz se o dado veio de tag ou de edicao manual.
+// O material_box_info.json diz: por slot traz rfid (0/1) e editStatus
+// (1=leitura de tag, 2=editado a mao, 0=vazio). Sem o componente, fwSlot fica {}.
+let fwSlot = {};
+async function carregaFwSlots(){
+  fwSlot = {};
+  try {
+    const r = await fetch(base + "/server/joelma/cfs/edit");
+    if (!r.ok) return;
+    const d = await r.json(); const j = d.result || d;
+    const info = j.box && j.box.Material && j.box.Material.info;
+    if (!Array.isArray(info)) return;
+    info.forEach(caixa => {
+      const bx = caixa.boxID || "";
+      (caixa.list || []).forEach(s => {
+        const tnn = bx + (s.materialId || "");
+        if (/^T[1-4][A-D]$/.test(tnn))
+          fwSlot[tnn] = {rfid: s.rfid, editStatus: s.editStatus, sn: caixa.sn || ""};
+      });
+    });
+  } catch(e) {}
+}
+
+// ---------- Slot com RFID -> casa com o spool correspondente no Spoolman ----------
+// Match por material + cor exatos (mesma regra do sync manual). Ao achar, grava
+// extra.tag=TNN no spool (persiste; vale pra qualquer cliente) e passa a exibir
+// o peso do spool no slot. Idempotente: uma vez casado, o proximo render ja
+// acha pelo tag e nao repete a escrita.
+const rfidCasado = new Set();
+async function casaRfidComSpoolman(pend){
+  if (!spoolTodos || !pend.length) return false;
+  let mudou = false;
+  for (const p of pend) {
+    if (rfidCasado.has(p.tnn)) continue;
+    rfidCasado.add(p.tnn);
+    const alvoMat = (p.material || "").toUpperCase();
+    const alvoCor = (p.cor || "").replace("#","").toLowerCase();
+    const cand = spoolTodos.find(s => {
+      if (s.archived) return false;
+      const f = s.filament || {};
+      const jaTem = spoolTnn(s);
+      if (jaTem && jaTem !== p.tnn) return false;   // ja e de outro slot
+      return (f.material||"").toUpperCase() === alvoMat &&
+             (f.color_hex||"").slice(0,6).toLowerCase() === alvoCor;
+    });
+    if (!cand) { logLinha("// RFID " + p.tnn + " (" + alvoMat + " #" + alvoCor + "): sem spool correspondente no Spoolman"); continue; }
+    if (spoolTnn(cand) === p.tnn) continue;         // ja vinculado
+    try {
+      const ex = Object.assign({}, cand.extra || {}); ex.tag = JSON.stringify(p.tnn);
+      await spoolProxy("PATCH", "/v1/spool/" + cand.id, {extra: ex});
+      logLinha("[SPOOLMAN] RFID " + p.tnn + " casado com spool #" + cand.id + " (" + alvoMat + ")");
+      mudou = true;
+    } catch(e) { logLinha("!! casar " + p.tnn + ": " + e.message); }
+  }
+  return mudou;
+}
 
 async function renderCFS(){
   await carregaSpools();
+  await carregaFwSlots();
   const q = await rpc("printer.objects.query", {objects:{box:null, filament_rack:null}});
   const box = q.status.box;
   const head = $("cfshead"), slots = $("slots");
@@ -1252,11 +1316,23 @@ async function renderCFS(){
     '<span>auto-refill <b>' + (box.auto_refill?"ON":"off") + '</b></span>';
 
   const letras = ["A","B","C","D"];
+  const rfidPend = [];   // slots com RFID ainda sem spool vinculado (p/ casar depois)
   slots.innerHTML = "";
   for (let i = 0; i < 4; i++) {
     const tnn = "T1" + letras[i];
     const tipoRfid = matNome((t1.material_type||[])[i]);
     const corRfid = corHex((t1.color_value||[])[i]);
+    const fw = fwSlot[tnn] || null;   // {rfid, editStatus} do firmware, se disponivel
+    // tag RFID de verdade = firmware marca rfid=1 E dado veio da leitura (editStatus=1).
+    // editStatus 2 = editado manualmente (sem tag). Sem o componente, cai no
+    // heuristico antigo (material vindo do box = provavel tag) so pra nao regredir.
+    const temTagReal = fw ? (fw.rfid === 1 && fw.editStatus === 1)
+                          : !!tipoRfid;
+    const editadoMao = fw ? (fw.editStatus === 2) : false;
+    cfsComTag[tnn] = temTagReal;
+    // slot com RFID e sem spool ainda vinculado -> candidato a casar no Spoolman
+    if (temTagReal && tipoRfid && corRfid && !(spoolCache && spoolCache[tnn]))
+      rfidPend.push({tnn, material: tipoRfid, cor: corRfid});
     const remain = (t1.remain_len||[])[i];
     const vender = (t1.vender||[])[i];
     const rot = getRot(cfsSN, tnn);
@@ -1286,7 +1362,13 @@ async function renderCFS(){
       (nome ? '<div class="len">' + nome + '</div>' : '') +
       (temFilamento && String(remain)!=="-1" ? '<div class="len">~' + remain + '%</div>' : '') +
       (spool && spool.remaining_weight != null ? '<div class="len">' + Math.round(spool.remaining_weight) + 'g no Spoolman</div>' : '') +
-      '<div class="rfid">' + (tipoRfid ? svgIc("tag")+' RFID' + (rot ? ' +rótulo' : '') : (rot ? svgIc("edit")+' rotulado' : (spool ? svgIc("spool")+' #'+spool.id : 'sem tag'))) + '</div>' +
+      '<div class="rfid">' + (
+        temTagReal ? svgIc("tag")+' RFID' + (spool ? ' #'+spool.id : '') + (rot ? ' +rótulo' : '') :
+        editadoMao ? svgIc("edit")+' manual' + (spool ? ' #'+spool.id : '') :
+        rot        ? svgIc("edit")+' rotulado' :
+        spool      ? svgIc("spool")+' #'+spool.id :
+        tipoRfid   ? svgIc("tag")+' tag?' :
+                     'sem tag') + '</div>' +
       '<div class="slot-btns">' +
         '<button class="b-load" data-tnn="' + tnn + '" ' + (temFilamento?'':'disabled') + '>' + svgIc("load") + ' Carregar</button>' +
         '<button class="b-edit" data-edit="' + tnn + '" data-tipo="' + (tipo!=="vazio"?tipo:"") + '" data-cor="' + cor + '" data-nome="' + (nome||"") + '">' + svgIc("edit") + '</button>' +
@@ -1298,6 +1380,10 @@ async function renderCFS(){
     roda("BOX_LOAD_MATERIAL TNN=" + tnn, "Carregando material do slot " + tnn + " (aquece, corta, purga)", 8, () => renderCFS());
   });
   slots.querySelectorAll(".b-edit").forEach(b => b.onclick = () => abreEditor(b.dataset));
+
+  // slots com RFID sem spool vinculado: casa com o correspondente no Spoolman.
+  // Se casou algum (gravou extra.tag), re-renderiza uma vez pra mostrar o vinculo.
+  if (rfidPend.length) casaRfidComSpoolman(rfidPend).then(m => { if (m) renderCFS().catch(()=>{}); });
 }
 
 // ---------- Editor de rotulo local ----------
@@ -1384,29 +1470,31 @@ $("ed-spool").onchange = () => {
 };
 
 $("ed-ok").onclick = async () => {
-  // 1a opcao: gravar NO FIRMWARE (componente joelma_cfs_edit escreve nos
-  // JSONs que a tela usa) — tela, Creality Print e Orca passam a ver igual.
-  // Sem o componente (update pendente), cai no rotulo local de sempre.
-  let gravouFw = false;
+  const editTnn = cfsEditando;
+  // SEMPRE grava o rotulo local: a Central desenha os slots a partir do objeto
+  // 'box' do Klipper (hardware/RFID), nao dos JSONs do firmware — o rotulo e o
+  // que faz a sua edicao aparecer na hora aqui. (Precedencia rotulo > RFID.)
+  setRot(cfsSN, editTnn, {tipo:$("ed-tipo").value, cor:$("ed-cor").value, nome:$("ed-nome").value.trim()});
+  // ALEM disso, tenta gravar no firmware (best-effort) pra sincronizar tela/
+  // Creality Print/Orca. Slot COM tag RFID: o firmware rele a tag e sobrescreve
+  // — so cola em slot SEM tag. O log avisa o caso.
   try {
     const r = await fetch(base + "/server/joelma/cfs/edit", {
       method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({tnn: cfsEditando, materialType: $("ed-tipo").value,
+      body: JSON.stringify({tnn: editTnn, materialType: $("ed-tipo").value,
                             color: $("ed-cor").value, name: $("ed-nome").value.trim()})});
-    gravouFw = r.ok;
     if (r.ok) {
-      const d = await r.json();
-      const res = d.result || d;
-      logLinha("[CFS] " + cfsEditando + " gravado no firmware (" + res.materialType + " " + res.color + ") — tela/CP/Orca sincronizados");
+      const d = await r.json(); const res = d.result || d;
+      logLinha("[CFS] " + editTnn + " rotulado na Central + gravado no firmware (" + res.materialType + " " + res.color + ")"
+        + (tagDoSlot(editTnn) ? " — atencao: slot com tag RFID, a impressora pode reler a tag e sobrescrever" : " — deve sincronizar com tela/CP/Orca"));
+    } else {
+      logLinha("// " + editTnn + " rotulado na Central (firmware respondeu HTTP " + r.status + ")");
     }
-  } catch(e) {}
-  if (gravouFw) setRot(cfsSN, cfsEditando, null);   // rotulo local vira redundante
-  else {
-    setRot(cfsSN, cfsEditando, {tipo:$("ed-tipo").value, cor:$("ed-cor").value, nome:$("ed-nome").value.trim()});
-    logLinha("!! componente cfs_edit ausente — salvei so o rotulo local (rode: joelma update)");
+  } catch(e) {
+    logLinha("// " + editTnn + " rotulado na Central (componente cfs_edit ausente — rode: joelma update p/ sincronizar com a impressora)");
   }
   const alvo = $("ed-spool").value;
-  try { await vinculaSpool(cfsEditando, alvo ? +alvo : null); }
+  try { await vinculaSpool(editTnn, alvo ? +alvo : null); }
   catch(e) { logLinha("!! Spoolman: " + e.message); }
   $("editor").close(); renderCFS();
 };
