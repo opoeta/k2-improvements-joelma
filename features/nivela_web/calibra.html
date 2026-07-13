@@ -1321,11 +1321,14 @@ function abreEditor(ds){
 // ---------- Spoolman no editor do slot: vinculo spool <-> TNN ----------
 // O vinculo e gravado no PROPRIO Spoolman (extra.tag = TNN), a mesma marca
 // que o "Sincronizar" usa — vale pra qualquer cliente, nao so este navegador.
+let edSpools = {};   // id -> spool (pro auto-preenchimento ao escolher)
 async function carregaSpoolSelect(tnn){
   const sel = $("ed-spool");
   sel.innerHTML = '<option value="">— sem vínculo —</option>';
+  edSpools = {};
   try {
     const sp = await spoolProxy("GET", "/v1/spool");
+    (Array.isArray(sp)?sp:[]).forEach(s => { edSpools[s.id] = s; });
     (Array.isArray(sp)?sp:[]).forEach(s => {
       if (s.archived) return;
       const f = s.filament || {};
@@ -1359,6 +1362,27 @@ async function vinculaSpool(tnn, spoolId){
     logLinha("[SPOOLMAN] " + tnn + " vinculado ao spool #" + spoolId);
   }
 }
+// Escolheu um spool no select? Preenche material/cor/nome com o filament do
+// Spoolman — no Salvar isso vai pro FIRMWARE, e a tela da impressora (e o
+// Orca/Creality Print) passam a mostrar o spool: Spoolman -> tela.
+$("ed-spool").onchange = () => {
+  const s = edSpools[$("ed-spool").value];
+  if (!s || !s.filament) return;
+  const f = s.filament;
+  if (f.material) {
+    const opt = [...$("ed-tipo").options].find(o => o.value.toUpperCase() === String(f.material).toUpperCase());
+    if (opt) $("ed-tipo").value = opt.value;
+  }
+  if (f.color_hex) {
+    const hex = "#" + String(f.color_hex).slice(0,6).toLowerCase();
+    if (/^#[0-9a-f]{6}$/.test(hex)) {
+      $("ed-cor").value = hex;
+      $("ed-cores").querySelectorAll("span").forEach(x => x.className = "");
+    }
+  }
+  $("ed-nome").value = ((f.vendor && f.vendor.name ? f.vendor.name + " " : "") + (f.name || "")).trim();
+};
+
 $("ed-ok").onclick = async () => {
   // 1a opcao: gravar NO FIRMWARE (componente joelma_cfs_edit escreve nos
   // JSONs que a tela usa) — tela, Creality Print e Orca passam a ver igual.
