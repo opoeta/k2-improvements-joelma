@@ -57,6 +57,9 @@ run_step macros/box_guard   features/macros/box_guard/install.sh
 # moonraker-upgrade, que traz a [webcam Default] via iframe
 #run_step camera             features/camera/install.sh
 run_step moonraker_upgrade  features/moonraker-upgrade/install.sh
+# ultima release oficial do Fluidd (fluidd-core) no lugar do build da Creality;
+# ja reinstala a nivela_web por cima — o run_step seguinte fica como garantia
+run_step fluidd_upstream    features/fluidd-upstream/install.sh
 run_step nivela_web         features/nivela_web/install.sh
 
 # ---------- OPCIONAIS (descomente para instalar) ----------
