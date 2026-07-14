@@ -13,9 +13,10 @@ def _acao_pt(sign, full_turns, minutes):
     tot = full_turns * 60 + m
     if tot <= 3:
         return "OK"
-    # K2 Plus: knobs ficam EMBAIXO dos cantos, sentido visto e invertido
-    # em relacao ao padrao do Klipper (que pressupoe knob por cima)
-    acao = "SOLTAR" if sign == "CW" else "APERTAR"
+    # Teste fisico na Joelma (jul/2026): a suposicao de "sentido invertido
+    # por knob embaixo" estava ERRADA — vale a convencao padrao do Klipper.
+    # CW = APERTAR (canto alto desce).
+    acao = "APERTAR" if sign == "CW" else "SOLTAR"
     graus = m * 6
     if full_turns > 0:
         qtd = "%d volta(s)" % full_turns + (" + %d\xb0" % graus if graus > 0 else "")

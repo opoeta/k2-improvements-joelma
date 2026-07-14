@@ -751,7 +751,7 @@
 </div>
 
 <div class="aviso">
-  APERTAR (anti-horário, knob por baixo) = canto DESCE • SOLTAR (horário) = canto SOBE<br>
+  APERTAR (horário) = canto DESCE • SOLTAR (anti-horário) = canto SOBE<br>
   Repita a medição até todos ✓ OK (≤ 18°). Após PID concluído, aperte SALVAR para gravar.
 </div>
 <script>
@@ -1102,8 +1102,11 @@ async function render(){
     const tot = v*60 + m;
     const delta = Math.abs(d.z - zbase).toFixed(3);
     if (tot <= 3) { el.className = "canto ok"; el.innerHTML = h3 + '<div class="acao">✓ OK</div><div class="det">Desvio ' + delta + 'mm</div>'; continue; }
-    // K2: knob por baixo -> sentido invertido; CW do backend = SOLTAR
-    const aperta = d.sign === "CCW";
+    // Teste fisico na Joelma (jul/2026): vale a convencao PADRAO do Klipper —
+    // CW = APERTAR (canto alto desce). A suposicao de sentido invertido por
+    // "knob embaixo" estava errada e foi revertida junto com _acao_pt do
+    // screws_tilt_adjust.py (as duas linhas andam SEMPRE juntas).
+    const aperta = d.sign === "CW";
     el.className = "canto " + (tot > 20 ? "bad" : "warn");
     const gg = v*360 + m*6;
     const cor = tot > 20 ? "#e57373" : "#ffb74d";
