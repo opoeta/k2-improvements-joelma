@@ -334,6 +334,7 @@
   .mesh-ctl { display:flex; align-items:center; gap:10px; margin-top:8px; flex-wrap:wrap; }
   .mesh-ctl button { padding:6px 12px; min-height:28px; font-size:.7rem; border-radius:16px; box-shadow:none; border:1px solid var(--line); background:transparent; }
   .mesh-ctl button.on { background:var(--primary); border-color:transparent; color:#fff; }
+  #papelbox button.on { background:var(--primary); border-color:transparent; color:#fff; }
   .mesh-ctl .rel { display:flex; align-items:center; gap:7px; flex:1; min-width:150px; }
   .mesh-ctl .rel span { font-size:.66rem; color:var(--dim); text-transform:uppercase; letter-spacing:.07em; font-weight:500; white-space:nowrap; }
   .mesh-ctl input[type=range] {
@@ -566,6 +567,17 @@
     </div>
     <div class="botoes" style="margin-top:10px">
       <button id="ztilt"><i data-ic="target"></i> Z_TILT_ADJUST (alinhar os fusos Z)</button>
+      <button id="papel"><i data-ic="ruler"></i> Teste do papel</button>
+    </div>
+    <div id="papelbox" style="display:none">
+      <div class="dica" style="margin:10px 0 8px">Papel sulfite (~0,1&nbsp;mm) entre o bico e a mesa: deve <b>raspar de leve</b>. O <b>FRENTE ESQUERDO</b> é a referência — sinta o arrasto nele e iguale os outros cantos girando o knob (não mexa no da referência). O mesh fica desativado durante o teste. Ideal com a mesa a 60&nbsp;°C.</div>
+      <div class="botoes">
+        <button data-papel="screw1">Frente Esq.</button>
+        <button data-papel="screw2">Frente Dir.</button>
+        <button data-papel="screw3">Tras. Dir.</button>
+        <button data-papel="screw4">Tras. Esq.</button>
+        <button id="papelfim" class="ghost"><i data-ic="check"></i> Encerrar (sobe o bico)</button>
+      </div>
     </div>
   </div>
 </details>
@@ -1122,6 +1134,64 @@ async function render(){
 $("medir").onclick = () => roda("NIVELA_PARAFUSOS", "Nivelamento (aquece 60°C + mede)", 12, () => render());
 $("frio").onclick  = () => roda("NIVELA_PARAFUSOS BED_TEMP=0", "Nivelamento a frio", 12, () => render());
 $("reler").onclick = () => render().catch(e => logLinha("!! " + e.message));
+
+// ---------- Teste do papel (derivado do nivelamento dos parafusos) ----------
+// Leva o BICO para cima de cada parafuso a Z=0.10mm (uma folha sulfite) para o
+// ajuste manual clássico: a folha deve raspar de leve, igual, nos 4 cantos.
+// Usa as MESMAS coordenadas do [screws_tilt_adjust] (lidas do config do
+// Klipper; fallback = valores do screws_tilt_adjust.cfg deste repo). O mesh é
+// limpo no início (BED_MESH_CLEAR) pra compensação não mascarar os cantos —
+// o START_PRINT recarrega/refaz o mesh no próximo print.
+const PAPEL = {z:0.10, sobe:5, fim:30,
+  fb:{screw1:[45,28], screw2:[307,28], screw3:[307,314], screw4:[45,314]}};
+let papelXY = null;
+async function papelCoords(){
+  if (papelXY) return papelXY;
+  const c = {};
+  try {
+    const q = await rpc("printer.objects.query", {objects:{configfile:["settings"]}});
+    const st = ((q.status.configfile||{}).settings||{})["screws_tilt_adjust"]||{};
+    for (const k in PAPEL.fb) c[k] = (Array.isArray(st[k]) && st[k].length > 1) ? st[k] : PAPEL.fb[k];
+  } catch(e){ for (const k in PAPEL.fb) c[k] = PAPEL.fb[k]; }
+  papelXY = c;
+  return papelXY;
+}
+async function papelVai(k){
+  const nome = $(k).querySelector("h3").textContent;
+  trava(true); setStatus("Papel: " + nome, "movendo o bico...", "busy");
+  try {
+    const c = (await papelCoords())[k];
+    await gcode("G90\nG1 Z" + PAPEL.sobe + " F900\nG1 X" + c[0] + " Y" + c[1] + " F9000\nG1 Z" + PAPEL.z + " F300", 3);
+    document.querySelectorAll("#papelbox [data-papel]").forEach(b => b.classList.toggle("on", b.dataset.papel === k));
+    setStatus("Papel: " + nome, "ajuste o knob até a folha raspar de leve", "on");
+  } catch(e){ setStatus("FALHOU: papel", e.message, "err"); logLinha("!! " + e.message); }
+  finally { trava(false); }
+}
+$("papel").onclick = async () => {
+  trava(true); setStatus("Teste do papel", "preparando (home se preciso)...", "busy");
+  try {
+    const q = await rpc("printer.objects.query", {objects:{toolhead:["homed_axes"]}});
+    if ((((q.status.toolhead||{}).homed_axes)||"").length < 3) await gcode("G28", 8);
+    await gcode("BED_MESH_CLEAR", 1);
+    $("papelbox").style.display = "";
+    trava(false);
+    await papelVai("screw1");
+  } catch(e){ trava(false); setStatus("FALHOU: teste do papel", e.message, "err"); logLinha("!! " + e.message); }
+};
+$("papelbox").addEventListener("click", ev => {
+  const b = ev.target.closest("[data-papel]");
+  if (b && !ocupado) papelVai(b.dataset.papel);
+});
+$("papelfim").onclick = async () => {
+  trava(true);
+  try {
+    await gcode("G90\nG1 Z" + PAPEL.fim + " F900", 2);
+    $("papelbox").style.display = "none";
+    document.querySelectorAll("#papelbox [data-papel]").forEach(b => b.classList.remove("on"));
+    setStatus("Teste do papel encerrado", "bico levantado — repita MEDIR pra conferir", "on");
+  } catch(e){ setStatus("FALHOU: encerrar papel", e.message, "err"); logLinha("!! " + e.message); }
+  finally { trava(false); }
+};
 $("pidmesa").onclick = () => roda("PID_CALIBRATE HEATER=heater_bed TARGET=60", "PID da mesa @60°C", 25, () => $("salvar").style.display = "");
 $("pidbico").onclick = () => roda("PID_CALIBRATE HEATER=extruder TARGET=220", "PID do bico @220°C", 25, () => $("salvar").style.display = "");
 $("salvar").onclick = () => { $("salvar").style.display = "none"; roda("SAVE_CONFIG", "Salvando config (Klipper reinicia)", 3); };
