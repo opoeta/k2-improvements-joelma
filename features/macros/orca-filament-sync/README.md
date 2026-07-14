@@ -73,8 +73,13 @@ O que o **Orca** lê (`MoonrakerPrinterAgent::fetch_hh_filament_info`):
 Orca resolve preset com `filament_id_by_type`), `gate_color` (RRGGBB sem `#`),
 `gate_temperature`.
 
-Extras pro painel MMU do **Fluidd** não aparecer "(disabled)": `enabled`,
-`tool`/`gate` (=-1), `ttg_map`, `gate_spool_id`, `gate_filament_name`.
+Extras pro painel MMU do **Fluidd** não aparecer "(disabled)" nem quebrar o
+layout: `enabled`, `print_state`, `filament`, `tool`/`gate` (=-1), `ttg_map`,
+`gate_spool_id`, `gate_filament_name`, `gate_speed_override` — **e um segundo
+objeto `mmu_machine`** (registrado pelo próprio `mmu.py` via `add_object`),
+com 1 unit por caixa do CFS e 4 gates cada. Sem o `mmu_machine` o Fluidd
+assume 1 gate por unit (`numGates ?? 1` no `mixins/mmu.ts`) — era o "spool
+fantasma" único no painel.
 O painel do Fluidd é **só-leitura**: os botões dele chamam macros `MMU_*` do
 Happy Hare que não existem aqui — dá erro inofensivo no console se clicar.
 
