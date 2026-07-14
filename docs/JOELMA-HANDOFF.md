@@ -233,10 +233,11 @@ no Orca. Baseado em Stevetm2/K2_Custom_Macros (K2OrcaFilamentSync).
 
 **Decisões do Israel:**
 - [x] **Botão RELER RFID:** mantido com confirmação + botão de recuperação + guarda `box_guard` (bug §7.1)
-- [ ] **Teste físico da inversão APERTAR/SOLTAR:** aperta um canto e remede. Se o desvio
-      **diminuir** → convenção certa. Se **aumentar** → inverter 1 linha em
-      `features/screws_tilt_adjust/screws_tilt_adjust.py` (`_acao_pt`) **e** o
-      `const aperta = d.sign === "CCW"` no `calibra.html`.
+- [x] **Teste físico da inversão APERTAR/SOLTAR (jul/2026):** o teste mostrou que a
+      convenção "invertida por knob embaixo" estava **errada** — vale a **padrão do
+      Klipper** (CW = APERTAR = canto alto desce). Invertidas as duas linhas casadas:
+      `_acao_pt` no `screws_tilt_adjust.py` e `const aperta = d.sign === "CW"` no
+      `calibra.html` (+ aviso do rodapé). **As duas andam sempre juntas.**
 - [ ] Nivelamento físico pelos gauges → PID mesa/bico → SAVE_CONFIG pela Central.
 - [ ] Testar o botão "Sincronizar com Spoolman" (criará 2 filaments novos — esperado).
 - [ ] Ligar "Label objects" no slicer + gcode `START_PRINT ... ADAPTIVE=1`, `LINE_PURGE`.

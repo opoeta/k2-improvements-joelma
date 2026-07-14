@@ -107,9 +107,10 @@ pesquisa do CFS no OrcaSlicer, receitas de curl. **Leia sob demanda.**
   ready; se o boot reclamar do `rename_existing`, remover `[include box_guard.cfg]` de
   `custom/main.cfg`; (b) gráficos de ressonância após um TEST_RESONANCES;
   (c) vínculo Spoolman no editor do slot.
-- **Teste físico** da inversão APERTAR/SOLTAR: aperta um canto e remede. Se o desvio **diminuir**
-  → convenção certa. Se **aumentar** → inverter 1 linha em
-  `features/screws_tilt_adjust/screws_tilt_adjust.py` (`_acao_pt`) **e** o
-  `const aperta = d.sign === "CCW"` no `calibra.html`.
+- ~~Teste físico da inversão APERTAR/SOLTAR~~ **FEITO (jul/2026):** a convenção
+  "invertida por knob embaixo" estava errada — vale a **padrão do Klipper**
+  (CW = APERTAR = canto alto desce). Corrigido em `_acao_pt`
+  (screws_tilt_adjust.py) **e** `const aperta = d.sign === "CW"` (calibra.html) —
+  **as duas linhas andam sempre juntas**; nunca inverter só uma.
 - **Testar** o botão "Sincronizar com Spoolman" (vai criar 2 filaments novos — é esperado, veja o
   HANDOFF §5).
