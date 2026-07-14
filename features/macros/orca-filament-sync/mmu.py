@@ -143,14 +143,47 @@ def _material_do_codigo(cod):
     return "", "PLA"
 
 
+# O Fluidd le as unidades/gates de um SEGUNDO objeto, 'mmu_machine'
+# (mixins/mmu.ts: numGates cai no default 1 sem ele — dai o painel mostrar
+# 1 spool fantasma). Publica 1 unit por caixa do CFS, 4 gates cada.
+class _MmuMachine:
+    def __init__(self, dono):
+        self.dono = dono
+
+    def get_status(self, eventtime):
+        _, maxbox = self.dono._scan(eventtime)
+        st = {'num_units': max(1, maxbox)}
+        for n in range(max(1, maxbox)):
+            st['unit_%d' % n] = {
+                'name': 'CFS %d' % (n + 1),
+                'vendor': 'Creality',
+                'version': '1.0',
+                'num_gates': 4,
+                'first_gate': n * 4,
+                'selector_type': 'VirtualSelector',
+                'variable_rotation_distances': False,
+                'variable_bowden_lengths': False,
+                'require_bowden_move': False,
+                'has_bypass': False,
+                'multi_gear': False,
+            }
+        return st
+
+
 class mmu:
     def __init__(self, config):
         self.printer = config.get_printer()
         self.id = config.getfloat("id", default=0.0)
         self.box = None
         self._mod_cache = ({}, 0.0)
+        self._scan_cache = (None, None, -1.0)
         # o objeto box pode carregar depois deste; resolve no connect
         self.printer.register_event_handler("klippy:connect", self._connect)
+        # registra o mmu_machine junto (o Fluidd precisa dos dois)
+        try:
+            self.printer.add_object('mmu_machine', _MmuMachine(self))
+        except Exception:
+            pass  # ja existe (Happy Hare real?) — nao briga
 
     def _connect(self):
         try:
@@ -202,7 +235,12 @@ class mmu:
         self._mod_cache = (edits, eventtime)
         return edits
 
-    def get_status(self, eventtime):
+    def _scan(self, eventtime):
+        # varre o box + edicoes e devolve (gates, maxbox). Cache de 1s: o
+        # get_status (do mmu E do mmu_machine) e chamado varias vezes/segundo.
+        g, mb, ts = self._scan_cache
+        if g is not None and eventtime - ts < 1.0:
+            return g, mb
         gates, maxbox = {}, 0
         try:
             bs = self.box.get_status(eventtime) if self.box else {}
@@ -256,6 +294,11 @@ class mmu:
         except Exception as err:
             logging.error("joelma mmu get_status: %s", err)
 
+        self._scan_cache = (gates, maxbox, eventtime)
+        return gates, maxbox
+
+    def get_status(self, eventtime):
+        gates, maxbox = self._scan(eventtime)
         n = maxbox * 4
         status, material = [0] * n, [""] * n
         color, temp, nomes = [""] * n, [0] * n, [""] * n
@@ -276,14 +319,25 @@ class mmu:
             'gate_color': color,
             'gate_temperature': temp,
             # extras que o painel MMU do Fluidd espera para nao aparecer
-            # "(disabled)". O painel fica SO-LEITURA: os botoes dele chamam
-            # macros MMU_* do Happy Hare que nao existem aqui.
+            # "(disabled)" nem quebrar o layout. O painel fica SO-LEITURA:
+            # os botoes dele chamam macros MMU_* do Happy Hare que nao
+            # existem aqui.
             'enabled': True,
+            'print_state': 'ready',
+            'action': 'Idle',
+            'is_homed': True,
+            'is_paused': False,
+            'filament': 'Unloaded',
+            'filament_pos': 0,
+            'filament_position': 0.0,
             'tool': -1,
             'gate': -1,
+            'unit': -1,
             'ttg_map': list(range(n)),
+            'endless_spool_groups': list(range(n)),
             'gate_spool_id': [-1] * n,
             'gate_filament_name': nomes,
+            'gate_speed_override': [100] * n,
             'id': self.id,
         }
 
