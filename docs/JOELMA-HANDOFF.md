@@ -7,6 +7,21 @@ Credenciais SSH: `CLAUDE.local.md` (não versionado).
 
 ---
 
+## 0. Ambiente confirmado (preflight jul/2026 — não redescobrir)
+
+- **Firmware 1.1.6.1**, board `CR0CN240110C10`, kernel `5.4.61 armv7l`.
+- **HOME=`/root`** (better-root NÃO rodou; layout de fábrica). `~/klipper` e
+  `~/printer_data` existem; **`~/klippy-env` NÃO** — o venv real é **`/usr/share/klippy-env`**.
+- Klipper em **`/usr/share/klipper`** (não é checkout git). `bed_mesh.py` = 1335 linhas.
+  Probe stock = **`prtouch_v3`** (presente).
+- Python **3.9.12**, pip 9.0.1. **numpy 1.20.1 já instalado**; falta só `typing_extensions`.
+- **`/opt` não existe** → entware instala sem risco (nada pra `rm -rf`). `jq` presente;
+  **faltam git/curl/wget/unzip/opkg**.
+- **`CONFIG_USB_ACM` ausente** → Cartographer precisa do `usb_bridge` (a feature traz).
+- Preparação segura: `scripts/cartographer_prep.sh` (entware+git, typing_extensions,
+  clona o plugin, posiciona usb_bridge — **sem** patches de Klipper/config/sonda).
+  Diagnóstico: `scripts/cartographer_preflight.sh` (read-only).
+
 ## 1. Infraestrutura
 
 | Host | IP | O que é |
