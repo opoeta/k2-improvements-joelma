@@ -215,6 +215,17 @@ não impede os containers de rodar.
 
 O dropbear da K2 não tem SFTP. Transferência de arquivo: base64 em pedaços via `exec_command`,
 decode com `python3` na impressora, conferindo `sha256`.
+(O entware, via `cartographer_prep.sh`, instala `openssh-sftp-server` e resolve isto.)
+
+### 7.4 Sync de filamentos CFS → OrcaSlicer (RESOLVIDO por outra via)
+
+Escrever direto no CFS (JSON/485) não propaga sozinho — o box lê os arquivos só no
+init do Klipper. A solução é do **lado do Orca**: a feature `macros/orca-filament-sync`
+instala um `mmu.py` que expõe um objeto `[mmu]` (simula Happy Hare) lendo o objeto
+`box` + sobrepondo `material_modify_info.json`. O Orca (Printer Agent = Moonraker →
+ícone **Filament Sync** na aba Filament) lê esse objeto via Moonraker e sincroniza
+cor/material — **ao vivo, sem restart, sem 485**. Editar um slot na Central aparece
+no Orca. Baseado em Stevetm2/K2_Custom_Macros (K2OrcaFilamentSync).
 
 ---
 
