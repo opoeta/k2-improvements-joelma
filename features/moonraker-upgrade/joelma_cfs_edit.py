@@ -10,20 +10,30 @@
 # boxsInfo) passam a ver o mesmo material/cor — e o que o rotulo em
 # localStorage da Central nunca conseguiu fazer.
 #
+# Alem dos arquivos, manda o comando de escrita OFICIAL pela porta 9999
+# (protocolo do CrealityOfficial/CrealityPrint) — e ESTE envio que propaga a
+# edicao pra tela/Orca AO VIVO, sem restart e sem o barramento 485.
+#
 # Endpoints:
-#   GET  /server/joelma/cfs/edit -> conteudo dos dois JSONs
-#   POST /server/joelma/cfs/edit -> edita um slot
+#   GET  /server/joelma/cfs/edit    -> conteudo dos dois JSONs
+#   POST /server/joelma/cfs/edit    -> edita um slot (arquivos + 9999)
 #        body: {"tnn":"T1D","materialType":"PLA","color":"#RRGGBB",
 #               "name":"apelido","brand":"Generic",
 #               "minTemp":190,"maxTemp":240,"pressure":"0.04"}   (3 ultimos opcionais)
+#   POST /server/joelma/cfs/rfid    -> {"tnn":"T1A"} rele o RFID de UM slot pela
+#        9999 (cRFIDRefresh) — seguro, NAO e o BOX_INFO_REFRESH que derruba o Klipper
 #
 # Escrita atomica (tmp + replace). So slots T1A..T4D.
 #
 # Faz parte do fork k2-improvements-joelma.
 from __future__ import annotations
+import base64
 import json
+import logging
 import os
 import re
+import socket
+import struct
 from typing import TYPE_CHECKING, Any, Dict
 
 from ..common import RequestType
@@ -48,6 +58,57 @@ TEMPS = {
 }
 
 
+# ---- porta 9999: o comando de escrita OFICIAL (fonte CrealityOfficial/CrealityPrint) ----
+# O Creality Print, ao editar um slot, manda por ws://IP:9999:
+#   {"method":"set","params":{"cId":"T1A","filamentsColor":"#FFRRGGBB",
+#    "filamentType":"PLA","nozzleTempMin":190,"nozzleTempMax":240,
+#    "cPressureAdvance":0.04,"cBrandName":"Generic","name":"Voolt PLA"}}
+# cId == TNN. Cor = "#FF" + RRGGBB (ARGB). E ESTE o gatilho que faz a edicao
+# valer na tela/Orca/tudo ao vivo — sem restart e sem o 485. O componente roda
+# NA impressora, entao conecta em 127.0.0.1:9999.
+def _envia_9999(obj: Dict[str, Any], timeout: float = 4.0) -> bool:
+    payload = json.dumps(obj).encode()
+    try:
+        s = socket.create_connection(("127.0.0.1", 9999), timeout=timeout)
+    except OSError as e:
+        logging.info("joelma_cfs_edit: 9999 indisponivel (%s)", e)
+        return False
+    try:
+        s.settimeout(timeout)
+        chave = base64.b64encode(os.urandom(16)).decode()
+        req = (
+            "GET / HTTP/1.1\r\nHost: 127.0.0.1:9999\r\nUpgrade: websocket\r\n"
+            "Connection: Upgrade\r\nSec-WebSocket-Key: %s\r\n"
+            "Sec-WebSocket-Version: 13\r\n\r\n" % chave
+        )
+        s.sendall(req.encode())
+        buf = b""
+        while b"\r\n\r\n" not in buf:
+            parte = s.recv(1024)
+            if not parte:
+                return False
+            buf += parte
+        if b" 101 " not in buf.split(b"\r\n", 1)[0]:
+            return False
+        # frame de texto mascarado (cliente->servidor exige mascara, RFC 6455)
+        m = os.urandom(4)
+        n = len(payload)
+        if n < 126:
+            hdr = bytes([0x81, 0x80 | n]) + m
+        else:
+            hdr = bytes([0x81, 0x80 | 126]) + struct.pack(">H", n) + m
+        s.sendall(hdr + bytes(b ^ m[i % 4] for i, b in enumerate(payload)))
+        return True
+    except OSError as e:
+        logging.info("joelma_cfs_edit: falha no envio 9999 (%s)", e)
+        return False
+    finally:
+        try:
+            s.close()
+        except OSError:
+            pass
+
+
 def _le(caminho: str) -> Dict[str, Any]:
     with open(caminho, "r") as f:
         return json.load(f)
@@ -68,6 +129,21 @@ class JoelmaCfsEdit:
             RequestType.GET | RequestType.POST,
             self._handle,
         )
+        self.server.register_endpoint(
+            "/server/joelma/cfs/rfid",
+            RequestType.POST,
+            self._rfid,
+        )
+
+    async def _rfid(self, web_request: WebRequest) -> Dict[str, Any]:
+        # rele o RFID de UM slot pela 9999 (cRFIDRefresh) — nunca o
+        # BOX_INFO_REFRESH global, que emite ADDR=/NUM= vazios e derruba o Klipper
+        tnn = web_request.get_str("tnn").upper().strip()
+        if not re.match(r"^T[1-4][A-D]$", tnn):
+            raise self.server.error("tnn invalido (esperado T1A..T4D)", 400)
+        enviado = _envia_9999({"method": "set",
+                               "params": {"cId": tnn, "cRFIDRefresh": 1}})
+        return {"ok": enviado, "tnn": tnn}
 
     async def _handle(self, web_request: WebRequest) -> Dict[str, Any]:
         if web_request.get_request_type() == RequestType.POST:
@@ -144,8 +220,30 @@ class JoelmaCfsEdit:
                 slot_b["pressure"] = pressao
             _grava(ARQ_BOX, boxinfo)
 
+        # ---- porta 9999: comando de escrita OFICIAL (o gatilho de sync ao vivo) ----
+        # cId == TNN; cor no formato ARGB "#FF"+RRGGBB. So depende dos arquivos
+        # como fallback: e ESTE envio que propaga pra tela/Orca sem restart.
+        try:
+            pa = float(pressao) if pressao else 0.04
+        except ValueError:
+            pa = 0.04
+        enviado = _envia_9999({
+            "method": "set",
+            "params": {
+                "cId": tnn,
+                "filamentsColor": "#FF" + cor[1:].upper(),
+                "filamentType": mat,
+                "nozzleTempMin": tmin,
+                "nozzleTempMax": tmax,
+                "cPressureAdvance": pa,
+                "cBrandName": marca,
+                "name": nome,
+            },
+        })
+
         return {"ok": True, "tnn": tnn, "color": cor_fw, "materialType": mat,
-                "name": nome, "gravado_box_info": slot_b is not None}
+                "name": nome, "gravado_box_info": slot_b is not None,
+                "enviado_9999": enviado}
 
 
 def load_component(config: ConfigHelper) -> JoelmaCfsEdit:

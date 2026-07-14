@@ -64,11 +64,19 @@ devem ser **idempotentes** (`grep -q` antes de acrescentar).
   `GET /server/database/item?namespace=fluidd&key=uiSettings.general.instanceName` (nome) e
   `key=uiSettings.theme` (cor primária/claro-escuro). A Central usa os dois.
 - **Cor** do CFS vem como `"0RRGGBB"` (prefixo `0`) → normalizar pra `#RRGGBB`.
+- **⭐ ESCRITA no CFS ao vivo = comando `set` da porta 9999** (fonte oficial
+  `CrealityOfficial/CrealityPrint`): `{"method":"set","params":{"cId":"TNN",
+  "filamentsColor":"#FFRRGGBB","filamentType":"PLA","nozzleTempMin":N,"nozzleTempMax":M,
+  "cPressureAdvance":P,"cBrandName":marca,"name":nome}}`. Cor em **ARGB** (`#FF`+RRGGBB),
+  não o `0RRGGBB` do arquivo. Propaga pra tela/Orca **sem restart e sem 485**. Reler RFID
+  de UM slot (seguro): `{"method":"set","params":{"cId":"TNN","cRFIDRefresh":1}}`.
+  Já implementado em `joelma_cfs_edit.py` (`_envia_9999()` + endpoint `/cfs/rfid`).
 - **Materiais:** `000001`=PLA `002001`=PETG `003001`=ABS `004001`=TPU `005001`=ASA
   `006001`=PA `007001`=PC
 - **Macros CFS:** `BOX_LOAD_MATERIAL TNN=T1A`, `BOX_QUIT_MATERIAL`, `BOX_INFO_REFRESH`,
-  `BOX_EXTRUDE_MATERIAL`. Não há macro pra editar material (por isso os rótulos locais em
-  `localStorage`, chave `cfsrot:{SN}:{TNN}`).
+  `BOX_EXTRUDE_MATERIAL`. Não há **macro** pra editar material — a edição ao vivo é pelo
+  comando `set` da porta 9999 (ver acima); os rótulos locais em `localStorage`
+  (chave `cfsrot:{SN}:{TNN}`) continuam mandando na exibição da Central.
 - **Luz da câmara:** `output_pin LED`, **`pwm: True`** → `SET_PIN PIN=LED VALUE=0.0..1.0`.
   É **dimerizável** (testado 0/0.25/0.5/1.0, exatos).
 - **Firmware da impressora:** lido via **`fw_printenv`** (U-Boot env), não de arquivo.

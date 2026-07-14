@@ -528,7 +528,7 @@
   <div class="dica" style="margin-top:10px">O rótulo que você define aqui manda na exibição desta Central. Sem rótulo, valem a tag RFID (o que o Orca/Creality Print leem) e depois o spool vinculado.</div>
   <label style="display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0;margin-top:10px;cursor:pointer">
     <input type="checkbox" id="ed-aplicar" style="width:auto;margin:0">
-    <span>Aplicar na impressora (grava no firmware + <b>reinicia o Klipper ~30s</b>) — sincroniza com a tela e o Orca</span>
+    <span>Fallback: se o sync ao vivo (porta 9999) falhar, <b>reiniciar o Klipper ~30s</b> pra aplicar. Normalmente desnecessario.</span>
   </label>
   <div class="ed-btns">
     <button class="salvar" id="ed-ok" style="flex:1">Salvar</button>
@@ -1493,7 +1493,7 @@ $("ed-ok").onclick = async () => {
   // Creality Print/Orca. Slot COM tag RFID: o firmware rele a tag e sobrescreve
   // — so cola em slot SEM tag. O log avisa o caso.
   const aplicar = $("ed-aplicar").checked;
-  let gravouFw = false;
+  let gravouFw = false, enviou9999 = false;
   try {
     const r = await fetch(base + "/server/joelma/cfs/edit", {
       method:"POST", headers:{"Content-Type":"application/json"},
@@ -1502,7 +1502,9 @@ $("ed-ok").onclick = async () => {
     gravouFw = r.ok;
     if (r.ok) {
       const d = await r.json(); const res = d.result || d;
+      enviou9999 = res.enviado_9999 === true;
       logLinha("[CFS] " + editTnn + " rotulado na Central + gravado no firmware (" + res.materialType + " " + res.color + ")"
+        + (enviou9999 ? " — sincronizado AO VIVO pela porta 9999 (tela/Orca ja veem, sem restart)" : "")
         + (tagDoSlot(editTnn) ? " — atencao: slot com tag RFID, a impressora pode reler a tag e sobrescrever" : ""));
     } else {
       logLinha("// " + editTnn + " rotulado na Central (firmware respondeu HTTP " + r.status + ")");
@@ -1514,11 +1516,13 @@ $("ed-ok").onclick = async () => {
   try { await vinculaSpool(editTnn, alvo ? +alvo : null); }
   catch(e) { logLinha("!! Spoolman: " + e.message); }
   $("editor").close(); renderCFS();
-  // Reinicia o Klipper pra o box service reler os JSONs do firmware (o box le
-  // esses arquivos no init, nao ao vivo — por isso escrever so nao propaga).
-  // E o gatilho de sync com a tela/Orca. So se pediu e o firmware aceitou.
-  if (aplicar && gravouFw) {
-    logLinha("[CFS] aplicando na impressora: FIRMWARE_RESTART (box relê os arquivos)...");
+  // Sync com a tela/Orca: o comando 9999 "set" propaga a edicao AO VIVO (sem
+  // restart, sem 485). So caimos no FIRMWARE_RESTART (o box rele os JSONs no
+  // init) se o 9999 nao respondeu E o usuario marcou "Aplicar na impressora".
+  if (enviou9999) {
+    // ja propagou ao vivo — restart seria so incomodo (~30s parado)
+  } else if (aplicar && gravouFw) {
+    logLinha("[CFS] 9999 nao respondeu; aplicando via FIRMWARE_RESTART (box relê os arquivos)...");
     $("fwrestart").onclick();
   } else if (aplicar && !gravouFw) {
     logLinha("!! nao apliquei: componente joelma_cfs_edit ausente (rode: joelma update)");
@@ -1546,10 +1550,28 @@ async function vigiaShutdownRfid(){
 }
 $("cfsrefresh").onclick = () => $("rfiddlg").showModal();
 $("rfid-cancela").onclick = () => $("rfiddlg").close();
-$("rfid-ok").onclick = () => {
+$("rfid-ok").onclick = async () => {
   $("rfiddlg").close();
-  roda("BOX_INFO_REFRESH", "Relendo RFID de todos os slots", 3, () => setTimeout(renderCFS, 1500));
-  vigiaShutdownRfid();
+  // caminho SEGURO: rele o RFID por slot pela porta 9999 (cRFIDRefresh, o
+  // comando oficial do Creality Print) — NAO passa pelo Klipper, entao nao ha
+  // como cair no bug do BOX_INFO_REFRESH. So usa o comando antigo (guardado)
+  // se o componente joelma_cfs_edit nao estiver instalado.
+  let ok = false;
+  for (const L of ["A","B","C","D"]) {
+    try {
+      const r = await fetch(base + "/server/joelma/cfs/rfid", {method:"POST",
+        headers:{"Content-Type":"application/json"}, body: JSON.stringify({tnn:"T1"+L})});
+      if (r.ok && ((await r.json()).result||{}).ok !== false) ok = true;
+    } catch(e) {}
+  }
+  if (ok) {
+    logLinha("[CFS] RFID relido pela porta 9999 (cRFIDRefresh) — seguro, sem risco ao Klipper");
+    setTimeout(renderCFS, 1500);
+  } else {
+    logLinha("// componente ausente — caindo no BOX_INFO_REFRESH (bug conhecido, guardado pelo box_guard)");
+    roda("BOX_INFO_REFRESH", "Relendo RFID de todos os slots", 3, () => setTimeout(renderCFS, 1500));
+    vigiaShutdownRfid();
+  }
 };
 $("recuperar").onclick = () => { $("recuperar").style.display = "none"; $("fwrestart").onclick(); };
 $("cfsquit").onclick = () => roda("BOX_QUIT_MATERIAL", "Descarregando material atual", 6, () => renderCFS());

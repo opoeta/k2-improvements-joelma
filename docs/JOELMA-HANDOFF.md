@@ -227,6 +227,42 @@ instala um `mmu.py` que expõe um objeto `[mmu]` (simula Happy Hare) lendo o obj
 cor/material — **ao vivo, sem restart, sem 485**. Editar um slot na Central aparece
 no Orca. Baseado em Stevetm2/K2_Custom_Macros (K2OrcaFilamentSync).
 
+#### 7.4.1 ⭐ O comando de ESCRITA da porta 9999 (fonte: CrealityOfficial/CrealityPrint)
+
+Faltava a peça que a sessão inteira procurou: **como escrever no CFS ao vivo**.
+Achada no fonte oficial `CrealityOfficial/CrealityPrint` — quando você edita um slot
+no Creality Print, ele manda por **`ws://IP:9999`** (o mesmo WebSocket do `boxsInfo`):
+
+```json
+{"method":"set","params":{
+  "cId":"T1A",                    // == TNN (caixa+slot)
+  "filamentsColor":"#FFRRGGBB",   // ARGB: "#FF" + RRGGBB (NAO o "0RRGGBB" do arquivo)
+  "filamentType":"PLA",
+  "nozzleTempMin":190,"nozzleTempMax":240,
+  "cPressureAdvance":0.04,
+  "cBrandName":"Generic","name":"Voolt PLA"
+}}
+```
+
+**Este envio é o gatilho de sync AO VIVO** — propaga a edição pra tela da impressora,
+Creality Print e Orca **sem FIRMWARE_RESTART e sem tocar o barramento 485**. É o que
+escrever nos JSONs sozinho nunca fez (o box só relê os arquivos no init).
+
+Variante segura pra reler RFID de **um** slot (não é o `BOX_INFO_REFRESH` global que
+derruba o Klipper — ver §7.1):
+
+```json
+{"method":"set","params":{"cId":"T1A","cRFIDRefresh":1}}
+```
+
+**Implementado (jul/2026)** no componente `joelma_cfs_edit.py`: função `_envia_9999()`
+faz o handshake WebSocket cru + frame de texto mascarado (RFC 6455) contra
+`127.0.0.1:9999` (roda na própria impressora). O `_edita` manda o `set` depois de
+gravar os arquivos; novo endpoint `POST /server/joelma/cfs/rfid` (`{"tnn":"T1A"}`)
+manda o `cRFIDRefresh`. Na Central: o **RELER RFID** agora tenta a 9999 por slot
+(seguro) antes de cair no `BOX_INFO_REFRESH`; e ao salvar um slot, se o 9999 respondeu,
+**não** força restart — o sync já é ao vivo. A resposta do endpoint traz `enviado_9999`.
+
 ---
 
 ## 8. Pendências
