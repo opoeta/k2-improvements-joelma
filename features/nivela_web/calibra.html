@@ -525,9 +525,13 @@
   <input type="text" id="ed-nome" placeholder="ex: Vermelho Voolt, PLA Silk...">
   <label>Spool do Spoolman</label>
   <select id="ed-spool"><option value="">— sem vínculo —</option></select>
-  <div class="dica" style="margin-top:10px">O rótulo que você define aqui manda na exibição desta Central. Sem rótulo, valem a tag RFID (o que o Orca/Creality Print leem) e depois o spool vinculado. O rótulo vive só aqui — o Orca lê o RFID direto da impressora.</div>
+  <div class="dica" style="margin-top:10px">O rótulo que você define aqui manda na exibição desta Central. Sem rótulo, valem a tag RFID (o que o Orca/Creality Print leem) e depois o spool vinculado.</div>
+  <label style="display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0;margin-top:10px;cursor:pointer">
+    <input type="checkbox" id="ed-aplicar" style="width:auto;margin:0">
+    <span>Aplicar na impressora (grava no firmware + <b>reinicia o Klipper ~30s</b>) — sincroniza com a tela e o Orca</span>
+  </label>
   <div class="ed-btns">
-    <button class="salvar" id="ed-ok" style="flex:1">Salvar rótulo</button>
+    <button class="salvar" id="ed-ok" style="flex:1">Salvar</button>
     <button id="ed-limpa">Limpar</button>
     <button id="ed-cancela">Cancelar</button>
   </div>
@@ -1395,7 +1399,8 @@ async function renderCFS(){
 // ---------- Editor de rotulo local ----------
 function abreEditor(ds){
   cfsEditando = ds.edit;
-  $("ed-titulo").textContent = "Rotular slot " + ds.edit;
+  $("ed-titulo").textContent = "Editar slot " + ds.edit;
+  $("ed-aplicar").checked = false;   // nunca reinicia sem o usuario marcar
   $("ed-tipo").value = ds.tipo || "PLA";
   $("ed-nome").value = ds.nome || "";
   $("ed-cor").value = /^#[0-9a-f]{6}$/i.test(ds.cor) ? ds.cor : "#e53935";
@@ -1484,15 +1489,18 @@ $("ed-ok").onclick = async () => {
   // ALEM disso, tenta gravar no firmware (best-effort) pra sincronizar tela/
   // Creality Print/Orca. Slot COM tag RFID: o firmware rele a tag e sobrescreve
   // — so cola em slot SEM tag. O log avisa o caso.
+  const aplicar = $("ed-aplicar").checked;
+  let gravouFw = false;
   try {
     const r = await fetch(base + "/server/joelma/cfs/edit", {
       method:"POST", headers:{"Content-Type":"application/json"},
       body: JSON.stringify({tnn: editTnn, materialType: $("ed-tipo").value,
                             color: $("ed-cor").value, name: $("ed-nome").value.trim()})});
+    gravouFw = r.ok;
     if (r.ok) {
       const d = await r.json(); const res = d.result || d;
       logLinha("[CFS] " + editTnn + " rotulado na Central + gravado no firmware (" + res.materialType + " " + res.color + ")"
-        + (tagDoSlot(editTnn) ? " — atencao: slot com tag RFID, a impressora pode reler a tag e sobrescrever" : " — deve sincronizar com tela/CP/Orca"));
+        + (tagDoSlot(editTnn) ? " — atencao: slot com tag RFID, a impressora pode reler a tag e sobrescrever" : ""));
     } else {
       logLinha("// " + editTnn + " rotulado na Central (firmware respondeu HTTP " + r.status + ")");
     }
@@ -1503,6 +1511,15 @@ $("ed-ok").onclick = async () => {
   try { await vinculaSpool(editTnn, alvo ? +alvo : null); }
   catch(e) { logLinha("!! Spoolman: " + e.message); }
   $("editor").close(); renderCFS();
+  // Reinicia o Klipper pra o box service reler os JSONs do firmware (o box le
+  // esses arquivos no init, nao ao vivo — por isso escrever so nao propaga).
+  // E o gatilho de sync com a tela/Orca. So se pediu e o firmware aceitou.
+  if (aplicar && gravouFw) {
+    logLinha("[CFS] aplicando na impressora: FIRMWARE_RESTART (box relê os arquivos)...");
+    $("fwrestart").onclick();
+  } else if (aplicar && !gravouFw) {
+    logLinha("!! nao apliquei: componente joelma_cfs_edit ausente (rode: joelma update)");
+  }
 };
 $("ed-limpa").onclick = () => { setRot(cfsSN, cfsEditando, null); $("editor").close(); renderCFS(); };
 $("ed-cancela").onclick = () => $("editor").close();
