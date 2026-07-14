@@ -52,21 +52,56 @@ if ! grep -q '10.10.1.240:4408' ${CONF}; then
     echo "I: cors_domains com origens exatas da LAN"
 fi
 
-# update_manager do Fluidd: faz o proprio Fluidd aparecer como atualizavel na
-# aba Machine (botao Update) puxando a ultima release de fluidd-core/fluidd
-# direto do GitHub. Le o path (/usr/share/fluidd) que a feature fluidd-upstream
-# instala com release_info.json. type:web = frontend distribuido como zip.
-if ! grep -q '^\[update_manager fluidd\]' ${CONF}; then
-    cat >> ${CONF} <<'UMFL'
+# Ajustes de moonraker.conf (parse-aware, idempotente):
+#  1. REMOVE [update_manager fluidd] — o updater web do Moonraker exige um path
+#     gravavel e gerencia a pasta inteira; /usr/share/fluidd e caminho de sistema
+#     ("path is not writable") e um update pela UI apagaria a nossa calibra.html.
+#     Atualizacao do Fluidd fica por conta da feature fluidd-upstream (joelma update).
+#  2. [machine] provider: none — silencia "Unable to find DBus PolKit Interface"
+#     (OpenWrt nao tem PolKit; sem systemd nao ha service action API mesmo).
+#  3. [update_manager] enable_system_updates: False — silencia "Unable to
+#     initialize System Update Provider for distribution: openwrt".
+CFGCHG=$(python3 - "$CONF" <<'PYEOF'
+import re, sys
+p = sys.argv[1]
+s = open(p).read(); orig = s
 
-[update_manager fluidd]
-type: web
-channel: stable
-repo: fluidd-core/fluidd
-path: /usr/share/fluidd
-UMFL
+def strip_section(txt, nome):
+    linhas = txt.splitlines(keepends=True)
+    out, i = [], 0
+    while i < len(linhas):
+        if linhas[i].strip() == "[%s]" % nome:
+            i += 1
+            while i < len(linhas) and not linhas[i].lstrip().startswith('['):
+                i += 1
+        else:
+            out.append(linhas[i]); i += 1
+    return "".join(out)
+
+s = strip_section(s, "update_manager fluidd")
+
+if re.search(r'(?m)^\[machine\][ \t]*$', s):
+    if not re.search(r'(?m)^[ \t]*provider:', s):
+        s = re.sub(r'(?m)^\[machine\][ \t]*$', '[machine]\nprovider: none', s, count=1)
+    else:
+        s = re.sub(r'(?m)^[ \t]*provider:.*$', 'provider: none', s, count=1)
+else:
+    s += "\n[machine]\nprovider: none\n"
+
+if re.search(r'(?m)^\[update_manager\][ \t]*$', s):
+    if not re.search(r'(?m)^[ \t]*enable_system_updates:', s):
+        s = re.sub(r'(?m)^\[update_manager\][ \t]*$',
+                   '[update_manager]\nenable_system_updates: False', s, count=1)
+else:
+    s += "\n[update_manager]\nenable_system_updates: False\n"
+
+if s != orig:
+    open(p, "w").write(s); print("changed")
+PYEOF
+)
+if [ -n "$CFGCHG" ]; then
     MUDOU=1
-    echo "I: [update_manager fluidd] ativado (Update do Fluidd pela aba Machine)"
+    echo "I: moonraker.conf ajustado (removido update_manager fluidd; PolKit e updates de SO silenciados)"
 fi
 
 # Spoolman: componente cliente aponta para o servidor Docker na LAN
