@@ -42,6 +42,14 @@ Printer Agent para Moonraker (puxa do nosso `[mmu]`, com as edições).
 Build recomendada p/ matching: [Jacob10383/OrcaSlicer](https://github.com/Jacob10383/OrcaSlicer)
 release **Nightly-Nanashi** (nightly `NanashiBase`), ou o upstream ≥ jun/2026.
 
+**Sinergia com o Spoolman (build 2.5.0-Jacobean):** o commit `8a26d21` ("exact
+Spoolman profile match") faz o Orca casar cada slot do CFS com o **perfil do
+Spoolman por nome**. Isso conversa direto com a nossa integração: ao **nomear um
+slot na Central ou vincular um spool**, o `joelma_cfs_edit` grava o `name` no
+JSON do firmware → o Orca (caminho `crealityprint`) lê esse nome e casa o perfil
+Spoolman exato (em vez de colapsar num filament genérico). Logo: dê nomes bons
+aos slots (ou vincule spools) na Central para o matching do Orca ficar preciso.
+
 ## Objeto exposto (`mmu`)
 
 `num_gates`, `gate_status`, `gate_material`, `gate_color` (RRGGBB sem `#`),
