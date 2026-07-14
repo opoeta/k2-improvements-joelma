@@ -9,13 +9,29 @@ O OrcaSlicer tem sync nativo de **MMU** (Happy Hare): ele lê o objeto `mmu`
 do Klipper via Moonraker. Este módulo (`mmu.py`) **simula** esse MMU expondo os
 slots do CFS como "gates":
 
-- lê o objeto `box` do Klipper (mesma fonte da Central de Calibração);
+- lê o objeto `box` do Klipper (mesma fonte da Central de Calibração) nos
+  **dois schemas** conhecidos: `box.T1..T4` com `material_type[]`/`color_value[]`
+  (K2 Plus fw 1.1.6.x — o schema real da Joelma, handoff §4) e, como fallback,
+  `box.same_material` (schema K1/Stevetm2), expandindo **todos** os TNN de cada
+  grupo;
+- indexa os gates pela **posição física**: `gate = (caixa-1)*4 + slot`
+  (T1A=0 … T1D=3, T2A=4, …) e publica `num_gates = 4×caixas` com os vazios
+  como `gate_status 0` — é o que o Orca e o Fluidd esperam;
+- resolve o `filamentId` do slot para tipo/nome: tabela local dos códigos
+  sem-RFID (a mesma `FILAMENT_ID` do `joelma_cfs_edit`) primeiro, depois o
+  catálogo Creality pelos 5 dígitos finais (spools com RFID; catálogo espelhado
+  do `material_database.json` via K2-RFID / fork sandman21vs);
 - **sobrepõe** as edições gravadas em `material_modify_info.json` pelo
-  componente `joelma_cfs_edit` — então editar um slot na Central aparece no
-  Orca **ao vivo**, sem reiniciar o Klipper.
+  componente `joelma_cfs_edit` (só entradas com `editStatus=1`) — então editar
+  um slot na Central aparece no Orca **ao vivo**, sem reiniciar o Klipper.
 
 Baseado em [Stevetm2/K2_Custom_Macros](https://github.com/Stevetm2/K2_Custom_Macros)
 (K2OrcaFilamentSync), adaptado para a Joelma.
+
+> **Histórico (jul/2026):** a 1ª versão lia só `same_material` e pegava só o
+> primeiro TNN de cada grupo — na Joelma (que publica `box.T1`, não
+> `same_material`) os gates vinham vazios e o Fluidd mostrava
+> "Mmu (disabled)" com um spool fantasma. Corrigido com o dual-schema acima.
 
 ## Lado do Orca
 
@@ -52,8 +68,15 @@ aos slots (ou vincule spools) na Central para o matching do Orca ficar preciso.
 
 ## Objeto exposto (`mmu`)
 
-`num_gates`, `gate_status`, `gate_material`, `gate_color` (RRGGBB sem `#`),
-`gate_temperature` — um por slot carregado do CFS.
+O que o **Orca** lê (`MoonrakerPrinterAgent::fetch_hh_filament_info`):
+`num_gates`, `gate_status`, `gate_material` (**tipo base** PLA/PETG/…, porque o
+Orca resolve preset com `filament_id_by_type`), `gate_color` (RRGGBB sem `#`),
+`gate_temperature`.
+
+Extras pro painel MMU do **Fluidd** não aparecer "(disabled)": `enabled`,
+`tool`/`gate` (=-1), `ttg_map`, `gate_spool_id`, `gate_filament_name`.
+O painel do Fluidd é **só-leitura**: os botões dele chamam macros `MMU_*` do
+Happy Hare que não existem aqui — dá erro inofensivo no console se clicar.
 
 ## Segurança / recuperação
 

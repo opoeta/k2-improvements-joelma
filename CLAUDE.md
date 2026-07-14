@@ -115,6 +115,15 @@ pesquisa do CFS no OrcaSlicer, receitas de curl. **Leia sob demanda.**
   ready; se o boot reclamar do `rename_existing`, remover `[include box_guard.cfg]` de
   `custom/main.cfg`; (b) gráficos de ressonância após um TEST_RESONANCES;
   (c) vínculo Spoolman no editor do slot.
+- **Validar o `[mmu]` corrigido (jul/2026):** a 1ª versão lia `same_material` (schema K1) —
+  na Joelma o box publica `box.T1.material_type[]` e os gates vinham vazios ("Mmu (disabled)"
+  com 1 spool fantasma no Fluidd). Corrigido pra dual-schema + gates por posição física +
+  `enabled: True`. Conferir: Fluidd deve mostrar 4 slots (T1A ABS branco, T1B PLA vermelho,
+  T1C PLA cinza, T1D vazio) e o Filament Sync do Orca (Printer Agent = Moonraker) deve puxar
+  os 3. Os botões do painel MMU do Fluidd chamam macros Happy Hare que não existem — ignorar.
+- **Testar o "Teste do papel"** (novo, no card Nivelamento dos parafusos): move o bico pra
+  cima de cada parafuso a Z=0,10 mm usando as coordenadas do `[screws_tilt_adjust]`; limpa o
+  mesh no início (`BED_MESH_CLEAR`). FRENTE ESQUERDO é a referência.
 - ~~Teste físico da inversão APERTAR/SOLTAR~~ **FEITO (jul/2026):** a convenção
   "invertida por knob embaixo" estava errada — vale a **padrão do Klipper**
   (CW = APERTAR = canto alto desce). Corrigido em `_acao_pt`
