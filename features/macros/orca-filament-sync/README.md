@@ -76,7 +76,7 @@ Orca resolve preset com `filament_id_by_type`), `gate_color` (RRGGBB sem `#`),
 Extras pro painel MMU do **Fluidd** não aparecer "(disabled)" nem quebrar o
 layout: `enabled`, `print_state`, `filament`, `tool`/`gate` (gate selecionado
 via `MMU_SELECT`), `ttg_map`, `gate_spool_id`, `gate_filament_name` (nome do
-catálogo/edição **+ `~NN%` restante** do `remain_len`), `gate_speed_override` —
+catálogo/edição **+ `~NN%` restante** do `remain_len`), `gate_speed_override`, `gate_remain` (extensão não-padrão: % restante numérico por gate, lido pelo fork OrcaSlicer-K2-Wave) —
 **e um segundo objeto `mmu_machine`** (registrado pelo próprio `mmu.py` via
 `add_object`), com 1 unit por caixa do CFS, 4 gates cada, `version` = firmware
 real da caixa e `environment_sensor` apontando pro **`temperature_sensor
