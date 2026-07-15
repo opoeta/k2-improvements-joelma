@@ -31,6 +31,10 @@ import os
 MODIFY = "/mnt/UDISK/creality/userdata/box/material_modify_info.json"
 # override persistido do SET_MMU_BOXES (0 = auto; 1..4 = forca a quantidade)
 PERSIST = os.path.expanduser("~/printer_data/config/.joelma_mmu.json")
+# vinculo Spoolman por slot: {TNN: spool_id}. O painel do Fluidd atribui pelo
+# MMU_GATE_MAP (spool_id) e le de volta em gate_spool_id. Modo 'push' do
+# Happy Hare = o mapa local e a fonte da verdade (nao empurramos pro Spoolman).
+SPOOLMAP = os.path.expanduser("~/printer_data/config/.joelma_gate_spool.json")
 
 # Codigos de 6 digitos desta impressora (slots sem RFID e editados) - mesma
 # tabela FILAMENT_ID do joelma_cfs_edit.py; consultada ANTES do catalogo.
@@ -110,13 +114,16 @@ def _tnn_do_gate(g):
 
 
 def _norm_cor(c):
-    # "0RRGGBB" / "#0RRGGBB" / "RRGGBB" -> "RRGGBB" (6 hex, upper, sem #)
+    # Normaliza pra "RRGGBB" (6 hex, upper, sem #, sem alpha). Aceita:
+    #   "0RRGGBB" / "#0RRGGBB" -> formato do arquivo do CFS (prefixo 0)
+    #   "RRGGBBAA" -> o painel do Fluidd manda com alpha no FIM (ex "7A92ACFF")
+    #   "RRGGBB" / "#RRGGBB"
     if not c:
         return ""
-    c = str(c).lstrip("#")
+    c = str(c).strip().lstrip("#")
     if len(c) == 7 and c[0] == "0":
-        c = c[1:]
-    return c[-6:].upper()
+        c = c[1:]          # tira o prefixo 0 do formato do CFS -> RRGGBB
+    return c[:6].upper()   # RRGGBB (descarta o alpha das 8 chars do Fluidd)
 
 
 def _gate_do_tnn(tnn):
@@ -266,6 +273,41 @@ class mmu:
         except Exception:
             pass
 
+    # ---- vinculo Spoolman por slot (TNN -> spool_id), persistido ----
+    def _le_spoolmap(self):
+        try:
+            with open(SPOOLMAP) as f:
+                data = json.load(f)
+            if not isinstance(data, dict):
+                return {}
+            out = {}
+            for tnn, sid in data.items():
+                try:
+                    sid = int(sid)
+                except (TypeError, ValueError):
+                    continue
+                if _gate_do_tnn(tnn) is not None and sid > 0:
+                    out[str(tnn).upper()] = sid
+            return out
+        except Exception:
+            return {}
+
+    def _grava_spoolmap(self, spoolmap):
+        try:
+            with open(SPOOLMAP, "w") as f:
+                json.dump(spoolmap, f)
+            return True
+        except Exception as err:
+            logging.warning("joelma mmu: spoolmap nao gravou (%s)", err)
+            return False
+
+    def _zera_spoolmap(self):
+        try:
+            if os.path.isfile(SPOOLMAP):
+                os.remove(SPOOLMAP)
+        except Exception:
+            pass
+
     def _connect(self):
         try:
             self.box = self.printer.lookup_object('box')
@@ -372,6 +414,13 @@ class mmu:
     # Grava no material_modify_info.json (overlay que este modulo LE) -> a cor
     # e o material aparecem no painel E no Orca ao vivo, sem tocar no 485.
     def cmd_MMU_GATE_MAP(self, gcmd):
+        # RESET=1: o painel pede pra zerar tudo (volta pro RFID, sem vinculo)
+        if gcmd.get_int('RESET', 0):
+            self._zera_spoolmap()
+            self._mod_cache = ({}, 0.0)
+            self._scan_cache = (None, None, None, -1.0)
+            gcmd.respond_info("MMU_GATE_MAP: mapa zerado (volta pro RFID)")
+            return
         raw = gcmd.get('MAP', None)
         if not raw:
             gcmd.respond_info("MMU_GATE_MAP: nada a fazer (sem MAP)")
@@ -386,6 +435,8 @@ class mmu:
             gcmd.respond_info("MMU_GATE_MAP: MAP nao e um dict")
             return
         aplicados = 0
+        spoolmap = self._le_spoolmap()
+        spool_mudou = False
         for gate, d in mapa.items():
             try:
                 g = int(gate)
@@ -402,10 +453,26 @@ class mmu:
                 temp = int(temp)
             except (TypeError, ValueError):
                 temp = -1
+            # vinculo Spoolman por slot (spool_id): >0 grava, <=0 desvincula
+            sid = d.get('spool_id')
+            try:
+                sid = int(sid)
+            except (TypeError, ValueError):
+                sid = -1
+            if tnn is not None:
+                if sid > 0 and spoolmap.get(tnn) != sid:
+                    spoolmap[tnn] = sid
+                    spool_mudou = True
+                elif sid <= 0 and tnn in spoolmap:
+                    del spoolmap[tnn]
+                    spool_mudou = True
             if self._grava_overlay(tnn, base, cor, nome, temp):
                 aplicados += 1
-        # invalida o cache do overlay para o proximo get_status ja refletir
+        if spool_mudou:
+            self._grava_spoolmap(spoolmap)
+        # invalida os caches para o proximo get_status ja refletir a edicao
         self._mod_cache = ({}, 0.0)
+        self._scan_cache = (None, None, None, -1.0)
         gcmd.respond_info("MMU_GATE_MAP: %d slot(s) atualizado(s)" % aplicados)
 
     def _grava_overlay(self, tnn, base, cor, nome, temp):
@@ -616,6 +683,11 @@ class mmu:
         loaded = self._loaded_gate(eventtime, gates)
         carregado = loaded >= 0 and loaded < n
         tool = loaded if carregado else self.sel_gate
+        # vinculo Spoolman por slot: o painel do Fluidd grava via MMU_GATE_MAP
+        # (spool_id) e le de volta aqui. 'push' = mapa local e a fonte da
+        # verdade (sem push real pro Spoolman) - habilita o campo no painel.
+        spoolmap = self._le_spoolmap()
+        gate_spool = [spoolmap.get(_tnn_do_gate(g), -1) for g in range(n)]
         return {
             # o que o OrcaSlicer le (fetch_hh_filament_info)
             'num_gates': n,
@@ -637,7 +709,9 @@ class mmu:
             'unit': (tool // 4) if tool >= 0 else -1,
             'ttg_map': list(range(n)),
             'endless_spool_groups': list(range(n)),
-            'gate_spool_id': [-1] * n,
+            'gate_spool_id': gate_spool,
+            # 'push': habilita atribuir spool_id no painel (senao fica "off"/cinza)
+            'spoolman_support': 'push',
             'gate_filament_name': nomes,
             'gate_speed_override': [100] * n,
             # extensao nao-padrao: % restante por gate (fork OrcaSlicer-K2-Wave)
