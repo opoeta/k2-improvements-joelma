@@ -221,6 +221,8 @@
   .b-load { background:var(--primary); color:#fff; }
   .b-edit { flex:0 0 36px; }
   .cfs-acoes { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .mmu-sel { display:flex; align-items:center; gap:6px; color:var(--mut); font-size:.76rem; margin-left:auto; }
+  .mmu-sel select { background:var(--card); color:var(--txt); border:1px solid var(--line); border-radius:6px; padding:3px 6px; font-size:.76rem; }
   /* ---------- Spoolman ---------- */
   .sp-card {
     background:var(--card); border-radius:6px;
@@ -483,6 +485,12 @@
   <button id="cfsrefresh" class="principal"><i data-ic="refresh"></i> RELER RFID DOS SLOTS</button>
   <button id="cfssync"><i data-ic="spool"></i> Sincronizar com Spoolman</button>
   <button id="cfsquit"><i data-ic="eject"></i> Descarregar material atual</button>
+  <span class="mmu-sel" id="mmusel" style="display:none">Painel MMU (Fluidd):
+    <select id="mmuboxes" title="Quantas caixas CFS aparecem no painel MMU do Fluidd">
+      <option value="0">auto</option><option value="1">1 CFS</option>
+      <option value="2">2 CFS</option><option value="3">3 CFS</option>
+      <option value="4">4 CFS</option>
+    </select></span>
 </div>
 
 <h2><i data-ic="spool"></i> SERVIDOR SPOOLMAN</h2>
@@ -1645,6 +1653,26 @@ $("rfid-ok").onclick = async () => {
 };
 $("recuperar").onclick = () => { $("recuperar").style.display = "none"; $("fwrestart").onclick(); };
 $("cfsquit").onclick = () => roda("BOX_QUIT_MATERIAL", "Descarregando material atual", 6, () => renderCFS());
+
+// ---------- Configurador do painel MMU do Fluidd (SET_MMU_BOXES) ----------
+// O objeto [mmu] (feature orca-filament-sync) publica boxes_config (0 = auto);
+// o seletor persiste via SET_MMU_BOXES e o painel do Fluidd reflete na hora.
+(async function initMmuSel(){
+  try {
+    const q = await rpc("printer.objects.query", {objects:{mmu:["boxes_config"]}});
+    const cfg = (q.status.mmu || {}).boxes_config;
+    if (cfg === undefined) return;             // mmu.py antigo ou ausente: some
+    $("mmuboxes").value = String(cfg);
+    $("mmusel").style.display = "";
+  } catch(e) { /* sem [mmu] — seletor fica oculto */ }
+})();
+$("mmuboxes").onchange = async () => {
+  const v = $("mmuboxes").value;
+  try {
+    await gcode("SET_MMU_BOXES BOXES=" + v, 1);
+    logLinha(">> painel MMU: " + (v === "0" ? "auto" : v + " CFS"));
+  } catch(e) { logLinha("!! SET_MMU_BOXES: " + e.message); }
+};
 $("cfssync").onclick = async () => {
   const btn = $("cfssync");
   ocupaBotao(btn, true, "sincronizando...");

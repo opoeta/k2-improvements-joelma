@@ -30,8 +30,12 @@
 # GPLv3 (herdado do original).
 import json
 import logging
+import os
 
 MODIFY = "/mnt/UDISK/creality/userdata/box/material_modify_info.json"
+# override persistido do SET_MMU_BOXES (0 = auto-detectar pelas caixas
+# conectadas; 1..4 = forca a quantidade de CFS no painel)
+PERSIST = os.path.expanduser("~/printer_data/config/.joelma_mmu.json")
 
 # Codigos de 6 digitos que ESTA impressora usa nos slots sem RFID e nos
 # editados pela Central (mesma tabela FILAMENT_ID do joelma_cfs_edit.py —
@@ -152,6 +156,7 @@ class _MmuMachine:
 
     def get_status(self, eventtime):
         _, maxbox = self.dono._scan(eventtime)
+        maxbox = self.dono._caixas(maxbox)
         st = {'num_units': max(1, maxbox)}
         for n in range(max(1, maxbox)):
             st['unit_%d' % n] = {
@@ -174,6 +179,10 @@ class mmu:
     def __init__(self, config):
         self.printer = config.get_printer()
         self.id = config.getfloat("id", default=0.0)
+        # quantidade de CFS no painel: 0 = auto (caixas conectadas);
+        # o arquivo persistido pelo SET_MMU_BOXES tem precedencia sobre o cfg
+        self.num_boxes = config.getint("num_boxes", 0, minval=0, maxval=4)
+        self._le_persist()
         self.box = None
         self._mod_cache = ({}, 0.0)
         self._scan_cache = (None, None, -1.0)
@@ -184,6 +193,39 @@ class mmu:
             self.printer.add_object('mmu_machine', _MmuMachine(self))
         except Exception:
             pass  # ja existe (Happy Hare real?) — nao briga
+        # configurador: SET_MMU_BOXES BOXES=0..4 (0 = auto), persiste e
+        # aplica ao vivo — a Central chama isto no seletor do card CFS
+        try:
+            gcode = self.printer.lookup_object('gcode')
+            gcode.register_command(
+                'SET_MMU_BOXES', self.cmd_SET_MMU_BOXES,
+                desc="Define quantas caixas CFS o painel MMU mostra (BOXES=0 auto, 1..4)")
+        except Exception as err:
+            logging.warning("joelma mmu: sem SET_MMU_BOXES (%s)", err)
+
+    def _le_persist(self):
+        try:
+            with open(PERSIST) as f:
+                v = int(json.load(f).get("num_boxes", 0))
+            if 0 <= v <= 4:
+                self.num_boxes = v
+        except Exception:
+            pass
+
+    def cmd_SET_MMU_BOXES(self, gcmd):
+        v = gcmd.get_int('BOXES', 0, minval=0, maxval=4)
+        self.num_boxes = v
+        try:
+            with open(PERSIST, "w") as f:
+                json.dump({"num_boxes": v}, f)
+        except Exception as err:
+            gcmd.respond_info("aviso: nao consegui persistir (%s)" % err)
+        gcmd.respond_info(
+            "Painel MMU: caixas CFS = %s" % ("auto" if v == 0 else v))
+
+    def _caixas(self, maxbox):
+        # quantidade EFETIVA de caixas no painel (override > auto-detectado)
+        return self.num_boxes if self.num_boxes > 0 else maxbox
 
     def _connect(self):
         try:
@@ -251,13 +293,21 @@ class mmu:
                 t = bs.get("T%d" % n)
                 if not isinstance(t, dict):
                     continue
-                maxbox = max(maxbox, n)
                 mats = t.get("material_type")
                 cores = t.get("color_value")
                 if not isinstance(mats, (list, tuple)):
                     mats = []
                 if not isinstance(cores, (list, tuple)):
                     cores = []
+                # o firmware publica T2..T4 como dict mesmo SEM a caixa
+                # (visto ao vivo na Joelma: 4 units fantasma no Fluidd) —
+                # so conta caixa com state "connect" ou com slot ocupado
+                st_box = str(t.get("state", "connect")).strip().lower()
+                ocupada = any(
+                    str(m).strip() not in ("-1", "", "None") for m in mats)
+                if st_box not in ("connect", "connected") and not ocupada:
+                    continue
+                maxbox = max(maxbox, n)
                 for i in range(4):
                     cod = str(mats[i]).strip() if i < len(mats) else "-1"
                     if cod in ("-1", "", "None"):
@@ -299,7 +349,7 @@ class mmu:
 
     def get_status(self, eventtime):
         gates, maxbox = self._scan(eventtime)
-        n = maxbox * 4
+        n = self._caixas(maxbox) * 4
         status, material = [0] * n, [""] * n
         color, temp, nomes = [""] * n, [0] * n, [""] * n
         for g, d in gates.items():
@@ -338,6 +388,9 @@ class mmu:
             'gate_spool_id': [-1] * n,
             'gate_filament_name': nomes,
             'gate_speed_override': [100] * n,
+            # config atual do SET_MMU_BOXES (0 = auto) — a Central le isto
+            # pra preencher o seletor; o Fluidd ignora chaves desconhecidas
+            'boxes_config': self.num_boxes,
             'id': self.id,
         }
 
