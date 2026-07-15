@@ -83,6 +83,17 @@ fantasma" único no painel.
 O painel do Fluidd é **só-leitura**: os botões dele chamam macros `MMU_*` do
 Happy Hare que não existem aqui — dá erro inofensivo no console se clicar.
 
+## Quantidade de caixas no painel (configurador)
+
+O firmware publica `box.T2..T4` como dict mesmo **sem** a caixa física —
+por isso a detecção é: caixa conta se `state == connect` **ou** se tem slot
+ocupado. Se ainda assim aparecer unit fantasma (ou você quiser fixar):
+
+- **Central** → card CFS → seletor "Painel MMU (Fluidd)": auto / 1–4 CFS;
+- ou no console: `SET_MMU_BOXES BOXES=1` (0 = auto). Persiste em
+  `~/printer_data/config/.joelma_mmu.json` e aplica **ao vivo** (sem restart);
+- ou `num_boxes` na seção `[mmu]` (o persistido tem precedência).
+
 ## Segurança / recuperação
 
 - `get_status` nunca levanta exceção — CFS ausente ou JSON faltando → gates
