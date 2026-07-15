@@ -102,6 +102,20 @@ TIPOS_ORCA = {
 }
 
 
+def _num(v):
+    # "21" -> 21.0; "-1"/""/None/"None" -> None
+    try:
+        f = float(str(v).strip())
+        return f if f >= 0 else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _tnn_do_gate(g):
+    # 0 -> "T1A", 5 -> "T2B"
+    return "T%d%s" % (g // 4 + 1, "ABCD"[g % 4])
+
+
 def _norm_cor(c):
     # "0RRGGBB" ou "#0RRGGBB" -> "RRGGBB" (6 hex, sem # e sem o 0 da frente)
     if not c:
@@ -150,19 +164,23 @@ def _material_do_codigo(cod):
 # O Fluidd le as unidades/gates de um SEGUNDO objeto, 'mmu_machine'
 # (mixins/mmu.ts: numGates cai no default 1 sem ele — dai o painel mostrar
 # 1 spool fantasma). Publica 1 unit por caixa do CFS, 4 gates cada.
+# environment_sensor aponta pro _CfsSensor abaixo: o rodape da unit no
+# Fluidd mostra a temperatura/umidade do CFS (o que o card da Central
+# mostrava); version = firmware real da caixa (box.Tn.version).
 class _MmuMachine:
     def __init__(self, dono):
         self.dono = dono
 
     def get_status(self, eventtime):
-        _, maxbox = self.dono._scan(eventtime)
+        _, maxbox, extras = self.dono._scan(eventtime)
         maxbox = self.dono._caixas(maxbox)
         st = {'num_units': max(1, maxbox)}
         for n in range(max(1, maxbox)):
+            info = extras.get(n + 1, {})
             st['unit_%d' % n] = {
                 'name': 'CFS %d' % (n + 1),
                 'vendor': 'Creality',
-                'version': '1.0',
+                'version': info.get('versao') or '1.0',
                 'num_gates': 4,
                 'first_gate': n * 4,
                 'selector_type': 'VirtualSelector',
@@ -171,8 +189,25 @@ class _MmuMachine:
                 'require_bowden_move': False,
                 'has_bypass': False,
                 'multi_gear': False,
+                'environment_sensor': 'temperature_sensor cfs_%d' % (n + 1),
             }
         return st
+
+
+# Sensor fake com a temperatura/umidade do CFS (box.Tn.temperature e
+# .dry_and_humidity). Aparece no rodape da unit do painel MMU e tambem
+# na lista de sensores/termicos do Fluidd.
+class _CfsSensor:
+    def __init__(self, dono, caixa):
+        self.dono, self.caixa = dono, caixa
+
+    def get_status(self, eventtime):
+        _, _, extras = self.dono._scan(eventtime)
+        info = extras.get(self.caixa, {})
+        return {
+            'temperature': info.get('temp') or 0.0,
+            'humidity': info.get('umid') or 0.0,
+        }
 
 
 class mmu:
@@ -184,8 +219,9 @@ class mmu:
         self.num_boxes = config.getint("num_boxes", 0, minval=0, maxval=4)
         self._le_persist()
         self.box = None
+        self.sel_gate = -1     # gate selecionado via MMU_SELECT (so visual)
         self._mod_cache = ({}, 0.0)
-        self._scan_cache = (None, None, -1.0)
+        self._scan_cache = (None, None, None, -1.0)
         # o objeto box pode carregar depois deste; resolve no connect
         self.printer.register_event_handler("klippy:connect", self._connect)
         # registra o mmu_machine junto (o Fluidd precisa dos dois)
@@ -194,14 +230,35 @@ class mmu:
         except Exception:
             pass  # ja existe (Happy Hare real?) — nao briga
         # configurador: SET_MMU_BOXES BOXES=0..4 (0 = auto), persiste e
-        # aplica ao vivo — a Central chama isto no seletor do card CFS
+        # aplica ao vivo — a Central chama isto no seletor do card CFS.
+        # E os comandos MMU_* que os botoes do painel do Fluidd disparam,
+        # mapeados pros BOX_* do CFS (com guarda de slot vazio: mandar
+        # BOX_LOAD_MATERIAL num slot sem filamento derruba o Klipper —
+        # visto ao vivo jul/2026, mesma guarda que a Central usava).
+        self.gcode = None
         try:
-            gcode = self.printer.lookup_object('gcode')
-            gcode.register_command(
-                'SET_MMU_BOXES', self.cmd_SET_MMU_BOXES,
+            self.gcode = self.printer.lookup_object('gcode')
+            reg = self.gcode.register_command
+            reg('SET_MMU_BOXES', self.cmd_SET_MMU_BOXES,
                 desc="Define quantas caixas CFS o painel MMU mostra (BOXES=0 auto, 1..4)")
+            reg('MMU_SELECT', self.cmd_MMU_SELECT,
+                desc="Seleciona um gate (GATE=n) — so visual no CFS")
+            reg('MMU_CHANGE_TOOL', self.cmd_MMU_CHANGE_TOOL,
+                desc="Carrega o slot do CFS (TOOL=n) via BOX_LOAD_MATERIAL")
+            reg('MMU_LOAD', self.cmd_MMU_LOAD,
+                desc="Carrega o gate selecionado via BOX_LOAD_MATERIAL")
+            reg('MMU_UNLOAD', self.cmd_MMU_UNLOAD,
+                desc="Descarrega o material atual via BOX_QUIT_MATERIAL")
+            reg('MMU_EJECT', self.cmd_MMU_UNLOAD,
+                desc="Descarrega o material atual via BOX_QUIT_MATERIAL")
+            # sem equivalente seguro no CFS: responde orientacao e nao faz nada
+            for cmd in ('MMU_PRELOAD', 'MMU_CHECK_GATE', 'MMU_CHECK_GATES',
+                        'MMU_RECOVER', 'MMU_UNLOCK', 'MMU_STATS',
+                        'MMU_SPOOLMAN', 'MMU_GATE_MAP', 'MMU_HOME'):
+                reg(cmd, self._cmd_noop(cmd),
+                    desc="Sem equivalente no CFS — nao faz nada")
         except Exception as err:
-            logging.warning("joelma mmu: sem SET_MMU_BOXES (%s)", err)
+            logging.warning("joelma mmu: comandos nao registrados (%s)", err)
 
     def _le_persist(self):
         try:
@@ -227,11 +284,75 @@ class mmu:
         # quantidade EFETIVA de caixas no painel (override > auto-detectado)
         return self.num_boxes if self.num_boxes > 0 else maxbox
 
+    # ---- comandos MMU_* (botoes do painel do Fluidd) -> BOX_* do CFS ----
+
+    def _agora(self):
+        return self.printer.get_reactor().monotonic()
+
+    def _gate_ocupado(self, g):
+        gates, maxbox, _ = self._scan(self._agora())
+        if g < 0 or g >= self._caixas(maxbox) * 4:
+            return None       # fora do painel
+        return g in gates     # True = tem filamento fisico
+
+    def cmd_MMU_SELECT(self, gcmd):
+        g = gcmd.get_int('GATE', gcmd.get_int('TOOL', -1))
+        self.sel_gate = g if 0 <= g <= 15 else -1
+        gcmd.respond_info("MMU: gate %s selecionado (%s)"
+                          % (self.sel_gate, _tnn_do_gate(self.sel_gate))
+                          if self.sel_gate >= 0 else "MMU: selecao limpa")
+
+    def _carrega(self, gcmd, g):
+        ocupado = self._gate_ocupado(g)
+        if ocupado is None:
+            raise gcmd.error("MMU: gate %d fora do painel" % g)
+        if not ocupado:
+            # NUNCA carregar slot vazio: BOX_EXTRUDE_MATERIAL estoura com
+            # None dentro do blob da Creality e derruba o Klipper
+            raise gcmd.error("MMU: slot %s sem filamento fisico — nao vou carregar"
+                             % _tnn_do_gate(g))
+        tnn = _tnn_do_gate(g)
+        self.sel_gate = g
+        gcmd.respond_info("MMU: carregando %s (aquece, corta, purga)..." % tnn)
+        self.gcode.run_script_from_command("BOX_LOAD_MATERIAL TNN=%s" % tnn)
+
+    def cmd_MMU_CHANGE_TOOL(self, gcmd):
+        self._carrega(gcmd, gcmd.get_int('TOOL', gcmd.get_int('GATE', -1)))
+
+    def cmd_MMU_LOAD(self, gcmd):
+        g = gcmd.get_int('GATE', self.sel_gate)
+        if g < 0:
+            raise gcmd.error("MMU: selecione um gate antes (MMU_SELECT GATE=n)")
+        self._carrega(gcmd, g)
+
+    def cmd_MMU_UNLOAD(self, gcmd):
+        gcmd.respond_info("MMU: descarregando material atual...")
+        self.gcode.run_script_from_command("BOX_QUIT_MATERIAL")
+
+    def _cmd_noop(self, nome):
+        def handler(gcmd, _n=nome):
+            gcmd.respond_info(
+                "%s: sem equivalente no CFS (use a Central de Calibracao "
+                "para editar slots / reler RFID)" % _n)
+        return handler
+
     def _connect(self):
         try:
             self.box = self.printer.lookup_object('box')
         except Exception:
             self.box = None
+        # sensores de temp/umidade das caixas detectadas (cfs_1 sempre:
+        # e o caso normal e o rodape da unit 0 aponta pra ele)
+        try:
+            _, maxbox, _ = self._scan(self.printer.get_reactor().monotonic())
+            for n in range(1, max(1, maxbox) + 1):
+                try:
+                    self.printer.add_object(
+                        'temperature_sensor cfs_%d' % n, _CfsSensor(self, n))
+                except Exception:
+                    pass  # ja registrado
+        except Exception as err:
+            logging.warning("joelma mmu: sensores do CFS nao registrados (%s)", err)
 
     def _edicoes(self, eventtime):
         # cache de 2s: o get_status e chamado varias vezes por segundo
@@ -278,12 +399,13 @@ class mmu:
         return edits
 
     def _scan(self, eventtime):
-        # varre o box + edicoes e devolve (gates, maxbox). Cache de 1s: o
-        # get_status (do mmu E do mmu_machine) e chamado varias vezes/segundo.
-        g, mb, ts = self._scan_cache
+        # varre o box + edicoes e devolve (gates, maxbox, extras). Cache de
+        # 1s: o get_status (mmu, mmu_machine e sensores) e chamado varias
+        # vezes/segundo. extras[n] = {temp, umid, versao} da caixa n.
+        g, mb, ex, ts = self._scan_cache
         if g is not None and eventtime - ts < 1.0:
-            return g, mb
-        gates, maxbox = {}, 0
+            return g, mb, ex
+        gates, maxbox, extras = {}, 0, {}
         try:
             bs = self.box.get_status(eventtime) if self.box else {}
 
@@ -308,16 +430,26 @@ class mmu:
                 if st_box not in ("connect", "connected") and not ocupada:
                     continue
                 maxbox = max(maxbox, n)
+                extras[n] = {
+                    "temp": _num(t.get("temperature")),
+                    "umid": _num(t.get("dry_and_humidity")),
+                    "versao": str(t.get("version") or "").strip() or None,
+                }
+                restos = t.get("remain_len")
+                if not isinstance(restos, (list, tuple)):
+                    restos = []
                 for i in range(4):
                     cod = str(mats[i]).strip() if i < len(mats) else "-1"
                     if cod in ("-1", "", "None"):
                         continue  # slot vazio
                     nome, tipo = _material_do_codigo(cod)
+                    resto = _num(restos[i] if i < len(restos) else None)
                     gates[(n - 1) * 4 + i] = {
                         "mat": tipo,
                         "cor": _norm_cor(cores[i] if i < len(cores) else ""),
                         "nome": nome,
                         "temp": 0,
+                        "resto": int(resto) if resto is not None and 0 <= resto <= 100 else None,
                     }
 
             # caminho 2 (fallback, schema K1/Stevetm2): same_material,
@@ -331,7 +463,8 @@ class mmu:
                         g = _gate_do_tnn(tnn)
                         if g is None:
                             continue
-                        gates[g] = {"mat": tipo, "cor": cor, "nome": "", "temp": 0}
+                        gates[g] = {"mat": tipo, "cor": cor, "nome": "",
+                                    "temp": 0, "resto": None}
                         maxbox = max(maxbox, g // 4 + 1)
 
             # edicao da Central manda (so em slot que o box diz ocupado)
@@ -344,11 +477,11 @@ class mmu:
         except Exception as err:
             logging.error("joelma mmu get_status: %s", err)
 
-        self._scan_cache = (gates, maxbox, eventtime)
-        return gates, maxbox
+        self._scan_cache = (gates, maxbox, extras, eventtime)
+        return gates, maxbox, extras
 
     def get_status(self, eventtime):
-        gates, maxbox = self._scan(eventtime)
+        gates, maxbox, _ = self._scan(eventtime)
         n = self._caixas(maxbox) * 4
         status, material = [0] * n, [""] * n
         color, temp, nomes = [""] * n, [0] * n, [""] * n
@@ -361,6 +494,9 @@ class mmu:
             color[g] = d["cor"]
             temp[g] = d.get("temp") or TEMP_PADRAO.get(base, 220)
             nomes[g] = d.get("nome") or base
+            # % restante do slot (remain_len do box) visivel no painel
+            if d.get("resto") is not None:
+                nomes[g] += " ~%d%%" % d["resto"]
         return {
             # o que o OrcaSlicer le (MoonrakerPrinterAgent::fetch_hh_filament_info)
             'num_gates': n,
@@ -380,9 +516,9 @@ class mmu:
             'filament': 'Unloaded',
             'filament_pos': 0,
             'filament_position': 0.0,
-            'tool': -1,
-            'gate': -1,
-            'unit': -1,
+            'tool': self.sel_gate,
+            'gate': self.sel_gate,
+            'unit': (self.sel_gate // 4) if self.sel_gate >= 0 else -1,
             'ttg_map': list(range(n)),
             'endless_spool_groups': list(range(n)),
             'gate_spool_id': [-1] * n,

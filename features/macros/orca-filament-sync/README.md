@@ -74,14 +74,41 @@ Orca resolve preset com `filament_id_by_type`), `gate_color` (RRGGBB sem `#`),
 `gate_temperature`.
 
 Extras pro painel MMU do **Fluidd** não aparecer "(disabled)" nem quebrar o
-layout: `enabled`, `print_state`, `filament`, `tool`/`gate` (=-1), `ttg_map`,
-`gate_spool_id`, `gate_filament_name`, `gate_speed_override` — **e um segundo
-objeto `mmu_machine`** (registrado pelo próprio `mmu.py` via `add_object`),
-com 1 unit por caixa do CFS e 4 gates cada. Sem o `mmu_machine` o Fluidd
-assume 1 gate por unit (`numGates ?? 1` no `mixins/mmu.ts`) — era o "spool
-fantasma" único no painel.
-O painel do Fluidd é **só-leitura**: os botões dele chamam macros `MMU_*` do
-Happy Hare que não existem aqui — dá erro inofensivo no console se clicar.
+layout: `enabled`, `print_state`, `filament`, `tool`/`gate` (gate selecionado
+via `MMU_SELECT`), `ttg_map`, `gate_spool_id`, `gate_filament_name` (nome do
+catálogo/edição **+ `~NN%` restante** do `remain_len`), `gate_speed_override` —
+**e um segundo objeto `mmu_machine`** (registrado pelo próprio `mmu.py` via
+`add_object`), com 1 unit por caixa do CFS, 4 gates cada, `version` = firmware
+real da caixa e `environment_sensor` apontando pro **`temperature_sensor
+cfs_n`** (também fake, registrado no connect) com a temperatura/umidade do CFS
+— aparece no rodapé da unit e nos térmicos do Fluidd. Sem o `mmu_machine` o
+Fluidd assume 1 gate por unit (`numGates ?? 1` no `mixins/mmu.ts`) — era o
+"spool fantasma" único no painel.
+
+## O painel do Fluidd é a interface principal do CFS
+
+Os botões do painel chamam macros `MMU_*` do Happy Hare — o `mmu.py` registra
+os que têm equivalente seguro no CFS:
+
+| Botão do Fluidd | Comando | Vira |
+|---|---|---|
+| Carregar / trocar tool | `MMU_CHANGE_TOOL TOOL=n` / `MMU_SELECT`+`MMU_LOAD` | `BOX_LOAD_MATERIAL TNN=…` |
+| Ejetar / Descarregar | `MMU_EJECT` / `MMU_UNLOAD` | `BOX_QUIT_MATERIAL` |
+
+**Guarda de segurança:** carregar um slot **sem filamento físico** é recusado
+com mensagem (mandar `BOX_LOAD_MATERIAL` num slot vazio estoura `None` no blob
+da Creality e derruba o Klipper — visto ao vivo jul/2026; é a mesma guarda que
+a Central usava nos cards).
+
+`MMU_PRELOAD`, `MMU_CHECK_GATE(S)`, `MMU_RECOVER`, `MMU_UNLOCK`, `MMU_STATS`,
+`MMU_SPOOLMAN`, `MMU_GATE_MAP` e `MMU_HOME` **não têm equivalente** no CFS:
+respondem uma orientação e não fazem nada.
+
+**O que ficou na Central** (card "CFS — ações", compacto): editar slot
+(T1A–T1D — grava no firmware pela porta 9999 e propaga pra tela/Orca), reler
+RFID, sincronizar/vincular Spoolman, descarregar e o seletor de caixas do
+painel. Os cards de exibição dos slots e o card do servidor Spoolman foram
+removidos da Central — a informação vive no painel MMU.
 
 ## Quantidade de caixas no painel (configurador)
 

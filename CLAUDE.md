@@ -123,7 +123,13 @@ pesquisa do CFS no OrcaSlicer, receitas de curl. **Leia sob demanda.**
   os 3. Os botões do painel MMU do Fluidd chamam macros Happy Hare que não existem — ignorar.
 - **Testar o "Teste do papel"** (novo, no card Nivelamento dos parafusos): move o bico pra
   cima de cada parafuso a Z=0,10 mm usando as coordenadas do `[screws_tilt_adjust]`; limpa o
-  mesh no início (`BED_MESH_CLEAR`). FRENTE ESQUERDO é a referência.
+  mesh no início (`BED_MESH_CLEAR`). FRENTE ESQUERDO é a referência. **Se "não aparecer":
+  é cache do navegador — Ctrl+F5** (o arquivo é copiado pelo install da nivela_web).
+- **Validar a migração CFS→painel MMU (jul/2026):** a exibição dos slots e o card do
+  Spoolman saíram da Central (viraram "CFS — ações" compacto); o painel MMU do Fluidd
+  mostra tudo (cores, nomes+%, temp/umidade via `temperature_sensor cfs_1`, fw na unit) e
+  os botões Carregar/Ejetar funcionam (`MMU_CHANGE_TOOL`→`BOX_LOAD_MATERIAL` com guarda de
+  slot vazio; `MMU_EJECT`→`BOX_QUIT_MATERIAL`). Editar slot continua na Central (T1A–T1D).
 - ~~Teste físico da inversão APERTAR/SOLTAR~~ **FEITO (jul/2026):** a convenção
   "invertida por knob embaixo" estava errada — vale a **padrão do Klipper**
   (CW = APERTAR = canto alto desce). Corrigido em `_acao_pt`
