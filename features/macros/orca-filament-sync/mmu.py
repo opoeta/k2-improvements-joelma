@@ -485,6 +485,7 @@ class mmu:
         n = self._caixas(maxbox) * 4
         status, material = [0] * n, [""] * n
         color, temp, nomes = [""] * n, [0] * n, [""] * n
+        restos = [-1] * n
         for g, d in gates.items():
             if g >= n:
                 continue
@@ -497,6 +498,7 @@ class mmu:
             # % restante do slot (remain_len do box) visivel no painel
             if d.get("resto") is not None:
                 nomes[g] += " ~%d%%" % d["resto"]
+                restos[g] = d["resto"]
         return {
             # o que o OrcaSlicer le (MoonrakerPrinterAgent::fetch_hh_filament_info)
             'num_gates': n,
@@ -524,6 +526,10 @@ class mmu:
             'gate_spool_id': [-1] * n,
             'gate_filament_name': nomes,
             'gate_speed_override': [100] * n,
+            # extensao fora do padrao HH: % restante por gate (0..100; -1 =
+            # desconhecido). O fork OrcaSlicer-K2-Wave le isto no
+            # fetch_hh_filament_info e desenha a barra de nivel do slot.
+            'gate_remain': restos,
             # config atual do SET_MMU_BOXES (0 = auto) — a Central le isto
             # pra preencher o seletor; o Fluidd ignora chaves desconhecidas
             'boxes_config': self.num_boxes,
