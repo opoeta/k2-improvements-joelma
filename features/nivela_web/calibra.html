@@ -196,44 +196,11 @@
   .cfs-head span { background:var(--card); border-radius:16px; padding:5px 12px; display:flex; align-items:center; gap:5px; box-shadow:var(--elev); animation:pop .4s ease both; }
   .cfs-head b { color:var(--txt); font-variant-numeric:tabular-nums; }
   .cfs-head .off { color:var(--bad); }
-  .slots { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
-  .slot {
-    background:var(--card); border-radius:6px; padding:12px 8px;
-    border-top:4px solid var(--card2); text-align:center; position:relative; min-height:140px;
-    display:flex; flex-direction:column; align-items:center; box-shadow:var(--elev);
-    transition:transform .3s, box-shadow .3s; animation:floatIn .45s ease both;
-  }
-  .slot:hover { transform:translateY(-3px); box-shadow:var(--elev2); }
-  .slot:nth-child(1) { animation-delay:.05s; } .slot:nth-child(2) { animation-delay:.1s; }
-  .slot:nth-child(3) { animation-delay:.15s; } .slot:nth-child(4) { animation-delay:.2s; }
-  .slot.vazio { opacity:.45; }
-  .slot.ativo { animation:floatIn .45s ease both, pulseRing 2s ease-in-out 1s infinite; }
-  .swatch { width:46px; height:46px; border-radius:50%; border:2px solid var(--line); margin:2px auto 8px; box-shadow:var(--elev); transition:transform .3s; }
-  .slot:hover .swatch { transform:scale(1.1); }
-  .slot .tag { font-weight:700; font-size:.92rem; letter-spacing:.02em; }
-  .slot .mat { font-size:.8rem; color:var(--txt); margin-top:2px; font-weight:500; }
-  .slot .len { font-size:.7rem; color:var(--mut); margin-top:3px; }
-  .slot .rfid { font-size:.6rem; color:var(--dim); margin-top:3px; letter-spacing:.03em; display:flex; align-items:center; justify-content:center; gap:3px; }
-  .slot .rfid .ic { width:10px; height:10px; }
-  .slot-btns { display:flex; gap:5px; margin-top:auto; padding-top:8px; width:100%; }
-  .slot-btns button { flex:1; padding:7px 2px; min-height:30px; font-size:.66rem; gap:4px; }
-  .slot-btns button .ic { width:12px; height:12px; }
-  .b-load { background:var(--primary); color:#fff; }
-  .b-edit { flex:0 0 36px; }
+  /* slots do CFS: exibicao movida pro painel MMU do Fluidd (mmu.py) */
   .cfs-acoes { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
   .mmu-sel { display:flex; align-items:center; gap:6px; color:var(--mut); font-size:.76rem; margin-left:auto; }
   .mmu-sel select { background:var(--card); color:var(--txt); border:1px solid var(--line); border-radius:6px; padding:3px 6px; font-size:.76rem; }
   /* ---------- Spoolman ---------- */
-  .sp-card {
-    background:var(--card); border-radius:6px;
-    padding:12px 14px; display:flex; align-items:center; gap:12px; box-shadow:var(--elev);
-    animation:floatIn .45s ease both;
-  }
-  .sp-card .sp-info { flex:1; min-width:0; }
-  .sp-url { font-weight:500; font-size:.9rem; font-family:'Roboto Mono',monospace; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .sp-st { color:var(--mut); font-size:.75rem; margin-top:2px; }
-  .sp-st.ok { color:var(--ok); } .sp-st.err { color:var(--bad); }
-  .sp-card button { padding:8px 13px; font-size:.74rem; }
   #sp-found { margin-top:10px; display:flex; flex-direction:column; gap:6px; }
   .sp-hit {
     background:var(--card2); border:1px solid var(--line); border-radius:4px; padding:10px 12px;
@@ -369,14 +336,10 @@
     .sensores { grid-template-columns:repeat(2,1fr); }
     .sens { padding:9px 10px; }
     .sens-val { font-size:.9rem; }
-    .slots { grid-template-columns:repeat(2,1fr); }
-    .slot:nth-child(3) { animation-delay:.1s; } .slot:nth-child(4) { animation-delay:.15s; }
     .cfs-head { gap:6px; font-size:.72rem; }
     .cfs-head span { padding:4px 9px; }
     .cfs-acoes button { flex:1 1 100%; }
     #console { height:180px; font-size:.7rem; }
-    .sp-card { flex-wrap:wrap; }
-    .sp-card button { flex:1 1 100%; }
     .aviso { font-size:.72rem; }
     details.acc summary { padding:12px 13px; font-size:.84rem; }
     .acc-body { padding:12px 13px 14px; }
@@ -387,9 +350,7 @@
     .jog-z { grid-template-columns:44px; grid-auto-rows:44px; }
   }
   @media (max-width:400px) {
-    .slot { min-height:128px; padding:10px 6px; }
     .swatch { width:38px; height:38px; }
-    .slot .mat { font-size:.74rem; }
   }
 </style>
 </head>
@@ -478,29 +439,27 @@
   <span class="luz-pct" id="luzpct">0%</span>
 </div>
 
-<h2><i data-ic="box"></i> CFS — CENTRAL DE FILAMENTOS</h2>
-<div class="cfs-head" id="cfshead"><span id="cfsconn">conectando ao CFS...</span></div>
-<div class="slots" id="slots"></div>
+<h2><i data-ic="box"></i> CFS — AÇÕES</h2>
+<div class="dica">As informações dos slots (cores, material, %, temperatura/umidade) agora vivem no
+<b>painel MMU do Fluidd</b> — carregar/descarregar também funciona por lá. Aqui ficam só as
+ações que o Fluidd não tem: <b>editar slot</b> (grava no firmware e propaga pra tela/Orca),
+reler RFID e o vínculo com o Spoolman.</div>
+<div class="cfs-head" id="cfshead" style="display:none"><span id="cfsconn"></span></div>
 <div class="cfs-acoes">
-  <button id="cfsrefresh" class="principal"><i data-ic="refresh"></i> RELER RFID DOS SLOTS</button>
-  <button id="cfssync"><i data-ic="spool"></i> Sincronizar com Spoolman</button>
-  <button id="cfsquit"><i data-ic="eject"></i> Descarregar material atual</button>
-  <span class="mmu-sel" id="mmusel" style="display:none">Painel MMU (Fluidd):
+  <button class="ghost" data-edslot="T1A"><i data-ic="edit"></i> T1A</button>
+  <button class="ghost" data-edslot="T1B"><i data-ic="edit"></i> T1B</button>
+  <button class="ghost" data-edslot="T1C"><i data-ic="edit"></i> T1C</button>
+  <button class="ghost" data-edslot="T1D"><i data-ic="edit"></i> T1D</button>
+  <button id="cfsrefresh"><i data-ic="refresh"></i> Reler RFID</button>
+  <button id="cfssync"><i data-ic="spool"></i> Sincronizar Spoolman</button>
+  <button id="cfsquit"><i data-ic="eject"></i> Descarregar</button>
+  <button id="spcfg" class="ghost" title="Servidor Spoolman"><i data-ic="settings"></i> <span id="spst2">Spoolman</span></button>
+  <span class="mmu-sel" id="mmusel" style="display:none">Painel MMU:
     <select id="mmuboxes" title="Quantas caixas CFS aparecem no painel MMU do Fluidd">
       <option value="0">auto</option><option value="1">1 CFS</option>
       <option value="2">2 CFS</option><option value="3">3 CFS</option>
       <option value="4">4 CFS</option>
     </select></span>
-</div>
-
-<h2><i data-ic="spool"></i> SERVIDOR SPOOLMAN</h2>
-<div class="sp-card">
-  <div class="dot" id="spdot"></div>
-  <div class="sp-info">
-    <div class="sp-url" id="spurl">carregando...</div>
-    <div class="sp-st" id="spst">—</div>
-  </div>
-  <button id="spcfg" class="ghost"><i data-ic="settings"></i> Configurar</button>
 </div>
 
 <dialog class="editor" id="spdlg">
@@ -867,7 +826,7 @@ function setStatus(fazendo, detalhe, modo){
 function trava(v){
   ocupado = v;
   // desabilita tudo que dispara gcode; deixa a luz e o console livres
-  document.querySelectorAll("details.acc button, .barra-global button, .cfs-acoes button, .slot-btns button")
+  document.querySelectorAll("details.acc button, .barra-global button, .cfs-acoes button")
     .forEach(b => { if (!b.classList.contains("busy")) b.disabled = v; });
 }
 
@@ -1370,39 +1329,34 @@ async function renderCFS(){
   await carregaFwSlots();
   const q = await rpc("printer.objects.query", {objects:{box:null, filament_rack:null}});
   const box = q.status.box;
-  const head = $("cfshead"), slots = $("slots");
-  if (!box) { $("cfsconn").textContent = "objeto box indisponivel"; return; }
+  // exibicao dos slots agora vive no painel MMU do Fluidd (mmu.py); esta
+  // funcao so coleta dados: preenche os botoes de edicao, mantem o match
+  // RFID<->Spoolman e mostra um aviso quando o CFS nao responde.
+  const aviso = msg => { $("cfshead").style.display = msg ? "" : "none"; $("cfsconn").innerHTML = msg || ""; };
+  if (!box) { aviso("objeto box indisponivel"); return; }
   if (box.state !== "connect") {
     // logo apos reinicio do Klipper o CFS renegocia o barramento 485 e pode
     // levar ~1 min; alem do retry, a assinatura de box.state no WebSocket
     // (aplicaStatus) re-renderiza sozinha assim que o estado virar connect
     if (cfsTentativas < 24) {
       cfsTentativas++;
-      head.innerHTML = '<span>CFS reconectando' + '.'.repeat(1 + cfsTentativas % 3) + ' (' + (box.state||"?") + ', ' + (cfsTentativas*2.5).toFixed(0) + 's)</span>';
+      aviso('CFS reconectando' + '.'.repeat(1 + cfsTentativas % 3) + ' (' + (box.state||"?") + ', ' + (cfsTentativas*2.5).toFixed(0) + 's)');
       setTimeout(() => renderCFS().catch(()=>{}), 2500);
       return;
     }
-    head.innerHTML = '<span class="off">CFS desconectado (' + (box.state||"?") + ') \u2014 verifique energia/cabo; reconecto sozinho quando voltar</span>';
-    slots.innerHTML = "";
+    aviso('<span class="off">CFS desconectado (' + (box.state||"?") + ') \u2014 verifique energia/cabo; reconecto sozinho quando voltar</span>');
     $("fwCfs").textContent = "off";
     return;
   }
   cfsTentativas = 0;
+  aviso(null);
   const t1 = box.T1 || {};
   $("fwCfs").textContent = t1.version && t1.version !== "None" ? t1.version : "?";
   cfsSN = t1.sn && t1.sn !== "-1" ? t1.sn : "cfs1";
-  const temp = t1.temperature, umid = t1.dry_and_humidity;
-  const rack = q.status.filament_rack || {};
-  const atualCor = corHex(rack.remain_material_color);
-  head.innerHTML =
-    '<span>🌡️ <b>' + (temp&&temp!=="None"?temp+"°C":"—") + '</b></span>' +
-    '<span>💧 Umidade <b>' + (umid&&umid!=="None"?umid+"%":"—") + '</b>' + (umid&&+umid>=60?' ⚠️':'') + '</span>' +
-    '<span>fw <b>' + (t1.version||"—") + '</b></span>' +
-    '<span>auto-refill <b>' + (box.auto_refill?"ON":"off") + '</b></span>';
-
+  // temp/umidade/fw/auto-refill: agora no painel MMU do Fluidd
+  // (mmu_machine.unit_0 + temperature_sensor cfs_1, publicados pelo mmu.py)
   const letras = ["A","B","C","D"];
   const rfidPend = [];   // slots com RFID ainda sem spool vinculado (p/ casar depois)
-  slots.innerHTML = "";
   for (let i = 0; i < 4; i++) {
     const tnn = "T1" + letras[i];
     const tipoRfid = matNome((t1.material_type||[])[i]);
@@ -1440,42 +1394,27 @@ async function renderCFS(){
     const tipo = (rot&&rot.tipo) || tipoRfid || (spF && spF.material) || "vazio";
     const spNome = spool && spool.filament ? ((spool.filament.vendor&&spool.filament.vendor.name?spool.filament.vendor.name+" ":"")+spool.filament.name) : "";
     const nome = rot&&rot.nome ? rot.nome : (spNome || (vender&&vender!=="unknown"&&vender!=="-1"?vender:""));
-    const ativo = atualCor && cor.toLowerCase() === atualCor.toLowerCase();
+    void temFilamento; void presente; void editadoMao;  // presenca/carga: agora no painel MMU (mmu.py guarda o slot vazio)
 
-    const el = document.createElement("div");
-    el.className = "slot" + (temFilamento ? "" : " vazio") + (ativo ? " ativo" : "");
-    el.style.borderTopColor = temFilamento ? cor : "#3c4654";
-    el.innerHTML =
-      '<div class="swatch" style="background:' + cor + '"></div>' +
-      '<div class="tag">' + tnn + (ativo ? ' ●' : '') + '</div>' +
-      '<div class="mat">' + tipo + '</div>' +
-      (nome ? '<div class="len">' + nome + '</div>' : '') +
-      (temFilamento && String(remain)!=="-1" ? '<div class="len">~' + remain + '%</div>' : '') +
-      (spool && spool.remaining_weight != null ? '<div class="len">' + Math.round(spool.remaining_weight) + 'g no Spoolman</div>' : '') +
-      '<div class="rfid">' + (
-        temTagReal ? svgIc("tag")+' RFID' + (spool ? ' #'+spool.id : '') + (rot ? ' +rótulo' : '') :
-        editadoMao ? svgIc("edit")+' manual' + (spool ? ' #'+spool.id : '') :
-        rot        ? svgIc("edit")+' rotulado' :
-        spool      ? svgIc("spool")+' #'+spool.id :
-        tipoRfid   ? svgIc("tag")+' tag?' :
-                     'sem tag') + '</div>' +
-      '<div class="slot-btns">' +
-        '<button class="b-load" data-tnn="' + tnn + '"' + (presente?'':' disabled title="sem filamento fisico neste slot"') + '>' + svgIc("load") + ' Carregar</button>' +
-        '<button class="b-edit" data-edit="' + tnn + '" data-tipo="' + (tipo!=="vazio"?tipo:"") + '" data-cor="' + cor + '" data-nome="' + (nome||"") + '">' + svgIc("edit") + '</button>' +
-      '</div>';
-    slots.appendChild(el);
+    // alimenta o botao de edicao compacto do slot (prefill do editor)
+    const btn = document.querySelector('[data-edslot="' + tnn + '"]');
+    if (btn) {
+      btn.dataset.edit = tnn;
+      btn.dataset.tipo = tipo !== "vazio" ? tipo : "";
+      btn.dataset.cor  = cor;
+      btn.dataset.nome = nome || "";
+    }
   }
-  slots.querySelectorAll(".b-load").forEach(b => b.onclick = () => {
-    if (b.disabled) return;
-    const tnn = b.dataset.tnn;
-    roda("BOX_LOAD_MATERIAL TNN=" + tnn, "Carregando material do slot " + tnn + " (aquece, corta, purga)", 8, () => renderCFS());
-  });
-  slots.querySelectorAll(".b-edit").forEach(b => b.onclick = () => abreEditor(b.dataset));
 
   // slots com RFID sem spool vinculado: casa com o correspondente no Spoolman.
   // Se casou algum (gravou extra.tag), re-renderiza uma vez pra mostrar o vinculo.
   if (rfidPend.length) casaRfidComSpoolman(rfidPend).then(m => { if (m) renderCFS().catch(()=>{}); });
 }
+
+// botoes compactos de edicao por slot (T1A..T1D) — dataset vem do renderCFS
+document.querySelectorAll("[data-edslot]").forEach(b => b.onclick = () =>
+  abreEditor({edit: b.dataset.edslot, tipo: b.dataset.tipo || "",
+              cor: b.dataset.cor || "", nome: b.dataset.nome || ""}));
 
 // ---------- Editor de rotulo local ----------
 function abreEditor(ds){
@@ -2487,11 +2426,12 @@ async function spAdmin(metodo, caminho, corpo){
   const d = await r.json();
   return d.result !== undefined ? d.result : d;
 }
+// O card do Spoolman saiu da pagina (info duplicada) — o estado vira so o
+// texto/cor do botao compacto "Spoolman" no card CFS, que abre o spdlg.
 async function spRender(){
-  const url = $("spurl"), st = $("spst"), dot = $("spdot");
+  const st = $("spst2"), btn = $("spcfg");
   try {
     const cfg = await spAdmin("GET", "config");
-    url.textContent = cfg.server || "nao configurado";
     let conectado = false;
     try {
       const r = await fetch(base + "/server/spoolman/status");
@@ -2499,18 +2439,22 @@ async function spRender(){
       conectado = !!(d.result && d.result.spoolman_connected);
     } catch(e) {}
     if (!cfg.server) {
-      dot.className = "dot"; st.className = "sp-st"; st.textContent = "clique em Configurar para apontar o servidor";
+      st.textContent = "Spoolman: configurar";
+      btn.title = "Nenhum servidor Spoolman configurado";
+      st.style.color = "";
     } else if (conectado) {
-      dot.className = "dot on"; st.className = "sp-st ok";
-      st.textContent = "conectado - sincronizando a cada " + (cfg.sync_rate||5) + "s";
+      st.textContent = "Spoolman ✓";
+      btn.title = cfg.server + " — conectado, sincronizando a cada " + (cfg.sync_rate||5) + "s";
+      st.style.color = "var(--ok)";
     } else {
-      dot.className = "dot err"; st.className = "sp-st err";
-      st.textContent = "sem resposta - o servidor esta ligado?";
+      st.textContent = "Spoolman ✗";
+      btn.title = cfg.server + " — sem resposta; o servidor esta ligado?";
+      st.style.color = "var(--bad)";
     }
   } catch(e) {
-    url.textContent = "indisponivel";
-    dot.className = "dot err"; st.className = "sp-st err";
-    st.textContent = "componente spoolman_admin ausente (rode: joelma update)";
+    st.textContent = "Spoolman ?";
+    btn.title = "componente spoolman_admin ausente (rode: joelma update)";
+    st.style.color = "var(--bad)";
   }
 }
 async function spScan(){
