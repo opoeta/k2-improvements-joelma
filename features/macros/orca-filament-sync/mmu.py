@@ -287,6 +287,23 @@ class mmu:
         except Exception:
             return 0.0
 
+    def _imprimindo(self):
+        # BOX_LOAD_MATERIAL com a impressora PARADA dispara internamente
+        # BOX_EXTRUDE_MATERIAL, que estoura no blob compilado da Creality
+        # (key60) e derruba o Klipper - mesmo com o bico quente (visto ao vivo
+        # jul/2026, GATE=2 a 215C). So e seguro durante uma impressao (contexto
+        # em que o slicer normalmente carrega). Em duvida: NAO imprimindo.
+        try:
+            ps = self.printer.lookup_object('print_stats', None)
+            st = ps.get_status(self._agora()).get('state', '') if ps else ''
+            if st in ('printing', 'paused'):
+                return True
+            it = self.printer.lookup_object('idle_timeout', None)
+            sit = it.get_status(self._agora()).get('state', '') if it else ''
+            return sit == 'Printing'
+        except Exception:
+            return False
+
     # ---- comandos ----
     def cmd_SET_MMU_BOXES(self, gcmd):
         v = gcmd.get_int('BOXES', 0, minval=0, maxval=4)
@@ -318,8 +335,17 @@ class mmu:
             # carregar slot vazio faz BOX_EXTRUDE_MATERIAL estourar com None
             # dentro do blob da Creality e derruba o Klipper
             raise gcmd.error("MMU: slot %s vazio - nao vou carregar" % _tnn_do_gate(g))
-        tnn = _tnn_do_gate(g)
+        # so seleciona: com a impressora parada, BOX_LOAD_MATERIAL derruba o
+        # Klipper (BOX_EXTRUDE_MATERIAL/key60). Deixa o gate pronto e avisa.
         self.sel_gate = g
+        tnn = _tnn_do_gate(g)
+        if not self._imprimindo():
+            gcmd.respond_info(
+                "MMU: gate %s selecionado. Carregar do CFS com a impressora "
+                "PARADA trava o firmware da Creality (BOX_EXTRUDE_MATERIAL) - "
+                "carregue pela tela da impressora ou durante uma impressao."
+                % tnn)
+            return
         gcmd.respond_info("MMU: carregando %s..." % tnn)
         self.gcode.run_script_from_command("BOX_LOAD_MATERIAL TNN=%s" % tnn)
 
