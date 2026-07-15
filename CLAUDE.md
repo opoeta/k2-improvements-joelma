@@ -125,11 +125,24 @@ pesquisa do CFS no OrcaSlicer, receitas de curl. **Leia sob demanda.**
   cima de cada parafuso a Z=0,10 mm usando as coordenadas do `[screws_tilt_adjust]`; limpa o
   mesh no início (`BED_MESH_CLEAR`). FRENTE ESQUERDO é a referência. **Se "não aparecer":
   é cache do navegador — Ctrl+F5** (o arquivo é copiado pelo install da nivela_web).
-- **Validar a migração CFS→painel MMU (jul/2026):** a exibição dos slots e o card do
-  Spoolman saíram da Central (viraram "CFS — ações" compacto); o painel MMU do Fluidd
-  mostra tudo (cores, nomes+%, temp/umidade via `temperature_sensor cfs_1`, fw na unit) e
-  os botões Carregar/Ejetar funcionam (`MMU_CHANGE_TOOL`→`BOX_LOAD_MATERIAL` com guarda de
-  slot vazio; `MMU_EJECT`→`BOX_QUIT_MATERIAL`). Editar slot continua na Central (T1A–T1D).
+- **CFS 100% no painel MMU do Fluidd (jul/2026):** `calibra.html` não tem mais NADA de CFS
+  (removido: cards, editor, Spoolman, RFID, seletor, CFS avançado — ~33 KB de JS/HTML). O
+  painel MMU mostra tudo (cores, material, nomes+%, temp/umidade via `temperature_sensor
+  cfs_1`, fw na unit) e faz tudo: Carregar/Ejetar (`MMU_CHANGE_TOOL`/`MMU_EJECT`→`BOX_*`,
+  com guarda de slot vazio) e **editar gate** (`MMU_GATE_MAP`→grava o overlay
+  `material_modify_info.json` que o `mmu.py` lê → cor/material ao vivo no painel e no Orca).
+  Reler RFID / Spoolman ficam na tela da impressora (dependem de Moonraker/9999).
+- **Sync robusto (regressão corrigida):** a auto-detecção por `state` zerava o `num_gates`
+  quando o box reportava outro estado → **T1 agora SEMPRE aparece** se existir; `get_status`
+  nunca levanta exceção. Conferir: Fluidd mostra "CFS 1" com os slots reais e o Filament
+  Sync do Orca (Printer Agent = Moonraker) puxa cor/tipo/%.
+- **Testar a "Calibração pelo papel"** (reescrita, card Nivelamento): botão abre o fluxo →
+  "Iniciar (60°C)" ou "a frio" → home se preciso + `SET_GCODE_OFFSET Z=0 MOVE=0` +
+  `BED_MESH_CLEAR` → leva o bico a **Z=0 real** em cada parafuso (coords do
+  `[screws_tilt_adjust]`). FRENTE ESQUERDO é a referência; papel preso=APERTA (horário),
+  solto=SOLTA. "Subir 5mm" pra trocar o papel; "Encerrar" sobe o bico. **Se "não aparecer":
+  Ctrl+F5** (cache). Obs.: o offset fica zerado durante o teste (transitório; reseta no
+  restart) — re-grave seu Z-offset e crie o mesh de novo depois.
 - ~~Teste físico da inversão APERTAR/SOLTAR~~ **FEITO (jul/2026):** a convenção
   "invertida por knob embaixo" estava errada — vale a **padrão do Klipper**
   (CW = APERTAR = canto alto desce). Corrigido em `_acao_pt`

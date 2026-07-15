@@ -76,45 +76,59 @@ Orca resolve preset com `filament_id_by_type`), `gate_color` (RRGGBB sem `#`),
 Extras pro painel MMU do **Fluidd** não aparecer "(disabled)" nem quebrar o
 layout: `enabled`, `print_state`, `filament`, `tool`/`gate` (gate selecionado
 via `MMU_SELECT`), `ttg_map`, `gate_spool_id`, `gate_filament_name` (nome do
-catálogo/edição **+ `~NN%` restante** do `remain_len`), `gate_speed_override`, `gate_remain` (extensão não-padrão: % restante numérico por gate, lido pelo fork OrcaSlicer-K2-Wave) —
-**e um segundo objeto `mmu_machine`** (registrado pelo próprio `mmu.py` via
-`add_object`), com 1 unit por caixa do CFS, 4 gates cada, `version` = firmware
-real da caixa e `environment_sensor` apontando pro **`temperature_sensor
-cfs_n`** (também fake, registrado no connect) com a temperatura/umidade do CFS
-— aparece no rodapé da unit e nos térmicos do Fluidd. Sem o `mmu_machine` o
-Fluidd assume 1 gate por unit (`numGates ?? 1` no `mixins/mmu.ts`) — era o
-"spool fantasma" único no painel.
+catálogo/edição **+ `~NN%` restante** do `remain_len`), `gate_speed_override`,
+`gate_remain` (extensão não-padrão: % restante numérico por gate, lido pelo
+fork OrcaSlicer-K2-Wave) — **e um segundo objeto `mmu_machine`** (registrado
+pelo próprio `mmu.py` via `add_object`), com 1 unit por caixa do CFS, 4 gates
+cada, `version` = firmware real da caixa e `environment_sensor` apontando pro
+**`temperature_sensor cfs_1`** (também fake, registrado no `__init__` — só
+`cfs_1` pra não criar sensores fantasma) com a temperatura/umidade do CFS.
+Sem o `mmu_machine` o Fluidd assume 1 gate por unit (`numGates ?? 1` no
+`mixins/mmu.ts`) — era o "spool fantasma" único no painel.
 
-## O painel do Fluidd é a interface principal do CFS
+## Robustez (por que o sync tinha parado)
 
-Os botões do painel chamam macros `MMU_*` do Happy Hare — o `mmu.py` registra
-os que têm equivalente seguro no CFS:
+Uma versão anterior condicionava a caixa T1 a `state == connect`; quando o
+firmware reportava outro estado num instante, o `num_gates` ia a **zero** e o
+Orca perdia o sync. Agora **T1 SEMPRE aparece se existir** (T2..T4 encadeadas
+só aparecem conectadas ou com filamento — evita as caixas fantasma). Além
+disso `get_status` **nunca** levanta exceção (devolve um `mmu` vazio porém
+válido) e cada registro no `__init__` (`mmu_machine`, sensor, comandos) é
+isolado num `try` — nada apaga o objeto `mmu`.
 
-| Botão do Fluidd | Comando | Vira |
+## O painel do Fluidd é a ÚNICA interface do CFS
+
+Toda informação e ação do CFS vive no painel MMU. Os botões do painel chamam
+macros `MMU_*` do Happy Hare — o `mmu.py` implementa as que têm equivalente:
+
+| Ação no painel | Comando do Fluidd | Vira no CFS |
 |---|---|---|
 | Carregar / trocar tool | `MMU_CHANGE_TOOL TOOL=n` / `MMU_SELECT`+`MMU_LOAD` | `BOX_LOAD_MATERIAL TNN=…` |
 | Ejetar / Descarregar | `MMU_EJECT` / `MMU_UNLOAD` | `BOX_QUIT_MATERIAL` |
+| **Editar gate (cor/material/nome)** | `MMU_GATE_MAP MAP="{…}"` | grava o overlay `material_modify_info.json` |
+
+**Editar slot pelo painel:** o `MMU_GATE_MAP` parseia o dict que o Fluidd manda
+(`ast.literal_eval`) e grava o overlay que o próprio `mmu.py` lê — a cor/material
+aparecem no painel **e no Orca ao vivo**, sem tocar no 485. Esvaziar o gate no
+painel desmarca a edição (volta pro que o RFID diz).
 
 **Guarda de segurança:** carregar um slot **sem filamento físico** é recusado
-com mensagem (mandar `BOX_LOAD_MATERIAL` num slot vazio estoura `None` no blob
-da Creality e derruba o Klipper — visto ao vivo jul/2026; é a mesma guarda que
-a Central usava nos cards).
+(mandar `BOX_LOAD_MATERIAL` num slot vazio estoura `None` no blob da Creality e
+derruba o Klipper — visto ao vivo jul/2026).
 
 `MMU_PRELOAD`, `MMU_CHECK_GATE(S)`, `MMU_RECOVER`, `MMU_UNLOCK`, `MMU_STATS`,
-`MMU_SPOOLMAN`, `MMU_GATE_MAP` e `MMU_HOME` **não têm equivalente** no CFS:
-respondem uma orientação e não fazem nada.
+`MMU_SPOOLMAN` e `MMU_HOME` **não têm equivalente seguro** a partir do Klipper
+(RFID re-read e Spoolman dependem do Moonraker/porta 9999): respondem uma
+orientação e não fazem nada. Reler RFID / sincronizar Spoolman continuam na
+tela da impressora e nas integrações do Moonraker.
 
-**O que ficou na Central** (card "CFS — ações", compacto): editar slot
-(T1A–T1D — grava no firmware pela porta 9999 e propaga pra tela/Orca), reler
-RFID, sincronizar/vincular Spoolman, descarregar e o seletor de caixas do
-painel. Os cards de exibição dos slots e o card do servidor Spoolman foram
-removidos da Central — a informação vive no painel MMU.
+**A Central (`calibra.html`) não tem mais NADA de CFS** — foi todo removido; a
+página é só calibração (parafusos, papel, mesh, Z-offset, PID, ressonância).
 
 ## Quantidade de caixas no painel (configurador)
 
-O firmware publica `box.T2..T4` como dict mesmo **sem** a caixa física —
-por isso a detecção é: caixa conta se `state == connect` **ou** se tem slot
-ocupado. Se ainda assim aparecer unit fantasma (ou você quiser fixar):
+T1 sempre aparece; T2..T4 só quando conectadas ou com filamento. Se ainda
+assim aparecer unit fantasma (ou você quiser fixar):
 
 - **Central** → card CFS → seletor "Painel MMU (Fluidd)": auto / 1–4 CFS;
 - ou no console: `SET_MMU_BOXES BOXES=1` (0 = auto). Persiste em
