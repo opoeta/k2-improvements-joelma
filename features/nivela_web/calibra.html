@@ -191,32 +191,7 @@
     width:18px; height:18px; border:0; border-radius:50%; background:var(--primary); cursor:pointer;
   }
   .luz-pct { font-size:.8rem; color:var(--mut); font-variant-numeric:tabular-nums; min-width:38px; text-align:right; font-weight:500; }
-  /* ---------- CFS ---------- */
-  .cfs-head { display:flex; gap:10px; justify-content:center; font-size:.8rem; color:var(--mut); margin:2px 0 12px; flex-wrap:wrap; }
-  .cfs-head span { background:var(--card); border-radius:16px; padding:5px 12px; display:flex; align-items:center; gap:5px; box-shadow:var(--elev); animation:pop .4s ease both; }
-  .cfs-head b { color:var(--txt); font-variant-numeric:tabular-nums; }
-  .cfs-head .off { color:var(--bad); }
-  /* slots do CFS: exibicao movida pro painel MMU do Fluidd (mmu.py) */
-  .cfs-acoes { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
-  .mmu-sel { display:flex; align-items:center; gap:6px; color:var(--mut); font-size:.76rem; margin-left:auto; }
-  .mmu-sel select { background:var(--card); color:var(--txt); border:1px solid var(--line); border-radius:6px; padding:3px 6px; font-size:.76rem; }
-  /* ---------- Spoolman ---------- */
-  #sp-found { margin-top:10px; display:flex; flex-direction:column; gap:6px; }
-  .sp-hit {
-    background:var(--card2); border:1px solid var(--line); border-radius:4px; padding:10px 12px;
-    display:flex; align-items:center; gap:9px; cursor:pointer; transition:border-color .2s, transform .2s, background .2s;
-    animation:floatIn .35s ease both;
-  }
-  .sp-hit:hover { border-color:var(--primary); transform:translateX(3px); background:var(--primary-soft); }
-  .sp-hit.sel { border-color:var(--primary); background:var(--primary-soft); }
-  .sp-hit .ic { color:var(--primary); }
-  .sp-hit .hit-url { font-family:'Roboto Mono',monospace; font-size:.82rem; font-weight:500; }
-  .sp-hit .hit-v { color:var(--mut); font-size:.7rem; margin-left:auto; }
-  .sp-vazio { color:var(--mut); font-size:.78rem; text-align:center; padding:10px; }
-  .escaneando { display:flex; align-items:center; justify-content:center; gap:8px; color:var(--mut); font-size:.8rem; padding:12px; }
-  .radar-dot { width:10px; height:10px; border-radius:50%; background:var(--primary); position:relative; }
-  .radar-dot::after { content:""; position:absolute; inset:0; border-radius:50%; background:var(--primary); animation:radar 1.4s ease-out infinite; }
-  /* ---------- dialogs ---------- */
+/* ---------- dialogs ---------- */
   dialog.editor {
     border:0; border-radius:6px; background:var(--card); color:var(--txt);
     padding:22px; max-width:380px; width:92%; box-shadow:var(--elev2); animation:pop .3s ease both;
@@ -336,9 +311,6 @@
     .sensores { grid-template-columns:repeat(2,1fr); }
     .sens { padding:9px 10px; }
     .sens-val { font-size:.9rem; }
-    .cfs-head { gap:6px; font-size:.72rem; }
-    .cfs-head span { padding:4px 9px; }
-    .cfs-acoes button { flex:1 1 100%; }
     #console { height:180px; font-size:.7rem; }
     .aviso { font-size:.72rem; }
     details.acc summary { padding:12px 13px; font-size:.84rem; }
@@ -379,7 +351,6 @@
   <span><i data-ic="chip"></i> <b id="fwModelo">—</b> fw <b id="fwPrinter">—</b></span>
   <span><i data-ic="terminal"></i> Klipper <b id="fwKlipper">—</b></span>
   <span><i data-ic="server"></i> Moonraker <b id="fwMoon">—</b></span>
-  <span><i data-ic="box"></i> CFS <b id="fwCfs">—</b></span>
 </div>
 
 <h2><i data-ic="move"></i> MOVIMENTO</h2>
@@ -439,81 +410,6 @@
   <span class="luz-pct" id="luzpct">0%</span>
 </div>
 
-<h2><i data-ic="box"></i> CFS — AÇÕES</h2>
-<div class="dica">As informações dos slots (cores, material, %, temperatura/umidade) agora vivem no
-<b>painel MMU do Fluidd</b> — carregar/descarregar também funciona por lá. Aqui ficam só as
-ações que o Fluidd não tem: <b>editar slot</b> (grava no firmware e propaga pra tela/Orca),
-reler RFID e o vínculo com o Spoolman.</div>
-<div class="cfs-head" id="cfshead" style="display:none"><span id="cfsconn"></span></div>
-<div class="cfs-acoes">
-  <button class="ghost" data-edslot="T1A"><i data-ic="edit"></i> T1A</button>
-  <button class="ghost" data-edslot="T1B"><i data-ic="edit"></i> T1B</button>
-  <button class="ghost" data-edslot="T1C"><i data-ic="edit"></i> T1C</button>
-  <button class="ghost" data-edslot="T1D"><i data-ic="edit"></i> T1D</button>
-  <button id="cfsrefresh"><i data-ic="refresh"></i> Reler RFID</button>
-  <button id="cfssync"><i data-ic="spool"></i> Sincronizar Spoolman</button>
-  <button id="cfsquit"><i data-ic="eject"></i> Descarregar</button>
-  <button id="spcfg" class="ghost" title="Servidor Spoolman"><i data-ic="settings"></i> <span id="spst2">Spoolman</span></button>
-  <span class="mmu-sel" id="mmusel" style="display:none">Painel MMU:
-    <select id="mmuboxes" title="Quantas caixas CFS aparecem no painel MMU do Fluidd">
-      <option value="0">auto</option><option value="1">1 CFS</option>
-      <option value="2">2 CFS</option><option value="3">3 CFS</option>
-      <option value="4">4 CFS</option>
-    </select></span>
-</div>
-
-<dialog class="editor" id="spdlg">
-  <h3><i data-ic="spool"></i> Servidor Spoolman</h3>
-  <label>Endereço do servidor</label>
-  <input type="text" id="sp-url-in" placeholder="http://10.10.1.254:7912" autocomplete="off">
-  <label>Sincronia (segundos)</label>
-  <input type="number" id="sp-rate" min="1" max="60" value="5">
-  <div class="ed-btns">
-    <button id="sp-scan" class="ghost" style="flex:1"><i data-ic="search"></i> Buscar na rede</button>
-  </div>
-  <div id="sp-found"></div>
-  <div class="ed-btns">
-    <button class="salvar" id="sp-save" style="flex:1"><i data-ic="save"></i> Salvar e reiniciar</button>
-    <button id="sp-cancel" class="ghost">Cancelar</button>
-  </div>
-</dialog>
-
-<dialog class="editor" id="editor">
-  <h3 id="ed-titulo">Editar slot</h3>
-  <label>Tipo de material</label>
-  <select id="ed-tipo">
-    <option>PLA</option><option>PETG</option><option>ABS</option><option>ASA</option>
-    <option>TPU</option><option>PA</option><option>PC</option><option>PLA-CF</option>
-    <option>PETG-CF</option><option>PA-CF</option><option>HIPS</option><option>PVA</option>
-  </select>
-  <label>Cor</label>
-  <div class="cores" id="ed-cores"></div>
-  <input type="color" id="ed-cor" style="margin-top:8px;height:40px;padding:2px">
-  <label>Nome/apelido (opcional)</label>
-  <input type="text" id="ed-nome" placeholder="ex: Vermelho Voolt, PLA Silk...">
-  <label>Spool do Spoolman</label>
-  <select id="ed-spool"><option value="">— sem vínculo —</option></select>
-  <div class="dica" style="margin-top:10px">O rótulo que você define aqui manda na exibição desta Central. Sem rótulo, valem a tag RFID (o que o Orca/Creality Print leem) e depois o spool vinculado.</div>
-  <label style="display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0;margin-top:10px;cursor:pointer">
-    <input type="checkbox" id="ed-aplicar" style="width:auto;margin:0">
-    <span>Fallback: se o sync ao vivo (porta 9999) falhar, <b>reiniciar o Klipper ~30s</b> pra aplicar. Normalmente desnecessario.</span>
-  </label>
-  <div class="ed-btns">
-    <button class="salvar" id="ed-ok" style="flex:1">Salvar</button>
-    <button id="ed-limpa">Limpar</button>
-    <button id="ed-cancela">Cancelar</button>
-  </div>
-</dialog>
-
-<dialog class="editor" id="rfiddlg">
-  <h3><i data-ic="alert"></i> Reler RFID — comando arriscado</h3>
-  <div class="dica" style="margin-bottom:0">Bug conhecido do firmware da Creality: este comando pode derrubar o Klipper.<br>A recuperação é feita com <b>FIRMWARE_RESTART</b> (~30s).</div>
-  <div class="ed-btns">
-    <button id="rfid-cancela" class="ghost" style="flex:1">Cancelar</button>
-    <button id="rfid-ok" class="perigo" style="flex:1"><i data-ic="refresh"></i> Executar mesmo assim</button>
-  </div>
-</dialog>
-
 <h2><i data-ic="settings"></i> CALIBRAÇÕES</h2>
 
 <details class="acc" open>
@@ -534,16 +430,26 @@ reler RFID e o vínculo com o Spoolman.</div>
     </div>
     <div class="botoes" style="margin-top:10px">
       <button id="ztilt"><i data-ic="target"></i> Z_TILT_ADJUST (alinhar os fusos Z)</button>
-      <button id="papel"><i data-ic="ruler"></i> Teste do papel</button>
+      <button id="papel"><i data-ic="ruler"></i> Calibração pelo papel</button>
     </div>
     <div id="papelbox" style="display:none">
-      <div class="dica" style="margin:10px 0 8px">Papel sulfite (~0,1&nbsp;mm) entre o bico e a mesa: deve <b>raspar de leve</b>. O <b>FRENTE ESQUERDO</b> é a referência — sinta o arrasto nele e iguale os outros cantos girando o knob (não mexa no da referência). O mesh fica desativado durante o teste. Ideal com a mesa a 60&nbsp;°C.</div>
-      <div class="botoes">
-        <button data-papel="screw1">Frente Esq.</button>
-        <button data-papel="screw2">Frente Dir.</button>
-        <button data-papel="screw3">Tras. Dir.</button>
-        <button data-papel="screw4">Tras. Esq.</button>
-        <button id="papelfim" class="ghost"><i data-ic="check"></i> Encerrar (sobe o bico)</button>
+      <div class="dica" style="margin:10px 0 8px">Nivelamento manual clássico. Prepara a mesa (<b>zera o offset Z</b> e <b>limpa o mesh</b> pra referência ser o zero real do probe), depois leva o <b>bico</b> a <b>Z&nbsp;=&nbsp;0</b> em cada parafuso. Ponha uma folha de sulfite (~0,1&nbsp;mm) entre o bico e a mesa e gire o knob até a folha <b>raspar de leve</b>. <b>Papel muito preso →</b> APERTE (horário); <b>muito solto →</b> SOLTE (anti-horário). O <b>FRENTE ESQUERDO é a referência</b>: sinta o arrasto nele primeiro e iguale os outros; não mexa no knob dele.</div>
+      <div class="botoes" id="papelini">
+        <button id="papelquente" class="principal"><i data-ic="flame"></i> Iniciar (aquece mesa 60°C)</button>
+        <button id="papelfrio"><i data-ic="snow"></i> Iniciar a frio</button>
+      </div>
+      <div id="papelnav" style="display:none">
+        <div class="dica" id="papeldica" style="margin:4px 0 8px">Escolha um canto:</div>
+        <div class="botoes">
+          <button data-papel="screw1">① Frente Esq. <b>(ref.)</b></button>
+          <button data-papel="screw2">② Frente Dir.</button>
+          <button data-papel="screw3">③ Tras. Dir.</button>
+          <button data-papel="screw4">④ Tras. Esq.</button>
+        </div>
+        <div class="botoes" style="margin-top:8px">
+          <button id="papelsobe" class="ghost"><i data-ic="ruler"></i> Subir 5&nbsp;mm (trocar papel)</button>
+          <button id="papelfim" class="ghost"><i data-ic="check"></i> Encerrar (sobe o bico)</button>
+        </div>
       </div>
     </div>
   </div>
@@ -705,15 +611,7 @@ reler RFID e o vínculo com o Spoolman.</div>
   </div>
 </details>
 
-<details class="acc">
-  <summary><i data-ic="box"></i> CFS avançado</summary>
-  <div class="acc-body">
-    <div class="dica">Calibra a posição da lâmina de corte do CFS. Rode se o filamento está sendo cortado no lugar errado.</div>
-    <div class="botoes">
-      <button id="cutpos">Calibrar posição do corte</button>
-    </div>
-  </div>
-</details>
+
 
 <div class="barra-global">
   <button id="salvar" class="salvar" style="display:none"><i data-ic="save"></i> SALVAR (SAVE_CONFIG — reinicia)</button>
@@ -826,7 +724,7 @@ function setStatus(fazendo, detalhe, modo){
 function trava(v){
   ocupado = v;
   // desabilita tudo que dispara gcode; deixa a luz e o console livres
-  document.querySelectorAll("details.acc button, .barra-global button, .cfs-acoes button")
+  document.querySelectorAll("details.acc button, .barra-global button")
     .forEach(b => { if (!b.classList.contains("busy")) b.disabled = v; });
 }
 
@@ -874,7 +772,7 @@ async function pollEstado(){
         klipperOk = true;
         setStatus("Pronta", "Klipper ready", "on");
         $("recuperar").style.display = "none";
-        render().catch(()=>{}); renderCFS().catch(()=>{}); leCalib();
+        render().catch(()=>{}); leCalib();
       } else {
         klipperOk = false;
         setStatus("Klipper " + st, st === "shutdown" ? "use Recuperar (FIRMWARE_RESTART)" : "aguardando ficar pronto...", st === "shutdown" || st === "error" ? "err" : "busy");
@@ -904,14 +802,6 @@ function aplicaStatus(st){
   if (st.idle_timeout && st.idle_timeout.state) ultimo.idle = st.idle_timeout.state;
   if (st.display_status && st.display_status.message) $("detalhe").textContent = st.display_status.message;
   if (st["output_pin LED"] && st["output_pin LED"].value !== undefined) pintaLuz(+st["output_pin LED"].value);
-  // CFS voltou do transitorio pos-restart (485)? re-renderiza na hora
-  if (st.box && st.box.state !== undefined) {
-    if (st.box.state === "connect" && cfsUltimoEstado !== "connect") {
-      cfsTentativas = 0;
-      renderCFS().catch(()=>{});
-    }
-    cfsUltimoEstado = st.box.state;
-  }
   if (st.toolhead) {
     if (st.toolhead.position) {
       $("posx").textContent = st.toolhead.position[0].toFixed(1);
@@ -1102,15 +992,19 @@ $("medir").onclick = () => roda("NIVELA_PARAFUSOS", "Nivelamento (aquece 60°C +
 $("frio").onclick  = () => roda("NIVELA_PARAFUSOS BED_TEMP=0", "Nivelamento a frio", 12, () => render());
 $("reler").onclick = () => render().catch(e => logLinha("!! " + e.message));
 
-// ---------- Teste do papel (derivado do nivelamento dos parafusos) ----------
-// Leva o BICO para cima de cada parafuso a Z=0.10mm (uma folha sulfite) para o
-// ajuste manual clássico: a folha deve raspar de leve, igual, nos 4 cantos.
-// Usa as MESMAS coordenadas do [screws_tilt_adjust] (lidas do config do
-// Klipper; fallback = valores do screws_tilt_adjust.cfg deste repo). O mesh é
-// limpo no início (BED_MESH_CLEAR) pra compensação não mascarar os cantos —
-// o START_PRINT recarrega/refaz o mesh no próximo print.
-const PAPEL = {z:0.10, sobe:5, fim:30,
-  fb:{screw1:[45,28], screw2:[307,28], screw3:[307,314], screw4:[45,314]}};
+// ---------- Calibração pelo papel (nivelamento manual clássico) ----------
+// Leva o BICO a Z=0 (zero REAL do probe) em cada parafuso pra você sentir a
+// folha de sulfite e girar o knob. Pra Z=0 ser referência de verdade:
+//   - SET_GCODE_OFFSET Z=0 MOVE=0  (anula qualquer offset ativo)
+//   - BED_MESH_CLEAR               (sem compensação mascarando os cantos)
+// Coordenadas XY vêm do [screws_tilt_adjust] do Klipper (fallback = cfg deste
+// repo). Entre cantos o bico sobe 5mm; ao mover pra Z=0 desce devagar (F200).
+const PAPEL = {z:0, sobe:5, fim:30,
+  fb:{screw1:[45,28], screw2:[307,28], screw3:[307,314], screw4:[45,314]},
+  dica:{screw1:"REFERÊNCIA — sinta o arrasto aqui e memorize. NÃO gire este knob.",
+        screw2:"Gire até a folha raspar IGUAL à referência (Frente Esq.).",
+        screw3:"Gire até a folha raspar IGUAL à referência (Frente Esq.).",
+        screw4:"Gire até a folha raspar IGUAL à referência (Frente Esq.)."}};
 let papelXY = null;
 async function papelCoords(){
   if (papelXY) return papelXY;
@@ -1125,37 +1019,55 @@ async function papelCoords(){
 }
 async function papelVai(k){
   const nome = $(k).querySelector("h3").textContent;
-  trava(true); setStatus("Papel: " + nome, "movendo o bico...", "busy");
+  trava(true); setStatus("Papel: " + nome, "movendo o bico a Z=0...", "busy");
   try {
     const c = (await papelCoords())[k];
-    await gcode("G90\nG1 Z" + PAPEL.sobe + " F900\nG1 X" + c[0] + " Y" + c[1] + " F9000\nG1 Z" + PAPEL.z + " F300", 3);
-    document.querySelectorAll("#papelbox [data-papel]").forEach(b => b.classList.toggle("on", b.dataset.papel === k));
+    await gcode("G90\nG1 Z" + PAPEL.sobe + " F900\nG1 X" + c[0] + " Y" + c[1] + " F9000\nG1 Z" + PAPEL.z + " F200", 3);
+    document.querySelectorAll("#papelnav [data-papel]").forEach(b => b.classList.toggle("on", b.dataset.papel === k));
+    $("papeldica").innerHTML = "<b>" + nome + ":</b> " + (PAPEL.dica[k]||"");
     setStatus("Papel: " + nome, "ajuste o knob até a folha raspar de leve", "on");
   } catch(e){ setStatus("FALHOU: papel", e.message, "err"); logLinha("!! " + e.message); }
   finally { trava(false); }
 }
-$("papel").onclick = async () => {
-  trava(true); setStatus("Teste do papel", "preparando (home se preciso)...", "busy");
+async function papelPrep(quente){
+  trava(true);
+  setStatus("Calibração pelo papel", quente ? "aquecendo a mesa a 60°C..." : "preparando...", "busy");
   try {
+    if (quente) await gcode("M190 S60", 12);
     const q = await rpc("printer.objects.query", {objects:{toolhead:["homed_axes"]}});
     if ((((q.status.toolhead||{}).homed_axes)||"").length < 3) await gcode("G28", 8);
-    await gcode("BED_MESH_CLEAR", 1);
-    $("papelbox").style.display = "";
+    // zera offset + limpa mesh: Z=0 vira o zero real do probe
+    await gcode("SET_GCODE_OFFSET Z=0 MOVE=0\nBED_MESH_CLEAR", 2);
+    $("papelini").style.display = "none";
+    $("papelnav").style.display = "";
     trava(false);
-    await papelVai("screw1");
-  } catch(e){ trava(false); setStatus("FALHOU: teste do papel", e.message, "err"); logLinha("!! " + e.message); }
+    await papelVai("screw1");   // começa na referência
+  } catch(e){ trava(false); setStatus("FALHOU: calibração pelo papel", e.message, "err"); logLinha("!! " + e.message); }
+}
+$("papel").onclick = () => {
+  const b = $("papelbox");
+  const abrir = b.style.display === "none";
+  b.style.display = abrir ? "" : "none";
+  if (!abrir) return;
+  $("papelini").style.display = "";  // sempre volta pro passo de iniciar
+  $("papelnav").style.display = "none";
 };
-$("papelbox").addEventListener("click", ev => {
+$("papelquente").onclick = () => papelPrep(true);
+$("papelfrio").onclick   = () => papelPrep(false);
+$("papelnav").addEventListener("click", ev => {
   const b = ev.target.closest("[data-papel]");
   if (b && !ocupado) papelVai(b.dataset.papel);
 });
+$("papelsobe").onclick = () => { if (!ocupado) roda("G91\nG1 Z5 F600\nG90", "Subindo o bico 5mm", 1); };
 $("papelfim").onclick = async () => {
   trava(true);
   try {
     await gcode("G90\nG1 Z" + PAPEL.fim + " F900", 2);
+    $("papelnav").style.display = "none";
+    $("papelini").style.display = "";
     $("papelbox").style.display = "none";
-    document.querySelectorAll("#papelbox [data-papel]").forEach(b => b.classList.remove("on"));
-    setStatus("Teste do papel encerrado", "bico levantado — repita MEDIR pra conferir", "on");
+    document.querySelectorAll("#papelnav [data-papel]").forEach(b => b.classList.remove("on"));
+    setStatus("Calibração pelo papel encerrada", "bico levantado — rode MEDIR pra conferir e crie o mesh de novo", "on");
   } catch(e){ setStatus("FALHOU: encerrar papel", e.message, "err"); logLinha("!! " + e.message); }
   finally { trava(false); }
 };
@@ -1188,465 +1100,6 @@ async function ligaCamera(){
     await pc.setLocalDescription(d);
   } catch(e) { st.textContent = "câmera indisponível: " + e.message; }
 }
-// ---------- Spoolman: ponte via proxy do Moonraker (sem CORS) ----------
-// Fala a API REST do Spoolman passando pelo Moonraker (server em 10.10.1.254:7912).
-let spoolCache = null; // {tnn -> spool} indexado por extra.tag
-async function spoolProxy(method, path, body){
-  const payload = {request_method:method, path:path};
-  if (body !== undefined) payload.body = JSON.stringify(body);
-  const r = await fetch(base + "/server/spoolman/proxy", {
-    method:"POST", headers:{"Content-Type":"application/json"},
-    body: JSON.stringify(payload)});
-  if (!r.ok) { const j = await r.json().catch(()=>({})); throw new Error((j.error&&j.error.message)||("proxy HTTP "+r.status)); }
-  const d = await r.json();
-  return d.result !== undefined ? d.result : d;
-}
-// tag do Spoolman guarda o TNN do slot (ex "T1A"); normaliza aspas extras
-function spoolTnn(sp){ let t = (sp.extra&&sp.extra.tag)||""; t = String(t).replace(/["\\]/g,"").trim(); return /^T[1-4][A-D]$/.test(t) ? t : null; }
-// carrega spools: indexa por TNN (spoolCache) e guarda a lista toda (spoolTodos,
-// pro match por material+cor dos slots com RFID)
-let spoolTodos = null;
-async function carregaSpools(){
-  try {
-    const sp = await spoolProxy("GET", "/v1/spool");
-    spoolCache = {};
-    spoolTodos = Array.isArray(sp) ? sp : [];
-    spoolTodos.forEach(s => { const t = spoolTnn(s); if (t) spoolCache[t] = s; });
-    return spoolCache;
-  } catch(e) { spoolCache = null; spoolTodos = null; return null; }
-}
-// acha um filament existente que combine material+cor (pra nao duplicar)
-async function achaFilament(material, corHexSemHash){
-  try {
-    const fils = await spoolProxy("GET", "/v1/filament");
-    const alvo = (corHexSemHash||"").toLowerCase();
-    // so reusa se material E cor baterem exatamente; senao retorna null p/ criar novo
-    return fils.find(f => (f.material||"").toUpperCase()===material.toUpperCase() && (f.color_hex||"").toLowerCase()===alvo) || null;
-  } catch(e) { return null; }
-}
-// sincroniza um slot -> Spoolman (cria ou atualiza spool marcado com TNN)
-async function syncSlot(tnn, tipo, corHexSemHash, remainPct){
-  await carregaSpools();
-  const existente = spoolCache && spoolCache[tnn];
-  if (existente) {
-    // atualiza peso restante aproximado (assume 1kg cheio)
-    const rw = Math.max(0, Math.round((remainPct/100)*1000));
-    await spoolProxy("PATCH", "/v1/spool/" + existente.id, {remaining_weight: rw});
-    return {acao:"atualizado", id:existente.id};
-  }
-  // precisa de um filament pra criar o spool
-  let fil = await achaFilament(tipo, corHexSemHash);
-  if (!fil) {
-    // cria um filament novo generico com o material/cor do slot
-    fil = await spoolProxy("POST", "/v1/filament", {
-      name: tipo + " " + tnn, material: tipo,
-      color_hex: (corHexSemHash||"cccccc").toUpperCase(), diameter: 1.75, density: 1.24});
-  }
-  const rw = Math.max(0, Math.round((remainPct/100)*1000));
-  const novo = await spoolProxy("POST", "/v1/spool", {
-    filament_id: fil.id, initial_weight: 1000, remaining_weight: rw,
-    extra: {tag: JSON.stringify(tnn)}});
-  return {acao:"criado", id:novo.id};
-}
-
-// ---------- CFS: leitura, render, acoes e rotulos locais ----------
-// Codigos de material da Creality -> nome legivel (fallback quando RFID traz codigo)
-const MAT_COD = {"000001":"PLA","003001":"ABS","002001":"PETG","004001":"TPU","005001":"ASA","006001":"PA","007001":"PC"};
-// Cor da Creality vem "0RRGGBB" (prefixo 0). Normaliza pra #RRGGBB.
-function corHex(v){ if(!v||v==="-1") return null; const h=String(v).replace(/^0/,""); return "#"+h.padStart(6,"0").slice(-6); }
-function matNome(v){ if(!v||v==="-1") return null; return MAT_COD[v] || v; }
-const PALETA = ["#e53935","#ff9800","#fdd835","#43a047","#00acc1","#1e88e5","#5e35b1","#d81b60","#6d4c41","#ffffff","#9e9e9e","#000000"];
-
-// Rotulos locais (override do usuario) por SN do CFS + slot; sem tocar no firmware
-function rotKey(sn, tnn){ return "cfsrot:" + sn + ":" + tnn; }
-function getRot(sn, tnn){ try { return JSON.parse(localStorage.getItem(rotKey(sn,tnn))||"null"); } catch(e){ return null; } }
-function setRot(sn, tnn, obj){ if(obj) localStorage.setItem(rotKey(sn,tnn), JSON.stringify(obj)); else localStorage.removeItem(rotKey(sn,tnn)); }
-
-let cfsSN = "-1", cfsEditando = null, cfsTentativas = 0, cfsUltimoEstado = null;
-const cfsComTag = {};   // TNN -> tem tag RFID fisica? (preenchido no renderCFS)
-function tagDoSlot(tnn){ return !!cfsComTag[tnn]; }
-
-// ---------- Deteccao de RFID: fonte confiavel = firmware (joelma_cfs_edit) ----------
-// O objeto 'box' do Klipper nao diz se o dado veio de tag ou de edicao manual.
-// O material_box_info.json diz: por slot traz rfid (0/1) e editStatus
-// (1=leitura de tag, 2=editado a mao, 0=vazio). Sem o componente, fwSlot fica {}.
-let fwSlot = {};
-async function carregaFwSlots(){
-  fwSlot = {};
-  try {
-    const r = await fetch(base + "/server/joelma/cfs/edit");
-    if (!r.ok) return;
-    const d = await r.json(); const j = d.result || d;
-    const info = j.box && j.box.Material && j.box.Material.info;
-    if (!Array.isArray(info)) return;
-    info.forEach(caixa => {
-      const bx = caixa.boxID || "";
-      (caixa.list || []).forEach(s => {
-        const tnn = bx + (s.materialId || "");
-        if (/^T[1-4][A-D]$/.test(tnn))
-          fwSlot[tnn] = {rfid: s.rfid, editStatus: s.editStatus, sn: caixa.sn || ""};
-      });
-    });
-  } catch(e) {}
-}
-
-// ---------- Slot com RFID -> casa com o spool correspondente no Spoolman ----------
-// Match por material + cor exatos (mesma regra do sync manual). Ao achar, grava
-// extra.tag=TNN no spool (persiste; vale pra qualquer cliente) e passa a exibir
-// o peso do spool no slot. Idempotente: uma vez casado, o proximo render ja
-// acha pelo tag e nao repete a escrita.
-const rfidCasado = new Set();
-async function casaRfidComSpoolman(pend){
-  if (!spoolTodos || !pend.length) return false;
-  let mudou = false;
-  for (const p of pend) {
-    if (rfidCasado.has(p.tnn)) continue;
-    rfidCasado.add(p.tnn);
-    const alvoMat = (p.material || "").toUpperCase();
-    const alvoCor = (p.cor || "").replace("#","").toLowerCase();
-    const cand = spoolTodos.find(s => {
-      if (s.archived) return false;
-      const f = s.filament || {};
-      const jaTem = spoolTnn(s);
-      if (jaTem && jaTem !== p.tnn) return false;   // ja e de outro slot
-      return (f.material||"").toUpperCase() === alvoMat &&
-             (f.color_hex||"").slice(0,6).toLowerCase() === alvoCor;
-    });
-    if (!cand) { logLinha("// RFID " + p.tnn + " (" + alvoMat + " #" + alvoCor + "): sem spool correspondente no Spoolman"); continue; }
-    if (spoolTnn(cand) === p.tnn) continue;         // ja vinculado
-    try {
-      const ex = Object.assign({}, cand.extra || {}); ex.tag = JSON.stringify(p.tnn);
-      await spoolProxy("PATCH", "/v1/spool/" + cand.id, {extra: ex});
-      logLinha("[SPOOLMAN] RFID " + p.tnn + " casado com spool #" + cand.id + " (" + alvoMat + ")");
-      mudou = true;
-    } catch(e) { logLinha("!! casar " + p.tnn + ": " + e.message); }
-  }
-  return mudou;
-}
-
-async function renderCFS(){
-  await carregaSpools();
-  await carregaFwSlots();
-  const q = await rpc("printer.objects.query", {objects:{box:null, filament_rack:null}});
-  const box = q.status.box;
-  // exibicao dos slots agora vive no painel MMU do Fluidd (mmu.py); esta
-  // funcao so coleta dados: preenche os botoes de edicao, mantem o match
-  // RFID<->Spoolman e mostra um aviso quando o CFS nao responde.
-  const aviso = msg => { $("cfshead").style.display = msg ? "" : "none"; $("cfsconn").innerHTML = msg || ""; };
-  if (!box) { aviso("objeto box indisponivel"); return; }
-  if (box.state !== "connect") {
-    // logo apos reinicio do Klipper o CFS renegocia o barramento 485 e pode
-    // levar ~1 min; alem do retry, a assinatura de box.state no WebSocket
-    // (aplicaStatus) re-renderiza sozinha assim que o estado virar connect
-    if (cfsTentativas < 24) {
-      cfsTentativas++;
-      aviso('CFS reconectando' + '.'.repeat(1 + cfsTentativas % 3) + ' (' + (box.state||"?") + ', ' + (cfsTentativas*2.5).toFixed(0) + 's)');
-      setTimeout(() => renderCFS().catch(()=>{}), 2500);
-      return;
-    }
-    aviso('<span class="off">CFS desconectado (' + (box.state||"?") + ') \u2014 verifique energia/cabo; reconecto sozinho quando voltar</span>');
-    $("fwCfs").textContent = "off";
-    return;
-  }
-  cfsTentativas = 0;
-  aviso(null);
-  const t1 = box.T1 || {};
-  $("fwCfs").textContent = t1.version && t1.version !== "None" ? t1.version : "?";
-  cfsSN = t1.sn && t1.sn !== "-1" ? t1.sn : "cfs1";
-  // temp/umidade/fw/auto-refill: agora no painel MMU do Fluidd
-  // (mmu_machine.unit_0 + temperature_sensor cfs_1, publicados pelo mmu.py)
-  const letras = ["A","B","C","D"];
-  const rfidPend = [];   // slots com RFID ainda sem spool vinculado (p/ casar depois)
-  for (let i = 0; i < 4; i++) {
-    const tnn = "T1" + letras[i];
-    const tipoRfid = matNome((t1.material_type||[])[i]);
-    const corRfid = corHex((t1.color_value||[])[i]);
-    const fw = fwSlot[tnn] || null;   // {rfid, editStatus} do firmware, se disponivel
-    // tag RFID de verdade = firmware marca rfid=1 E dado veio da leitura (editStatus=1).
-    // editStatus 2 = editado manualmente (sem tag). Sem o componente, cai no
-    // heuristico antigo (material vindo do box = provavel tag) so pra nao regredir.
-    const temTagReal = fw ? (fw.rfid === 1 && fw.editStatus === 1)
-                          : !!tipoRfid;
-    const editadoMao = fw ? (fw.editStatus === 2) : false;
-    cfsComTag[tnn] = temTagReal;
-    // slot com RFID e sem spool ainda vinculado -> candidato a casar no Spoolman
-    if (temTagReal && tipoRfid && corRfid && !(spoolCache && spoolCache[tnn]))
-      rfidPend.push({tnn, material: tipoRfid, cor: corRfid});
-    const remain = (t1.remain_len||[])[i];
-    const vender = (t1.vender||[])[i];
-    const rot = getRot(cfsSN, tnn);
-    // tag RFID ou spool vinculado = slot ocupado, mesmo com remain -1;
-    // rotulo local sozinho so conta se o CFS reporta filamento no slot
-    const temFilamento = !!tipoRfid || !!(spoolCache && spoolCache[tnn]) || !!(rot && String(remain) !== "-1");
-    // PRESENCA FISICA (o que o hardware reporta): so isto pode CARREGAR. Rotulo
-    // ou spool vinculado deixam o slot "cheio" na tela, mas mandar
-    // BOX_LOAD_MATERIAL num slot sem filamento fisico faz o BOX_EXTRUDE_MATERIAL
-    // estourar com None e derrubar o Klipper (visto ao vivo jul/2026).
-    const presente = !!tipoRfid || (String(remain) !== "-1" && String(remain) !== "" && remain != null);
-
-    const spool = spoolCache && spoolCache[tnn];
-    const spF = (spool && spool.filament) || null;
-    // Precedencia de EXIBICAO: o rotulo manual e a vontade explicita do usuario,
-    // entao manda; sem rotulo, vale o RFID (o que o Orca/Creality Print leem) e
-    // depois o spool do Spoolman. O rotulo so vive nesta Central — o Orca le o
-    // RFID direto da impressora, entao editar aqui nao muda o que o Orca ve.
-    const cor = (rot&&rot.cor) || corRfid || (spF && spF.color_hex ? "#" + String(spF.color_hex).slice(0,6) : null) || "#2b313c";
-    const tipo = (rot&&rot.tipo) || tipoRfid || (spF && spF.material) || "vazio";
-    const spNome = spool && spool.filament ? ((spool.filament.vendor&&spool.filament.vendor.name?spool.filament.vendor.name+" ":"")+spool.filament.name) : "";
-    const nome = rot&&rot.nome ? rot.nome : (spNome || (vender&&vender!=="unknown"&&vender!=="-1"?vender:""));
-    void temFilamento; void presente; void editadoMao;  // presenca/carga: agora no painel MMU (mmu.py guarda o slot vazio)
-
-    // alimenta o botao de edicao compacto do slot (prefill do editor)
-    const btn = document.querySelector('[data-edslot="' + tnn + '"]');
-    if (btn) {
-      btn.dataset.edit = tnn;
-      btn.dataset.tipo = tipo !== "vazio" ? tipo : "";
-      btn.dataset.cor  = cor;
-      btn.dataset.nome = nome || "";
-    }
-  }
-
-  // slots com RFID sem spool vinculado: casa com o correspondente no Spoolman.
-  // Se casou algum (gravou extra.tag), re-renderiza uma vez pra mostrar o vinculo.
-  if (rfidPend.length) casaRfidComSpoolman(rfidPend).then(m => { if (m) renderCFS().catch(()=>{}); });
-}
-
-// botoes compactos de edicao por slot (T1A..T1D) — dataset vem do renderCFS
-document.querySelectorAll("[data-edslot]").forEach(b => b.onclick = () =>
-  abreEditor({edit: b.dataset.edslot, tipo: b.dataset.tipo || "",
-              cor: b.dataset.cor || "", nome: b.dataset.nome || ""}));
-
-// ---------- Editor de rotulo local ----------
-function abreEditor(ds){
-  cfsEditando = ds.edit;
-  $("ed-titulo").textContent = "Editar slot " + ds.edit;
-  $("ed-aplicar").checked = false;   // nunca reinicia sem o usuario marcar
-  $("ed-tipo").value = ds.tipo || "PLA";
-  $("ed-nome").value = ds.nome || "";
-  $("ed-cor").value = /^#[0-9a-f]{6}$/i.test(ds.cor) ? ds.cor : "#e53935";
-  const cores = $("ed-cores"); cores.innerHTML = "";
-  PALETA.forEach(hex => {
-    const s = document.createElement("span");
-    s.style.background = hex;
-    if (hex.toLowerCase() === (ds.cor||"").toLowerCase()) s.className = "sel";
-    s.onclick = () => { $("ed-cor").value = hex; cores.querySelectorAll("span").forEach(x=>x.className=""); s.className="sel"; };
-    cores.appendChild(s);
-  });
-  $("editor").showModal();
-  carregaSpoolSelect(ds.edit);
-}
-// ---------- Spoolman no editor do slot: vinculo spool <-> TNN ----------
-// O vinculo e gravado no PROPRIO Spoolman (extra.tag = TNN), a mesma marca
-// que o "Sincronizar" usa — vale pra qualquer cliente, nao so este navegador.
-let edSpools = {};   // id -> spool (pro auto-preenchimento ao escolher)
-async function carregaSpoolSelect(tnn){
-  const sel = $("ed-spool");
-  sel.innerHTML = '<option value="">— sem vínculo —</option>';
-  edSpools = {};
-  try {
-    const sp = await spoolProxy("GET", "/v1/spool");
-    (Array.isArray(sp)?sp:[]).forEach(s => { edSpools[s.id] = s; });
-    (Array.isArray(sp)?sp:[]).forEach(s => {
-      if (s.archived) return;
-      const f = s.filament || {};
-      const nome = (f.vendor&&f.vendor.name ? f.vendor.name+" " : "") + (f.name || ("spool #"+s.id));
-      const t = spoolTnn(s);
-      const o = document.createElement("option");
-      o.value = s.id;
-      o.textContent = "#" + s.id + " " + nome + " (" + (f.material||"?") +
-        (s.remaining_weight!=null ? ", " + Math.round(s.remaining_weight) + "g" : "") + ")" +
-        (t && t !== tnn ? " → " + t : "");
-      if (t === tnn) o.selected = true;
-      sel.appendChild(o);
-    });
-  } catch(e) {
-    sel.innerHTML = '<option value="">Spoolman indisponível</option>';
-  }
-}
-async function vinculaSpool(tnn, spoolId){
-  await carregaSpools();
-  const atual = spoolCache && spoolCache[tnn];
-  if (atual && atual.id !== spoolId) {
-    const ex = Object.assign({}, atual.extra); delete ex.tag;
-    await spoolProxy("PATCH", "/v1/spool/" + atual.id, {extra: ex});
-    logLinha("[SPOOLMAN] " + tnn + " desvinculado do spool #" + atual.id);
-  }
-  if (spoolId && (!atual || atual.id !== spoolId)) {
-    const s = await spoolProxy("GET", "/v1/spool/" + spoolId);
-    const ex = Object.assign({}, s.extra || {});
-    ex.tag = JSON.stringify(tnn);
-    await spoolProxy("PATCH", "/v1/spool/" + spoolId, {extra: ex});
-    logLinha("[SPOOLMAN] " + tnn + " vinculado ao spool #" + spoolId);
-  }
-}
-// Escolheu um spool no select? Preenche material/cor/nome com o filament do
-// Spoolman — no Salvar isso vai pro FIRMWARE, e a tela da impressora (e o
-// Orca/Creality Print) passam a mostrar o spool: Spoolman -> tela.
-$("ed-spool").onchange = () => {
-  const s = edSpools[$("ed-spool").value];
-  if (!s || !s.filament) return;
-  const f = s.filament;
-  if (f.material) {
-    const opt = [...$("ed-tipo").options].find(o => o.value.toUpperCase() === String(f.material).toUpperCase());
-    if (opt) $("ed-tipo").value = opt.value;
-  }
-  if (f.color_hex) {
-    const hex = "#" + String(f.color_hex).slice(0,6).toLowerCase();
-    if (/^#[0-9a-f]{6}$/.test(hex)) {
-      $("ed-cor").value = hex;
-      $("ed-cores").querySelectorAll("span").forEach(x => x.className = "");
-    }
-  }
-  $("ed-nome").value = ((f.vendor && f.vendor.name ? f.vendor.name + " " : "") + (f.name || "")).trim();
-};
-
-$("ed-ok").onclick = async () => {
-  const editTnn = cfsEditando;
-  // SEMPRE grava o rotulo local: a Central desenha os slots a partir do objeto
-  // 'box' do Klipper (hardware/RFID), nao dos JSONs do firmware — o rotulo e o
-  // que faz a sua edicao aparecer na hora aqui. (Precedencia rotulo > RFID.)
-  setRot(cfsSN, editTnn, {tipo:$("ed-tipo").value, cor:$("ed-cor").value, nome:$("ed-nome").value.trim()});
-  // ALEM disso, tenta gravar no firmware (best-effort) pra sincronizar tela/
-  // Creality Print/Orca. Slot COM tag RFID: o firmware rele a tag e sobrescreve
-  // — so cola em slot SEM tag. O log avisa o caso.
-  const aplicar = $("ed-aplicar").checked;
-  let gravouFw = false, enviou9999 = false;
-  try {
-    const r = await fetch(base + "/server/joelma/cfs/edit", {
-      method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({tnn: editTnn, materialType: $("ed-tipo").value,
-                            color: $("ed-cor").value, name: $("ed-nome").value.trim()})});
-    gravouFw = r.ok;
-    if (r.ok) {
-      const d = await r.json(); const res = d.result || d;
-      enviou9999 = res.enviado_9999 === true;
-      logLinha("[CFS] " + editTnn + " rotulado na Central + gravado no firmware (" + res.materialType + " " + res.color + ")"
-        + (enviou9999 ? " — sincronizado AO VIVO pela porta 9999 (tela/Orca ja veem, sem restart)" : "")
-        + (tagDoSlot(editTnn) ? " — atencao: slot com tag RFID, a impressora pode reler a tag e sobrescrever" : ""));
-    } else {
-      logLinha("// " + editTnn + " rotulado na Central (firmware respondeu HTTP " + r.status + ")");
-    }
-  } catch(e) {
-    logLinha("// " + editTnn + " rotulado na Central (componente cfs_edit ausente — rode: joelma update p/ sincronizar com a impressora)");
-  }
-  const alvo = $("ed-spool").value;
-  try { await vinculaSpool(editTnn, alvo ? +alvo : null); }
-  catch(e) { logLinha("!! Spoolman: " + e.message); }
-  $("editor").close(); renderCFS();
-  // Sync com a tela/Orca: o comando 9999 "set" propaga a edicao AO VIVO (sem
-  // restart, sem 485). So caimos no FIRMWARE_RESTART (o box rele os JSONs no
-  // init) se o 9999 nao respondeu E o usuario marcou "Aplicar na impressora".
-  if (enviou9999) {
-    // ja propagou ao vivo — restart seria so incomodo (~30s parado)
-  } else if (aplicar && gravouFw) {
-    logLinha("[CFS] 9999 nao respondeu; aplicando via FIRMWARE_RESTART (box relê os arquivos)...");
-    $("fwrestart").onclick();
-  } else if (aplicar && !gravouFw) {
-    logLinha("!! nao apliquei: componente joelma_cfs_edit ausente (rode: joelma update)");
-  }
-};
-$("ed-limpa").onclick = () => { setRot(cfsSN, cfsEditando, null); $("editor").close(); renderCFS(); };
-$("ed-cancela").onclick = () => $("editor").close();
-
-// BOX_INFO_REFRESH emite BOX_SET_PRE_LOADING com ADDR=/NUM= vazios; o parser da
-// Creality quebra (key171) e o Klipper vai pra shutdown (key60). Ver docs/JOELMA-HANDOFF.md §7.1.
-async function vigiaShutdownRfid(){
-  for (let i = 0; i < 8; i++) {
-    await new Promise(res => setTimeout(res, 2500));
-    try {
-      const d = await (await fetch(base + "/printer/info")).json();
-      const st = d.result && d.result.state;
-      if (st === "ready") { $("recuperar").style.display = "none"; return; }
-      if (st === "shutdown" || st === "error") {
-        $("recuperar").style.display = "";
-        setStatus("Klipper caiu (bug do BOX_INFO_REFRESH)", "clique em Recuperar ao lado (~30s)", "err");
-        return;
-      }
-    } catch(e) {}
-  }
-}
-$("cfsrefresh").onclick = () => $("rfiddlg").showModal();
-$("rfid-cancela").onclick = () => $("rfiddlg").close();
-$("rfid-ok").onclick = async () => {
-  $("rfiddlg").close();
-  // caminho SEGURO: rele o RFID por slot pela porta 9999 (cRFIDRefresh, o
-  // comando oficial do Creality Print) — NAO passa pelo Klipper, entao nao ha
-  // como cair no bug do BOX_INFO_REFRESH. So usa o comando antigo (guardado)
-  // se o componente joelma_cfs_edit nao estiver instalado.
-  let ok = false;
-  for (const L of ["A","B","C","D"]) {
-    try {
-      const r = await fetch(base + "/server/joelma/cfs/rfid", {method:"POST",
-        headers:{"Content-Type":"application/json"}, body: JSON.stringify({tnn:"T1"+L})});
-      if (r.ok && ((await r.json()).result||{}).ok !== false) ok = true;
-    } catch(e) {}
-  }
-  if (ok) {
-    logLinha("[CFS] RFID relido pela porta 9999 (cRFIDRefresh) — seguro, sem risco ao Klipper");
-    setTimeout(renderCFS, 1500);
-  } else {
-    logLinha("// componente ausente — caindo no BOX_INFO_REFRESH (bug conhecido, guardado pelo box_guard)");
-    roda("BOX_INFO_REFRESH", "Relendo RFID de todos os slots", 3, () => setTimeout(renderCFS, 1500));
-    vigiaShutdownRfid();
-  }
-};
-$("recuperar").onclick = () => { $("recuperar").style.display = "none"; $("fwrestart").onclick(); };
-$("cfsquit").onclick = () => roda("BOX_QUIT_MATERIAL", "Descarregando material atual", 6, () => renderCFS());
-
-// ---------- Configurador do painel MMU do Fluidd (SET_MMU_BOXES) ----------
-// O objeto [mmu] (feature orca-filament-sync) publica boxes_config (0 = auto);
-// o seletor persiste via SET_MMU_BOXES e o painel do Fluidd reflete na hora.
-(async function initMmuSel(){
-  try {
-    const q = await rpc("printer.objects.query", {objects:{mmu:["boxes_config"]}});
-    const cfg = (q.status.mmu || {}).boxes_config;
-    if (cfg === undefined) return;             // mmu.py antigo ou ausente: some
-    $("mmuboxes").value = String(cfg);
-    $("mmusel").style.display = "";
-  } catch(e) { /* sem [mmu] — seletor fica oculto */ }
-})();
-$("mmuboxes").onchange = async () => {
-  const v = $("mmuboxes").value;
-  try {
-    await gcode("SET_MMU_BOXES BOXES=" + v, 1);
-    logLinha(">> painel MMU: " + (v === "0" ? "auto" : v + " CFS"));
-  } catch(e) { logLinha("!! SET_MMU_BOXES: " + e.message); }
-};
-$("cfssync").onclick = async () => {
-  const btn = $("cfssync");
-  ocupaBotao(btn, true, "sincronizando...");
-  try {
-    const q = await rpc("printer.objects.query", {objects:{box:null}});
-    const box = q.status.box;
-    if (!box || box.state !== "connect") { logLinha("!! CFS desconectado - nada a sincronizar"); return; }
-    const t1 = box.T1 || {};
-    const letras = ["A","B","C","D"]; let n = 0;
-    for (let i = 0; i < 4; i++) {
-      const tnn = "T1" + letras[i];
-      const tipoRfid = matNome((t1.material_type||[])[i]);
-      const corRfid = corHex((t1.color_value||[])[i]);
-      const remain = (t1.remain_len||[])[i];
-      const rot = getRot(cfsSN, tnn);
-      const temFilamento = !!tipoRfid || !!(rot && String(remain) !== "-1");
-      if (!temFilamento) continue;
-      // mesma precedencia do renderCFS: rotulo manual manda, RFID preenche
-      const tipo = (rot&&rot.tipo) || tipoRfid || "PLA";
-      const corH = ((rot&&rot.cor) || corRfid || "#cccccc").replace("#","");
-      const pct = String(remain)!=="-1" ? +remain : 100;
-      try {
-        const r = await syncSlot(tnn, tipo, corH, pct);
-        logLinha("[SPOOLMAN] " + tnn + " " + r.acao + " (spool #" + r.id + ")");
-        n++;
-      } catch(e) { logLinha("!! " + tnn + ": " + e.message); }
-    }
-    setStatus("Spoolman sincronizado", n + " slot(s) enviados ao catalogo", "on");
-    renderCFS();
-  } catch(e) {
-    logLinha("!! sync Spoolman: " + e.message);
-    setStatus("Falha no Spoolman", e.message, "err");
-  } finally { ocupaBotao(btn, false); }
-};
-
 // ---------- Calibracoes: le os valores atuais e pinta as etiquetas ----------
 function tag(id, txt, ok){
   const el = $(id);
@@ -2115,8 +1568,6 @@ $("qfilament").onclick = () => roda("QUERY_FILAMENT_SENSOR SENSOR=filament_senso
 $("qfan").onclick      = () => roda("QUERY_FAN_CHECK", "Consultando as ventoinhas", 3);
 $("buzzx").onclick     = () => roda("STEPPER_BUZZ STEPPER=stepper_x", "Testando o motor X", 3);
 $("buzzy").onclick     = () => roda("STEPPER_BUZZ STEPPER=stepper_y", "Testando o motor Y", 3);
-// CFS
-$("cutpos").onclick = () => roda("CALIBRATE_CUT_POS", "Calibrando a posicao do corte do CFS", 8);
 // firmware restart (recupera de shutdown)
 $("fwrestart").onclick = async () => {
   const btn = $("fwrestart");
@@ -2132,7 +1583,7 @@ $("fwrestart").onclick = async () => {
       } catch(e) {}
     }
     setStatus("Pronta", "firmware reiniciado", "on");
-    render().catch(()=>{}); renderCFS().catch(()=>{}); leCalib();
+    render().catch(()=>{}); leCalib();
   } catch(e) { setStatus("Falha no restart", e.message, "err"); }
   finally { ocupaBotao(btn, false); }
 };
@@ -2181,7 +1632,7 @@ function objsSub(){
   const o = {
     heater_bed:["temperature","target"], extruder:["temperature","target"],
     idle_timeout:["state"], display_status:["message"], "output_pin LED":["value"],
-    toolhead:["position","homed_axes"], box:["state"]
+    toolhead:["position","homed_axes"]
   };
   SENSORES.forEach(s => { if (!o[s.obj]) o[s.obj] = null; });
   return o;
@@ -2411,123 +1862,7 @@ $("luzdim").oninput = () => {
   luzEnviando = setTimeout(() => luzSet(v), 180);   // debounce: nao floodar o Klipper
 };
 
-// ---------- Spoolman ADMIN: configura o servidor e escaneia a rede (REST) ----------
-// Endpoints do componente spoolman_admin.py (roda no Moonraker):
-//   GET  /server/spoolman_admin/config -> {server, sync_rate, configurado}
-//   POST /server/spoolman_admin/config -> grava e reinicia o Moonraker
-//   GET  /server/spoolman_admin/scan   -> {encontrados:[{ip,porta,url,versao}]}
-let spEscolhido = null;
 
-async function spAdmin(metodo, caminho, corpo){
-  const opt = {method: metodo};
-  if (corpo) { opt.headers = {"Content-Type":"application/json"}; opt.body = JSON.stringify(corpo); }
-  const r = await fetch(base + "/server/spoolman_admin/" + caminho, opt);
-  if (!r.ok) { const j = await r.json().catch(()=>({})); throw new Error((j.error&&j.error.message)||("HTTP "+r.status)); }
-  const d = await r.json();
-  return d.result !== undefined ? d.result : d;
-}
-// O card do Spoolman saiu da pagina (info duplicada) — o estado vira so o
-// texto/cor do botao compacto "Spoolman" no card CFS, que abre o spdlg.
-async function spRender(){
-  const st = $("spst2"), btn = $("spcfg");
-  try {
-    const cfg = await spAdmin("GET", "config");
-    let conectado = false;
-    try {
-      const r = await fetch(base + "/server/spoolman/status");
-      const d = await r.json();
-      conectado = !!(d.result && d.result.spoolman_connected);
-    } catch(e) {}
-    if (!cfg.server) {
-      st.textContent = "Spoolman: configurar";
-      btn.title = "Nenhum servidor Spoolman configurado";
-      st.style.color = "";
-    } else if (conectado) {
-      st.textContent = "Spoolman ✓";
-      btn.title = cfg.server + " — conectado, sincronizando a cada " + (cfg.sync_rate||5) + "s";
-      st.style.color = "var(--ok)";
-    } else {
-      st.textContent = "Spoolman ✗";
-      btn.title = cfg.server + " — sem resposta; o servidor esta ligado?";
-      st.style.color = "var(--bad)";
-    }
-  } catch(e) {
-    st.textContent = "Spoolman ?";
-    btn.title = "componente spoolman_admin ausente (rode: joelma update)";
-    st.style.color = "var(--bad)";
-  }
-}
-async function spScan(){
-  const btn = $("sp-scan"), lista = $("sp-found");
-  ocupaBotao(btn, true, "escaneando...");
-  lista.innerHTML = '<div class="escaneando"><span class="radar-dot"></span> varrendo a rede local...</div>';
-  try {
-    const r = await spAdmin("GET", "scan");
-    const achados = r.encontrados || [];
-    if (!achados.length) {
-      lista.innerHTML = '<div class="sp-vazio">nenhum servidor Spoolman encontrado em ' +
-        r.subnet + '.x<br>verifique se o container esta rodando</div>';
-      return;
-    }
-    lista.innerHTML = "";
-    achados.forEach(a => {
-      const el = document.createElement("div");
-      el.className = "sp-hit";
-      el.innerHTML = svgIc("server") +
-        '<span class="hit-url">' + a.url + '</span>' +
-        '<span class="hit-v">v' + (a.versao||"?") + '</span>';
-      el.onclick = () => {
-        lista.querySelectorAll(".sp-hit").forEach(x => x.classList.remove("sel"));
-        el.classList.add("sel");
-        $("sp-url-in").value = a.url;
-        spEscolhido = a.url;
-      };
-      lista.appendChild(el);
-    });
-    if (achados.length === 1) lista.querySelector(".sp-hit").click();
-  } catch(e) {
-    lista.innerHTML = '<div class="sp-vazio">falha no scan: ' + e.message + '</div>';
-  } finally { ocupaBotao(btn, false); }
-}
-async function spSalvar(){
-  const btn = $("sp-save");
-  const url = $("sp-url-in").value.trim();
-  const rate = Math.max(1, Math.min(60, +$("sp-rate").value || 5));
-  if (!url) { logLinha("!! informe o endereco do servidor"); return; }
-  ocupaBotao(btn, true, "salvando...");
-  try {
-    const r = await spAdmin("POST", "config", {server: url, sync_rate: rate});
-    logLinha("[SPOOLMAN] servidor gravado: " + r.server + " (Moonraker reiniciando)");
-    $("spdlg").close();
-    setStatus("Moonraker reiniciando...", "aplicando o novo servidor Spoolman", "busy");
-    for (let i = 0; i < 20; i++) {
-      await new Promise(res => setTimeout(res, 1500));
-      try {
-        const ok = await fetch(base + "/server/info");
-        if (ok.ok) break;
-      } catch(e) {}
-    }
-    setStatus("Pronta", "Spoolman reconfigurado", "on");
-    spRender();
-    renderCFS().catch(()=>{});
-  } catch(e) {
-    logLinha("!! falha ao salvar: " + e.message);
-    setStatus("Falha ao salvar", e.message, "err");
-  } finally { ocupaBotao(btn, false); }
-}
-$("spcfg").onclick = async () => {
-  $("sp-found").innerHTML = "";
-  spEscolhido = null;
-  try {
-    const cfg = await spAdmin("GET", "config");
-    $("sp-url-in").value = cfg.server || "";
-    $("sp-rate").value = cfg.sync_rate || 5;
-  } catch(e) { $("sp-url-in").value = ""; }
-  $("spdlg").showModal();
-};
-$("sp-scan").onclick = spScan;
-$("sp-save").onclick = spSalvar;
-$("sp-cancel").onclick = () => $("spdlg").close();
 
 pintaIcones();
 pintaTema();
@@ -2540,8 +1875,6 @@ pintaSistema();
 ligaCamera();
 conectaWS();
 render().catch(()=>{});
-renderCFS().catch(()=>{});
-spRender().catch(()=>{});
 leCalib();
 setInterval(leCalib, 8000);
 </script>
