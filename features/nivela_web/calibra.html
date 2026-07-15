@@ -279,6 +279,8 @@
   .mesh-ctl button { padding:6px 12px; min-height:28px; font-size:.7rem; border-radius:16px; box-shadow:none; border:1px solid var(--line); background:transparent; }
   .mesh-ctl button.on { background:var(--primary); border-color:transparent; color:#fff; }
   #papelbox button.on { background:var(--primary); border-color:transparent; color:#fff; }
+  #papelnav [data-papel].ok { background:var(--ok); border-color:transparent; color:#fff; }
+  #papelnav [data-papel].ok.on { box-shadow:0 0 0 2px var(--primary); }
   .mesh-ctl .rel { display:flex; align-items:center; gap:7px; flex:1; min-width:150px; }
   .mesh-ctl .rel span { font-size:.66rem; color:var(--dim); text-transform:uppercase; letter-spacing:.07em; font-weight:500; white-space:nowrap; }
   .mesh-ctl input[type=range] {
@@ -433,9 +435,14 @@
       <button id="papel"><i data-ic="ruler"></i> Calibração pelo papel</button>
     </div>
     <div id="papelbox" style="display:none">
-      <div class="dica" style="margin:10px 0 8px">Nivelamento manual clássico (baseado no <b>DnG-Crafts/K2-Leveling</b>). Aquece <b>mesa 60&nbsp;°C + bico 205&nbsp;°C</b> e faz o home com o <b>bico quente</b> — na K2 o probe é a célula de carga do bico, então medir frio dá Z errado. Zera o offset, limpa o mesh e leva o bico a <b>Z&nbsp;=&nbsp;0,1&nbsp;mm</b> (uma folha de sulfite) no centro e em cada canto. Gire o knob até a folha <b>raspar de leve</b>: <b>muito presa →</b> APERTE (horário); <b>muito solta →</b> SOLTE (anti-horário). Use o <b>Centro</b> como referência do arrasto e iguale os cantos.</div>
+      <div class="dica" style="margin:10px 0 8px">Nivelamento manual completo (base <b>DnG-Crafts/K2-Leveling</b>). Aquece <b>mesa + bico</b> e faz o home com o <b>bico quente</b> — na K2 o probe é a célula de carga do bico, então medir frio dá Z errado. Zera o offset, limpa o mesh e leva o bico a <b>Z = folha</b> no centro e em cada canto. Gire o knob até a folha <b>raspar de leve</b>: <b>muito presa →</b> APERTE (horário); <b>muito solta →</b> SOLTE (anti-horário). Use o <b>Centro</b> como referência e iguale os cantos. Use o <b>ajuste fino de Z</b> pra achar o contato exato e marque <b>✓ OK</b> cada ponto.</div>
+      <div class="lin" id="papelcfg" style="gap:14px;margin:0 0 4px">
+        <label style="min-width:auto">Folha (mm) <input type="number" id="papel-z" value="0.10" step="0.01" min="0" max="0.6" style="width:64px"></label>
+        <label style="min-width:auto">Mesa °C <input type="number" id="papel-bed" value="60" step="5" min="0" max="110" style="width:56px"></label>
+        <label style="min-width:auto">Bico °C <input type="number" id="papel-noz" value="205" step="5" min="0" max="260" style="width:56px"></label>
+      </div>
       <div class="botoes" id="papelini">
-        <button id="papelquente" class="principal"><i data-ic="flame"></i> Iniciar (aquece 60°C + bico 205°C)</button>
+        <button id="papelquente" class="principal"><i data-ic="flame"></i> Iniciar (aquece + home quente)</button>
         <button id="papelfrio"><i data-ic="snow"></i> A frio (menos preciso)</button>
       </div>
       <div id="papelnav" style="display:none">
@@ -447,10 +454,21 @@
           <button data-papel="screw3">③ Tras. Dir.</button>
           <button data-papel="screw4">④ Tras. Esq.</button>
         </div>
+        <div id="papelctl" style="display:none">
+          <div class="lin" style="margin-top:10px;gap:6px">
+            <span class="det" style="margin:0">Z ao vivo: <b id="papel-zlive" class="val">—</b> mm</span>
+            <button class="ghost" data-znudge="-0.05">Z −0,05</button>
+            <button class="ghost" data-znudge="-0.02">−0,02</button>
+            <button class="ghost" data-znudge="0.02">+0,02</button>
+            <button class="ghost" data-znudge="0.05">+0,05</button>
+            <button id="papelok" class="principal"><i data-ic="check"></i> Marcar OK</button>
+          </div>
+        </div>
         <div class="botoes" style="margin-top:8px">
           <button id="papelsobe" class="ghost"><i data-ic="ruler"></i> Subir 5&nbsp;mm (trocar papel)</button>
           <button id="papelfim" class="ghost"><i data-ic="check"></i> Encerrar (home + desliga)</button>
         </div>
+        <div class="dica" id="papelprog" style="margin-top:6px">0/5 pontos conferidos</div>
       </div>
     </div>
   </div>
@@ -808,6 +826,8 @@ function aplicaStatus(st){
       $("posx").textContent = st.toolhead.position[0].toFixed(1);
       $("posy").textContent = st.toolhead.position[1].toFixed(1);
       $("posz").textContent = st.toolhead.position[2].toFixed(2);
+      const pzl = document.getElementById("papel-zlive");
+      if (pzl) pzl.textContent = st.toolhead.position[2].toFixed(3);
     }
     if (st.toolhead.homed_axes !== undefined)
       $("poshome").textContent = (st.toolhead.homed_axes || "").length < 3 ? "sem home" : "";
@@ -1024,30 +1044,45 @@ async function papelCoords(){
   return papelXY;
 }
 const PAPEL_NOME = {center:"Centro", screw1:"Frente Esq.", screw2:"Frente Dir.", screw3:"Tras. Dir.", screw4:"Tras. Esq."};
+const PAPEL_PTS = ["center","screw1","screw2","screw3","screw4"];
+let papelFeito = new Set(), papelAtual = null;
+// le folha/temperaturas dos inputs (com fallback pros defaults)
+function papelNum(){
+  const z = +$("papel-z").value, bed = +$("papel-bed").value, noz = +$("papel-noz").value;
+  return { z: z>=0 && z<=0.6 ? z : 0.10, bed: bed>=0 ? bed : 60, noz: noz>=0 ? noz : 205 };
+}
+function papelProg(){
+  $("papelprog").textContent = papelFeito.size + "/5 pontos conferidos" + (papelFeito.size>=5 ? " — pode Encerrar ✓" : "");
+  document.querySelectorAll("#papelnav [data-papel]").forEach(b => b.classList.toggle("ok", papelFeito.has(b.dataset.papel)));
+}
 async function papelVai(k){
-  const nome = PAPEL_NOME[k] || k;
-  trava(true); setStatus("Papel: " + nome, "movendo o bico a Z=" + PAPEL.z + "mm...", "busy");
+  const nome = PAPEL_NOME[k] || k, cfg = papelNum();
+  papelAtual = k;
+  trava(true); setStatus("Papel: " + nome, "movendo o bico a Z=" + cfg.z + "mm...", "busy");
   try {
     const c = (await papelCoords())[k];
-    await gcode("G90\nG21\nG1 Z" + PAPEL.sobe + " F300\nG1 X" + c[0] + " Y" + c[1] + " F5000\nG1 Z" + PAPEL.z + " F300", 3);
+    await gcode("G90\nG21\nG1 Z" + PAPEL.sobe + " F300\nG1 X" + c[0] + " Y" + c[1] + " F5000\nG1 Z" + cfg.z + " F300", 3);
     document.querySelectorAll("#papelnav [data-papel]").forEach(b => b.classList.toggle("on", b.dataset.papel === k));
     $("papeldica").innerHTML = "<b>" + nome + ":</b> " + (PAPEL.dica[k]||"");
-    setStatus("Papel: " + nome, "ajuste o knob até a folha raspar de leve", "on");
+    $("papelctl").style.display = "";
+    setStatus("Papel: " + nome, "sinta a folha; use o ajuste fino e marque ✓ OK", "on");
   } catch(e){ setStatus("FALHOU: papel", e.message, "err"); logLinha("!! " + e.message); }
   finally { trava(false); }
 }
 async function papelPrep(quente){
   trava(true);
-  setStatus("Calibração pelo papel", quente ? "aquecendo mesa 60°C + bico 205°C..." : "preparando (a frio)...", "busy");
+  const cfg = papelNum();
+  papelFeito = new Set(); papelProg();
+  setStatus("Calibração pelo papel", quente ? ("aquecendo mesa " + cfg.bed + "°C + bico " + cfg.noz + "°C...") : "preparando (a frio)...", "busy");
   try {
     if (quente){
       // aquece os dois e ESPERA O BICO antes de homear (DnG: probe = bico)
-      await gcode("M140 S" + PAPEL.bed + "\nM104 S" + PAPEL.noz, 1);
-      await gcode("M109 S" + PAPEL.noz, 10);
+      await gcode("M140 S" + cfg.bed + "\nM104 S" + cfg.noz, 1);
+      await gcode("M109 S" + cfg.noz, 10);
     }
     const q = await rpc("printer.objects.query", {objects:{toolhead:["homed_axes"]}});
     if ((((q.status.toolhead||{}).homed_axes)||"").length < 3) await gcode("G28", 8);
-    if (quente) await gcode("M190 S" + PAPEL.bed, 12);   // espera a mesa
+    if (quente) await gcode("M190 S" + cfg.bed, 12);   // espera a mesa
     // zera offset + limpa mesh: Z=0 vira o zero real do probe
     await gcode("SET_GCODE_OFFSET Z=0 MOVE=0\nBED_MESH_CLEAR", 2);
     $("papelini").style.display = "none";
@@ -1056,6 +1091,14 @@ async function papelPrep(quente){
     await papelVai("center");   // começa no centro (referência)
   } catch(e){ trava(false); setStatus("FALHOU: calibração pelo papel", e.message, "err"); logLinha("!! " + e.message); }
 }
+async function papelNudge(d){
+  trava(true);
+  try {
+    await gcode("G91\nG1 Z" + d + " F100\nG90", 1);
+    setStatus("Papel: " + (PAPEL_NOME[papelAtual]||""), "Z ajustado " + (d>0?"+":"") + d + "mm — sinta a folha", "on");
+  } catch(e){ setStatus("FALHOU: ajuste Z", e.message, "err"); logLinha("!! " + e.message); }
+  finally { trava(false); }
+}
 $("papel").onclick = () => {
   const b = $("papelbox");
   const abrir = b.style.display === "none";
@@ -1063,13 +1106,23 @@ $("papel").onclick = () => {
   if (!abrir) return;
   $("papelini").style.display = "";  // sempre volta pro passo de iniciar
   $("papelnav").style.display = "none";
+  $("papelctl").style.display = "none";
 };
 $("papelquente").onclick = () => papelPrep(true);
 $("papelfrio").onclick   = () => papelPrep(false);
 $("papelnav").addEventListener("click", ev => {
+  const nud = ev.target.closest("[data-znudge]");
+  if (nud){ if (!ocupado) papelNudge(+nud.dataset.znudge); return; }
   const b = ev.target.closest("[data-papel]");
   if (b && !ocupado) papelVai(b.dataset.papel);
 });
+$("papelok").onclick = () => {
+  if (!papelAtual || ocupado) return;
+  papelFeito.add(papelAtual); papelProg();
+  const prox = PAPEL_PTS.find(p => !papelFeito.has(p));   // avanca pro proximo
+  if (prox) papelVai(prox);
+  else setStatus("Papel", "todos os 5 pontos conferidos — Encerrar", "on");
+};
 $("papelsobe").onclick = () => { if (!ocupado) roda("G91\nG1 Z5 F600\nG90", "Subindo o bico 5mm", 1); };
 $("papelfim").onclick = async () => {
   trava(true);
@@ -1078,8 +1131,10 @@ $("papelfim").onclick = async () => {
     await gcode("G90\nG21\nG1 Z" + PAPEL.fim + " F300\nG28\nTURN_OFF_HEATERS", 8);
     $("papelnav").style.display = "none";
     $("papelini").style.display = "";
+    $("papelctl").style.display = "none";
     $("papelbox").style.display = "none";
-    document.querySelectorAll("#papelnav [data-papel]").forEach(b => b.classList.remove("on"));
+    document.querySelectorAll("#papelnav [data-papel]").forEach(b => b.classList.remove("on","ok"));
+    papelFeito = new Set(); papelAtual = null;
     setStatus("Calibração pelo papel encerrada", "bico levantado e aquecedores desligados — rode MEDIR pra conferir e crie o mesh de novo", "on");
   } catch(e){ setStatus("FALHOU: encerrar papel", e.message, "err"); logLinha("!! " + e.message); }
   finally { trava(false); }
