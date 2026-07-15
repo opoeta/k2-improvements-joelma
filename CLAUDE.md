@@ -136,13 +136,16 @@ pesquisa do CFS no OrcaSlicer, receitas de curl. **Leia sob demanda.**
   quando o box reportava outro estado → **T1 agora SEMPRE aparece** se existir; `get_status`
   nunca levanta exceção. Conferir: Fluidd mostra "CFS 1" com os slots reais e o Filament
   Sync do Orca (Printer Agent = Moonraker) puxa cor/tipo/%.
-- **Testar a "Calibração pelo papel"** (reescrita, card Nivelamento): botão abre o fluxo →
-  "Iniciar (60°C)" ou "a frio" → home se preciso + `SET_GCODE_OFFSET Z=0 MOVE=0` +
-  `BED_MESH_CLEAR` → leva o bico a **Z=0 real** em cada parafuso (coords do
-  `[screws_tilt_adjust]`). FRENTE ESQUERDO é a referência; papel preso=APERTA (horário),
-  solto=SOLTA. "Subir 5mm" pra trocar o papel; "Encerrar" sobe o bico. **Se "não aparecer":
-  Ctrl+F5** (cache). Obs.: o offset fica zerado durante o teste (transitório; reseta no
-  restart) — re-grave seu Z-offset e crie o mesh de novo depois.
+- **Testar a "Calibração pelo papel"** (base DnG-Crafts/K2-Leveling, card Nivelamento):
+  "Iniciar (60°C + bico 205°C)" → aquece os dois e **espera o BICO** (M104/M109) → home com
+  o bico quente (na K2 o probe é a célula de carga do bico; homear frio e medir quente dá Z
+  errado) → espera a mesa (M190) → `SET_GCODE_OFFSET Z=0 MOVE=0` + `BED_MESH_CLEAR` → leva o
+  bico a **Z=0,1 mm** no **Centro** (referência) e em cada canto (coords do
+  `[screws_tilt_adjust]`; centro do `axis_min/max`). Folha presa=APERTA (horário),
+  solta=SOLTA. "Subir 5mm" pra trocar o papel; "Encerrar" = sobe + `G28` + `TURN_OFF_HEATERS`.
+  **Se "não aparecer": Ctrl+F5** (cache). Obs.: o offset fica zerado (transitório; reseta no
+  restart) — re-grave seu Z-offset e crie o mesh de novo depois. Implementado na web de
+  propósito (o `bl_macros.cfg` do DnG some em firmware update → erro XS3002).
 - ~~Teste físico da inversão APERTAR/SOLTAR~~ **FEITO (jul/2026):** a convenção
   "invertida por knob embaixo" estava errada — vale a **padrão do Klipper**
   (CW = APERTAR = canto alto desce). Corrigido em `_acao_pt`

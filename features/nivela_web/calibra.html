@@ -433,22 +433,23 @@
       <button id="papel"><i data-ic="ruler"></i> Calibração pelo papel</button>
     </div>
     <div id="papelbox" style="display:none">
-      <div class="dica" style="margin:10px 0 8px">Nivelamento manual clássico. Prepara a mesa (<b>zera o offset Z</b> e <b>limpa o mesh</b> pra referência ser o zero real do probe), depois leva o <b>bico</b> a <b>Z&nbsp;=&nbsp;0</b> em cada parafuso. Ponha uma folha de sulfite (~0,1&nbsp;mm) entre o bico e a mesa e gire o knob até a folha <b>raspar de leve</b>. <b>Papel muito preso →</b> APERTE (horário); <b>muito solto →</b> SOLTE (anti-horário). O <b>FRENTE ESQUERDO é a referência</b>: sinta o arrasto nele primeiro e iguale os outros; não mexa no knob dele.</div>
+      <div class="dica" style="margin:10px 0 8px">Nivelamento manual clássico (baseado no <b>DnG-Crafts/K2-Leveling</b>). Aquece <b>mesa 60&nbsp;°C + bico 205&nbsp;°C</b> e faz o home com o <b>bico quente</b> — na K2 o probe é a célula de carga do bico, então medir frio dá Z errado. Zera o offset, limpa o mesh e leva o bico a <b>Z&nbsp;=&nbsp;0,1&nbsp;mm</b> (uma folha de sulfite) no centro e em cada canto. Gire o knob até a folha <b>raspar de leve</b>: <b>muito presa →</b> APERTE (horário); <b>muito solta →</b> SOLTE (anti-horário). Use o <b>Centro</b> como referência do arrasto e iguale os cantos.</div>
       <div class="botoes" id="papelini">
-        <button id="papelquente" class="principal"><i data-ic="flame"></i> Iniciar (aquece mesa 60°C)</button>
-        <button id="papelfrio"><i data-ic="snow"></i> Iniciar a frio</button>
+        <button id="papelquente" class="principal"><i data-ic="flame"></i> Iniciar (aquece 60°C + bico 205°C)</button>
+        <button id="papelfrio"><i data-ic="snow"></i> A frio (menos preciso)</button>
       </div>
       <div id="papelnav" style="display:none">
-        <div class="dica" id="papeldica" style="margin:4px 0 8px">Escolha um canto:</div>
+        <div class="dica" id="papeldica" style="margin:4px 0 8px">Escolha um ponto:</div>
         <div class="botoes">
-          <button data-papel="screw1">① Frente Esq. <b>(ref.)</b></button>
+          <button data-papel="center" class="principal"><i data-ic="target"></i> Centro (ref.)</button>
+          <button data-papel="screw1">① Frente Esq.</button>
           <button data-papel="screw2">② Frente Dir.</button>
           <button data-papel="screw3">③ Tras. Dir.</button>
           <button data-papel="screw4">④ Tras. Esq.</button>
         </div>
         <div class="botoes" style="margin-top:8px">
           <button id="papelsobe" class="ghost"><i data-ic="ruler"></i> Subir 5&nbsp;mm (trocar papel)</button>
-          <button id="papelfim" class="ghost"><i data-ic="check"></i> Encerrar (sobe o bico)</button>
+          <button id="papelfim" class="ghost"><i data-ic="check"></i> Encerrar (home + desliga)</button>
         </div>
       </div>
     </div>
@@ -992,37 +993,43 @@ $("medir").onclick = () => roda("NIVELA_PARAFUSOS", "Nivelamento (aquece 60°C +
 $("frio").onclick  = () => roda("NIVELA_PARAFUSOS BED_TEMP=0", "Nivelamento a frio", 12, () => render());
 $("reler").onclick = () => render().catch(e => logLinha("!! " + e.message));
 
-// ---------- Calibração pelo papel (nivelamento manual clássico) ----------
-// Leva o BICO a Z=0 (zero REAL do probe) em cada parafuso pra você sentir a
-// folha de sulfite e girar o knob. Pra Z=0 ser referência de verdade:
-//   - SET_GCODE_OFFSET Z=0 MOVE=0  (anula qualquer offset ativo)
-//   - BED_MESH_CLEAR               (sem compensação mascarando os cantos)
-// Coordenadas XY vêm do [screws_tilt_adjust] do Klipper (fallback = cfg deste
-// repo). Entre cantos o bico sobe 5mm; ao mover pra Z=0 desce devagar (F200).
-const PAPEL = {z:0, sobe:5, fim:30,
+// ---------- Calibração pelo papel (nivelamento manual, base DnG-Crafts) ----------
+// Baseado em DnG-Crafts/K2-Leveling — implementado aqui na web (mais robusto
+// que macros .cfg, que somem em firmware update -> erro XS3002). O ponto-chave
+// do DnG: aquece BICO (205) + MESA (60) e faz o home com o bico QUENTE, porque
+// o probe da K2 e a celula de carga do proprio bico (homear frio e medir quente
+// da Z errado). Depois zera o offset, limpa o mesh e leva o bico a Z=0.1mm (uma
+// folha) no centro e em cada canto. Centro e a referencia (DnG A_0_START_CENTER).
+const PAPEL = {z:0.1, sobe:5, fim:15, bed:60, noz:205,
   fb:{screw1:[45,28], screw2:[307,28], screw3:[307,314], screw4:[45,314]},
-  dica:{screw1:"REFERÊNCIA — sinta o arrasto aqui e memorize. NÃO gire este knob.",
-        screw2:"Gire até a folha raspar IGUAL à referência (Frente Esq.).",
-        screw3:"Gire até a folha raspar IGUAL à referência (Frente Esq.).",
-        screw4:"Gire até a folha raspar IGUAL à referência (Frente Esq.)."}};
+  dica:{center:"REFERÊNCIA — sinta o arrasto da folha aqui e memorize.",
+        screw1:"Gire até a folha raspar IGUAL ao Centro.",
+        screw2:"Gire até a folha raspar IGUAL ao Centro.",
+        screw3:"Gire até a folha raspar IGUAL ao Centro.",
+        screw4:"Gire até a folha raspar IGUAL ao Centro."}};
 let papelXY = null;
 async function papelCoords(){
   if (papelXY) return papelXY;
   const c = {};
   try {
-    const q = await rpc("printer.objects.query", {objects:{configfile:["settings"]}});
+    const q = await rpc("printer.objects.query", {objects:{configfile:["settings"], toolhead:["axis_minimum","axis_maximum"]}});
     const st = ((q.status.configfile||{}).settings||{})["screws_tilt_adjust"]||{};
     for (const k in PAPEL.fb) c[k] = (Array.isArray(st[k]) && st[k].length > 1) ? st[k] : PAPEL.fb[k];
+    const th = q.status.toolhead || {};
+    if (Array.isArray(th.axis_minimum) && Array.isArray(th.axis_maximum))
+      c.center = [(th.axis_minimum[0]+th.axis_maximum[0])/2, (th.axis_minimum[1]+th.axis_maximum[1])/2];
   } catch(e){ for (const k in PAPEL.fb) c[k] = PAPEL.fb[k]; }
+  if (!c.center) c.center = [176, 171];   // fallback: centro aprox. da K2 Plus
   papelXY = c;
   return papelXY;
 }
+const PAPEL_NOME = {center:"Centro", screw1:"Frente Esq.", screw2:"Frente Dir.", screw3:"Tras. Dir.", screw4:"Tras. Esq."};
 async function papelVai(k){
-  const nome = $(k).querySelector("h3").textContent;
-  trava(true); setStatus("Papel: " + nome, "movendo o bico a Z=0...", "busy");
+  const nome = PAPEL_NOME[k] || k;
+  trava(true); setStatus("Papel: " + nome, "movendo o bico a Z=" + PAPEL.z + "mm...", "busy");
   try {
     const c = (await papelCoords())[k];
-    await gcode("G90\nG1 Z" + PAPEL.sobe + " F900\nG1 X" + c[0] + " Y" + c[1] + " F9000\nG1 Z" + PAPEL.z + " F200", 3);
+    await gcode("G90\nG21\nG1 Z" + PAPEL.sobe + " F300\nG1 X" + c[0] + " Y" + c[1] + " F5000\nG1 Z" + PAPEL.z + " F300", 3);
     document.querySelectorAll("#papelnav [data-papel]").forEach(b => b.classList.toggle("on", b.dataset.papel === k));
     $("papeldica").innerHTML = "<b>" + nome + ":</b> " + (PAPEL.dica[k]||"");
     setStatus("Papel: " + nome, "ajuste o knob até a folha raspar de leve", "on");
@@ -1031,17 +1038,22 @@ async function papelVai(k){
 }
 async function papelPrep(quente){
   trava(true);
-  setStatus("Calibração pelo papel", quente ? "aquecendo a mesa a 60°C..." : "preparando...", "busy");
+  setStatus("Calibração pelo papel", quente ? "aquecendo mesa 60°C + bico 205°C..." : "preparando (a frio)...", "busy");
   try {
-    if (quente) await gcode("M190 S60", 12);
+    if (quente){
+      // aquece os dois e ESPERA O BICO antes de homear (DnG: probe = bico)
+      await gcode("M140 S" + PAPEL.bed + "\nM104 S" + PAPEL.noz, 1);
+      await gcode("M109 S" + PAPEL.noz, 10);
+    }
     const q = await rpc("printer.objects.query", {objects:{toolhead:["homed_axes"]}});
     if ((((q.status.toolhead||{}).homed_axes)||"").length < 3) await gcode("G28", 8);
+    if (quente) await gcode("M190 S" + PAPEL.bed, 12);   // espera a mesa
     // zera offset + limpa mesh: Z=0 vira o zero real do probe
     await gcode("SET_GCODE_OFFSET Z=0 MOVE=0\nBED_MESH_CLEAR", 2);
     $("papelini").style.display = "none";
     $("papelnav").style.display = "";
     trava(false);
-    await papelVai("screw1");   // começa na referência
+    await papelVai("center");   // começa no centro (referência)
   } catch(e){ trava(false); setStatus("FALHOU: calibração pelo papel", e.message, "err"); logLinha("!! " + e.message); }
 }
 $("papel").onclick = () => {
@@ -1062,12 +1074,13 @@ $("papelsobe").onclick = () => { if (!ocupado) roda("G91\nG1 Z5 F600\nG90", "Sub
 $("papelfim").onclick = async () => {
   trava(true);
   try {
-    await gcode("G90\nG1 Z" + PAPEL.fim + " F900", 2);
+    // DnG A_5_END_COMPLETE: sobe, refaz o home e desliga os aquecedores
+    await gcode("G90\nG21\nG1 Z" + PAPEL.fim + " F300\nG28\nTURN_OFF_HEATERS", 8);
     $("papelnav").style.display = "none";
     $("papelini").style.display = "";
     $("papelbox").style.display = "none";
     document.querySelectorAll("#papelnav [data-papel]").forEach(b => b.classList.remove("on"));
-    setStatus("Calibração pelo papel encerrada", "bico levantado — rode MEDIR pra conferir e crie o mesh de novo", "on");
+    setStatus("Calibração pelo papel encerrada", "bico levantado e aquecedores desligados — rode MEDIR pra conferir e crie o mesh de novo", "on");
   } catch(e){ setStatus("FALHOU: encerrar papel", e.message, "err"); logLinha("!! " + e.message); }
   finally { trava(false); }
 };
