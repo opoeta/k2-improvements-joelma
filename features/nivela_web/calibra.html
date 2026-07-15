@@ -463,6 +463,14 @@
             <button class="ghost" data-znudge="0.05">+0,05</button>
             <button id="papelok" class="principal"><i data-ic="check"></i> Marcar OK</button>
           </div>
+          <div class="lin" style="margin-top:6px;gap:6px">
+            <span class="det" style="margin:0">Mesa</span>
+            <button class="ghost" data-zjog="-1">▼ Descer 1</button>
+            <button class="ghost" data-zjog="-0.5">▼ 0,5</button>
+            <button class="ghost" data-zjog="0.5">▲ 0,5</button>
+            <button class="ghost" data-zjog="1">▲ Subir 1</button>
+            <span class="det" style="margin:0;opacity:.7">descer para na folha</span>
+          </div>
         </div>
         <div class="botoes" style="margin-top:8px">
           <button id="papelsobe" class="ghost"><i data-ic="ruler"></i> Subir 5&nbsp;mm (trocar papel)</button>
@@ -827,7 +835,8 @@ function aplicaStatus(st){
       $("posy").textContent = st.toolhead.position[1].toFixed(1);
       $("posz").textContent = st.toolhead.position[2].toFixed(2);
       const pzl = document.getElementById("papel-zlive");
-      if (pzl) pzl.textContent = st.toolhead.position[2].toFixed(3);
+      papelZlive = st.toolhead.position[2];
+      if (pzl) pzl.textContent = papelZlive.toFixed(3);
     }
     if (st.toolhead.homed_axes !== undefined)
       $("poshome").textContent = (st.toolhead.homed_axes || "").length < 3 ? "sem home" : "";
@@ -1045,7 +1054,7 @@ async function papelCoords(){
 }
 const PAPEL_NOME = {center:"Centro", screw1:"Frente Esq.", screw2:"Frente Dir.", screw3:"Tras. Dir.", screw4:"Tras. Esq."};
 const PAPEL_PTS = ["center","screw1","screw2","screw3","screw4"];
-let papelFeito = new Set(), papelAtual = null;
+let papelFeito = new Set(), papelAtual = null, papelZlive = null;
 // le folha/temperaturas dos inputs (com fallback pros defaults)
 function papelNum(){
   const z = +$("papel-z").value, bed = +$("papel-bed").value, noz = +$("papel-noz").value;
@@ -1099,6 +1108,23 @@ async function papelNudge(d){
   } catch(e){ setStatus("FALHOU: ajuste Z", e.message, "err"); logLinha("!! " + e.message); }
   finally { trava(false); }
 }
+// jog da mesa (passos maiores): sobe/desce o bico, mas DESCER nunca passa da
+// folha (piso de seguranca = cfg.z) pra nao bater o bico na mesa. Move em
+// absoluto usando o Z ao vivo -> o piso vale mesmo com cliques repetidos.
+async function papelJog(d){
+  trava(true);
+  try {
+    const cfg = papelNum();
+    let z = (typeof papelZlive === "number") ? papelZlive : cfg.z;
+    let alvo = z + d;
+    if (alvo < cfg.z) alvo = cfg.z;   // piso: nunca desce abaixo da folha
+    await gcode("G90\nG21\nG1 Z" + alvo.toFixed(3) + " F300", 2);
+    const bateu = (d < 0 && alvo === cfg.z);
+    setStatus("Papel: " + (PAPEL_NOME[papelAtual]||""),
+      "mesa em Z=" + alvo.toFixed(2) + "mm" + (bateu ? " (piso da folha)" : ""), "on");
+  } catch(e){ setStatus("FALHOU: mover mesa", e.message, "err"); logLinha("!! " + e.message); }
+  finally { trava(false); }
+}
 $("papel").onclick = () => {
   const b = $("papelbox");
   const abrir = b.style.display === "none";
@@ -1111,6 +1137,8 @@ $("papel").onclick = () => {
 $("papelquente").onclick = () => papelPrep(true);
 $("papelfrio").onclick   = () => papelPrep(false);
 $("papelnav").addEventListener("click", ev => {
+  const jog = ev.target.closest("[data-zjog]");
+  if (jog){ if (!ocupado) papelJog(+jog.dataset.zjog); return; }
   const nud = ev.target.closest("[data-znudge]");
   if (nud){ if (!ocupado) papelNudge(+nud.dataset.znudge); return; }
   const b = ev.target.closest("[data-papel]");
