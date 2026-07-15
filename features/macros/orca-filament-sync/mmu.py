@@ -207,6 +207,7 @@ class mmu:
         self.num_boxes = config.getint("num_boxes", 0, minval=0, maxval=4)
         self._le_persist()
         self.box = None
+        self.rack = None
         self.gcode = None
         self.sel_gate = -1
         self._mod_cache = ({}, 0.0)
@@ -270,6 +271,12 @@ class mmu:
             self.box = self.printer.lookup_object('box')
         except Exception:
             self.box = None
+        # filament_rack.remain_material_color = cor do slot CARREGADO (fio na
+        # extrusora). E como o Happy Hare sabe qual gate esta 'loaded'.
+        try:
+            self.rack = self.printer.lookup_object('filament_rack')
+        except Exception:
+            self.rack = None
 
     def _caixas(self, maxbox):
         return self.num_boxes if self.num_boxes > 0 else maxbox
@@ -535,6 +542,26 @@ class mmu:
         self._scan_cache = (gates, maxbox, extras, eventtime)
         return gates, maxbox, extras
 
+    def _loaded_gate(self, eventtime, gates):
+        # Descobre o gate CARREGADO pela cor do filament_rack (Happy Hare:
+        # filament_pos LOADED). Retorna -1 se nada casar. Nunca levanta.
+        try:
+            if not self.rack:
+                return -1
+            rs = self.rack.get_status(eventtime) or {}
+            cor = _norm_cor(rs.get("remain_material_color"))
+            if not cor or cor in ("000000", "FFFFFF"):
+                return -1
+            casam = [g for g, d in gates.items() if d.get("cor", "") == cor]
+            if not casam:
+                return -1
+            # cor duplicada em 2 slots: prefere o gate ja selecionado
+            if self.sel_gate in casam:
+                return self.sel_gate
+            return min(casam)
+        except Exception:
+            return -1
+
     def get_status(self, eventtime):
         # NUNCA levanta: em qualquer erro devolve um mmu vazio porem valido
         # (o painel fica "enabled" e o Orca nao quebra).
@@ -558,6 +585,11 @@ class mmu:
             if d.get("resto") is not None:
                 nomes[g] += " ~%d%%" % d["resto"]
                 restos[g] = d["resto"]
+        # gate carregado (fio na extrusora) inferido pela cor do filament_rack.
+        # Happy Hare: filament_pos LOADED=10, UNLOADED=0; tool/gate = gate ativo.
+        loaded = self._loaded_gate(eventtime, gates)
+        carregado = loaded >= 0 and loaded < n
+        tool = loaded if carregado else self.sel_gate
         return {
             # o que o OrcaSlicer le (fetch_hh_filament_info)
             'num_gates': n,
@@ -571,12 +603,12 @@ class mmu:
             'action': 'Idle',
             'is_homed': True,
             'is_paused': False,
-            'filament': 'Unloaded',
-            'filament_pos': 0,
+            'filament': 'Loaded' if carregado else 'Unloaded',
+            'filament_pos': 10 if carregado else 0,
             'filament_position': 0.0,
-            'tool': self.sel_gate,
-            'gate': self.sel_gate,
-            'unit': (self.sel_gate // 4) if self.sel_gate >= 0 else -1,
+            'tool': tool,
+            'gate': tool,
+            'unit': (tool // 4) if tool >= 0 else -1,
             'ttg_map': list(range(n)),
             'endless_spool_groups': list(range(n)),
             'gate_spool_id': [-1] * n,
