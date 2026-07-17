@@ -51,6 +51,14 @@ devem ser **idempotentes** (`grep -q` antes de acrescentar).
 2. **O daemon do Docker no NAS cai sozinho** (já caiu 2×). Quando cai, o Spoolman some e o
    Moonraker mostra `spoolman_connected: false`. Comando pra subir em `CLAUDE.local.md`.
 3. Containers `prometheus` e `PufferPanel` ficam em restart loop no NAS — fora de escopo.
+4. **KAMP com `PROBE_COUNT` menor que o do config derrubava o Klipper.** O probe da K2 é
+   blob compilado (`prtouch_v3_wrapper`, fw 1.1.6.1) e assume SEMPRE a grade do
+   `[bed_mesh]` (5×5 = 25 pontos). O `BED_MESH_CALIBRATE` do KAMP adaptava pra 3×3 →
+   `IndexError` na linha 1925 → `key60` + shutdown no meio do `START_PRINT ADAPTIVE=1`.
+   **→ CORRIGIDO (jul/2026):** `Adaptive_Meshing.cfg` agora é **vendorado** em
+   `features/kamp-adaptive-purge/` com o "PATCH JOELMA": área continua adaptativa,
+   contagem travada na do config (5×5 parcial foi validado em produção). Nunca voltar
+   o download do upstream sem reaplicar o patch.
 
 ## Fatos técnicos que NÃO devem ser redescobertos
 

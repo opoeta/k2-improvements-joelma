@@ -1,6 +1,11 @@
 #!/bin/ash
-# KAMP LINE_PURGE - versao Joelma (fw 1.1.6.x):
-# - baixa o KAMP como tarball via python3 (o stock nao tem git)
+# KAMP LINE_PURGE + ADAPTIVE MESHING - versao Joelma (fw 1.1.6.x):
+# - Line_Purge.cfg e Adaptive_Meshing.cfg sao VENDORADOS neste diretorio
+#   (upstream kyleisah/Klipper-Adaptive-Meshing-Purging @ b0dad8e), nada de
+#   download em runtime: deploy deterministico e offline.
+# - Adaptive_Meshing.cfg carrega o PATCH JOELMA: PROBE_COUNT travado na grade
+#   do config (5x5). O blob prtouch_v3_wrapper da Creality estoura IndexError
+#   (linha 1925 -> key60 -> shutdown) com contagem menor que a do config.
 # - guarda em /mnt/UDISK/kamp (fora do overlay pequeno do rootfs)
 # - sem prompt interativo (retracao e por filamento no slicer)
 # - [exclude_object]: o printer.cfg stock do 1.1.6.x ja traz a secao
@@ -9,33 +14,22 @@ set -e
 
 SCRIPT_DIR="$(readlink -f $(dirname $0))"
 KAMP_DIR=/mnt/UDISK/kamp
-SRC=/mnt/UDISK/.kamp-src
-TGZ=/mnt/UDISK/kamp.tar.gz
-URL="https://github.com/kyleisah/Klipper-Adaptive-Meshing-Purging/archive/refs/heads/main.tar.gz"
 
 test -d ~/printer_data/config/custom || mkdir -p ~/printer_data/config/custom
+mkdir -p ${KAMP_DIR}
 
-# 1. Baixa e extrai apenas o Line_Purge.cfg
-echo "I: baixando KAMP (tarball, sem git)"
-python3 - "$URL" "$TGZ" << 'PYEOF'
-import socket, ssl, sys, urllib.request
-socket.setdefaulttimeout(60)
-url, dest = sys.argv[1], sys.argv[2]
-try:
-    urllib.request.urlretrieve(url, dest)
-except Exception:
-    ctx = ssl._create_unverified_context()
-    with urllib.request.urlopen(url, context=ctx) as r, open(dest, "wb") as f:
-        f.write(r.read())
-PYEOF
-rm -rf ${SRC}
-mkdir -p ${SRC} ${KAMP_DIR}
-tar xzf ${TGZ} -C ${SRC}
-cp -f ${SRC}/*/Configuration/Line_Purge.cfg ${KAMP_DIR}/Line_Purge.cfg
-cp -f ${SRC}/*/Configuration/Adaptive_Meshing.cfg ${KAMP_DIR}/Adaptive_Meshing.cfg
-rm -rf ${TGZ} ${SRC}
+# 1. Copia os cfgs vendorados (substitui o download antigo do tarball)
+echo "I: instalando KAMP vendorado (Line_Purge + Adaptive_Meshing patched)"
+cp -f ${SCRIPT_DIR}/Line_Purge.cfg ${KAMP_DIR}/Line_Purge.cfg
+cp -f ${SCRIPT_DIR}/Adaptive_Meshing.cfg ${KAMP_DIR}/Adaptive_Meshing.cfg
 
-# 2. Symlink do Line_Purge + copia dos settings ajustaveis
+# sanity: o patch anti-shutdown precisa estar presente no arquivo instalado
+grep -q "PATCH JOELMA" ${KAMP_DIR}/Adaptive_Meshing.cfg || {
+    echo "E: Adaptive_Meshing.cfg sem o PATCH JOELMA - abortando" >&2
+    exit 1
+}
+
+# 2. Symlink dos cfgs + copia dos settings ajustaveis
 ln -sfn ${KAMP_DIR}/Line_Purge.cfg ~/printer_data/config/custom/Line_Purge.cfg
 ln -sfn ${KAMP_DIR}/Adaptive_Meshing.cfg ~/printer_data/config/custom/Adaptive_Meshing.cfg
 cp -f ${SCRIPT_DIR}/kamp_settings.cfg ~/printer_data/config/custom/kamp_settings.cfg
