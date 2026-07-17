@@ -19,17 +19,29 @@ Small prints get short purges, large prints get long ones — no wasted filament
 
 ## What gets installed
 
-- KAMP repo cloned to `$HOME/Klipper-Adaptive-Meshing-Purging` (= `/mnt/UDISK/root/Klipper-Adaptive-Meshing-Purging` on K2 Plus).
-- `Line_Purge.cfg` symlinked from KAMP into `custom/` (gets KAMP updates via `git pull` in the repo).
+- `Line_Purge.cfg` and `Adaptive_Meshing.cfg` are **vendored in this feature directory**
+  (upstream kyleisah/Klipper-Adaptive-Meshing-Purging @ `b0dad8e`) and copied to
+  `/mnt/UDISK/kamp/`, then symlinked into `custom/`. No runtime download — deploys are
+  deterministic and offline.
 - `kamp_settings.cfg` copied (not symlinked) into `custom/` — K2 Plus-tailored defaults; survives KAMP repo updates intact.
 - `exclude_object.cfg` (one-line `[exclude_object]` block) into `custom/`, only if no existing `[exclude_object]` is defined elsewhere.
 - **(Optional, prompted)** `firmware_retraction.cfg` into `custom/` if the user opts in — silences KAMP's purge-time warning, lets G10/G11 work in any macro, and gives one place to tune retraction. Conservative PLA defaults (0.5mm @ 35mm/s); skip if you have per-filament retraction set in your slicer. Skipped automatically if `[firmware_retraction]` is already configured anywhere in the config tree, or if running non-interactively.
 - All four included from `custom/main.cfg` (firmware_retraction.cfg only if opted in).
 
-`Smart_Park.cfg` and `Adaptive_Meshing.cfg` from KAMP are intentionally **not** installed:
+`Smart_Park.cfg` from KAMP is intentionally **not** installed — its heat-soak/parking
+conflicts with the heat-soak logic already in k2-improvements' `START_PRINT`.
 
-- Smart Park's heat-soak/parking conflicts with the heat-soak logic already in k2-improvements' `START_PRINT`.
-- Adaptive_Meshing.cfg targets stock Klipper bed_mesh; the K2 Plus's Cartographer plugin already does adaptive meshing via `BED_MESH_CALIBRATE PROFILE=adaptive ADAPTIVE=1` (called from `START_PRINT`).
+### Adaptive_Meshing.cfg carries a local patch ("PATCH JOELMA")
+
+The K2 Plus probe is a compiled Creality blob (`prtouch_v3_wrapper`, fw 1.1.6.1) that
+always assumes the `[bed_mesh]` config grid (`probe_count: 5,5` = 25 points). Stock KAMP
+adapts `PROBE_COUNT` down (e.g. 3,3) for small prints, which makes the blob throw
+`IndexError` at line 1925 → `key60` → Klipper shutdown mid `START_PRINT ADAPTIVE=1`.
+
+The vendored `Adaptive_Meshing.cfg` keeps the adaptive **area** (the real win) but pins
+the probe **count** to the config grid. A 5×5 mesh over a partial area was validated in
+production (jul/2026). Never re-sync the file from upstream without re-applying the patch
+— `install.sh` greps for the `PATCH JOELMA` marker and aborts if it's missing.
 
 ## Slicer change required
 
@@ -137,7 +149,7 @@ If you slice prints aligned to the very front of the bed (Y_min ≤ 45), the pur
 sh /mnt/UDISK/root/k2-improvements/features/kamp-adaptive-purge/install.sh
 ```
 
-Idempotent — re-runs pull KAMP updates and refresh the symlinks. Does **not** restart Klipper. Restart manually when convenient (and remember the K2 Plus power-cycle caveat after restart).
+Idempotent — re-runs refresh the vendored cfgs and symlinks, then restart Klipper (remember the K2 Plus power-cycle caveat after restart).
 
 ## Credits
 
