@@ -217,15 +217,16 @@ O dropbear da K2 não tem SFTP. Transferência de arquivo: base64 em pedaços vi
 decode com `python3` na impressora, conferindo `sha256`.
 (O entware, via `cartographer_prep.sh`, instala `openssh-sftp-server` e resolve isto.)
 
-### 7.4 Sync de filamentos CFS → OrcaSlicer (RESOLVIDO por outra via)
+### 7.4 Sync de filamentos CFS → OrcaSlicer (histórico: `[mmu]` REMOVIDO jul/2026)
 
-Escrever direto no CFS (JSON/485) não propaga sozinho — o box lê os arquivos só no
-init do Klipper. A solução é do **lado do Orca**: a feature `macros/orca-filament-sync`
-instala um `mmu.py` que expõe um objeto `[mmu]` (simula Happy Hare) lendo o objeto
-`box` + sobrepondo `material_modify_info.json`. O Orca (Printer Agent = Moonraker →
-ícone **Filament Sync** na aba Filament) lê esse objeto via Moonraker e sincroniza
-cor/material — **ao vivo, sem restart, sem 485**. Editar um slot na Central aparece
-no Orca. Baseado em Stevetm2/K2_Custom_Macros (K2OrcaFilamentSync).
+1ª solução (aposentada): a feature `macros/orca-filament-sync` instalava um `mmu.py`
+que simulava um Happy Hare lendo o objeto `box`, pro Orca sincronizar via Moonraker.
+Funcionou, mas exigiu 3 PRs de conserto (schema instável do blob) e virou redundante:
+o **Orca com CFS nativo (fork Jacob / mainline)** lê o `boxsInfo` **direto pela porta
+9999** — mesmo caminho do CrealityPrint oficial (§7.4.1). Decisão do Israel: remover.
+O `install.sh` da feature é hoje um **desinstalador idempotente**; a UI do CFS virou o
+painel **Filament Box** da Central (dados stock: `box` + `filament_switch_sensor` +
+Spoolman + edição ao vivo pela 9999). Código antigo: histórico do git até o PR #35.
 
 #### 7.4.1 ⭐ O comando de ESCRITA da porta 9999 (fonte: CrealityOfficial/CrealityPrint)
 

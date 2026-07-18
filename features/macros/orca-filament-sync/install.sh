@@ -1,41 +1,52 @@
 #!/bin/ash
-# Instala o sync de filamentos CFS -> OrcaSlicer (objeto [mmu] via Moonraker).
-# O modulo mmu.py vai para klippy/extras; a secao [mmu] entra via custom/.
-# Additive: nao sobrescreve patches; so acrescenta um modulo e uma secao.
-
-set -e
+# DESINSTALADOR do sync [mmu] (emulacao Happy Hare) - jul/2026.
+#
+# Por que removido: o [mmu] emulava um MMU sobre o blob 'box' da Creality so
+# pra (a) o OrcaSlicer sincronizar filamentos e (b) o painel MMU do Fluidd
+# exibir o CFS. Os dois papeis foram substituidos:
+#   (a) o Orca (fork Jacob / mainline com CFS nativo) le o CFS DIRETO pela
+#       porta 9999 - sem emulacao;
+#   (b) a Central de Calibracao ganhou o painel "Filament Box" (dados 100%
+#       stock: objeto box + filament_switch_sensor + Spoolman + edicao ao
+#       vivo pela 9999 via joelma_cfs_edit).
+# Menos uma camada de traducao sobre o blob = menos superficie de shutdown.
+#
+# Este script e IDEMPOTENTE: remove o modulo e a secao se existirem e sai
+# quieto se ja estiver limpo. A pasta continua no repo so por causa do
+# run_step do no-carto-joelma.sh.
 
 SCRIPT_DIR=$(readlink -f $(dirname $0))
+MUDOU=0
 
-# acha o extras do Klipper (no 1.1.6.x e /usr/share/klipper)
-EXTRAS=""
+# 1. remove o symlink do modulo em klippy/extras
 for K in /usr/share/klipper /root/klipper $HOME/klipper; do
-    [ -d "$K/klippy/extras" ] && EXTRAS="$K/klippy/extras" && break
+    if [ -L "$K/klippy/extras/mmu.py" ]; then
+        rm -f "$K/klippy/extras/mmu.py"
+        echo "I: removido $K/klippy/extras/mmu.py"
+        MUDOU=1
+    fi
 done
-if [ -z "$EXTRAS" ]; then
-    echo "E: klippy/extras nao encontrado — abortando"
-    exit 1
+
+# 2. remove a secao [mmu] do custom/
+CFG=~/printer_data/config/custom/mmu.cfg
+if [ -e "$CFG" ] || [ -L "$CFG" ]; then
+    rm -f "$CFG"
+    echo "I: removido custom/mmu.cfg"
+    MUDOU=1
 fi
 
-# backup se ja existir um mmu.py diferente (nao perder nada)
-if [ -e "$EXTRAS/mmu.py" ] && [ ! -L "$EXTRAS/mmu.py" ]; then
-    cp -f "$EXTRAS/mmu.py" "$EXTRAS/mmu.py.orig-$(cat /proc/uptime | cut -d. -f1)" 2>/dev/null || true
-    echo "I: backup do mmu.py existente"
+# 3. tira o include do custom/main.cfg (sed inplace, idempotente)
+MAIN=~/printer_data/config/custom/main.cfg
+if [ -f "$MAIN" ] && grep -q "include mmu.cfg" "$MAIN"; then
+    sed -i '/include mmu\.cfg/d' "$MAIN"
+    echo "I: include mmu.cfg removido do custom/main.cfg"
+    MUDOU=1
 fi
-ln -sf "$SCRIPT_DIR/mmu.py" "$EXTRAS/mmu.py"
-echo "I: mmu.py -> $EXTRAS/mmu.py"
 
-# secao [mmu] via custom/main.cfg (padrao das outras macros)
-test -d ~/printer_data/config/custom || mkdir -p ~/printer_data/config/custom
-python ${SCRIPT_DIR}/../../../scripts/ensure_included.py \
-    ~/printer_data/config/printer.cfg custom/main.cfg
-ln -sf ${SCRIPT_DIR}/mmu.cfg ~/printer_data/config/custom/mmu.cfg
-python ${SCRIPT_DIR}/../../../scripts/ensure_included.py \
-    ~/printer_data/config/custom/main.cfg mmu.cfg
-
-/etc/init.d/klipper restart
-
-echo "I: sync CFS->Orca instalado."
-echo "   No OrcaSlicer: Printer Agent = Moonraker, salvar, e clicar no"
-echo "   icone Filament Sync na aba Filament. Se o Klipper nao subir,"
-echo "   remova 'custom/mmu.cfg' do include e reinicie (ver README)."
+# 4. so reinicia o Klipper se algo mudou de fato
+if [ "$MUDOU" = "1" ]; then
+    /etc/init.d/klipper restart
+    echo "I: [mmu] desinstalado - CFS agora e o Filament Box da Central"
+else
+    echo "I: [mmu] ja estava removido - nada a fazer"
+fi
