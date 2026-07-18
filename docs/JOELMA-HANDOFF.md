@@ -269,14 +269,14 @@ manda o `cRFIDRefresh`. Na Central: o **RELER RFID** agora tenta a 9999 por slot
 
 **Decisões do Israel:**
 - [x] **Botão RELER RFID:** mantido com confirmação + botão de recuperação + guarda `box_guard` (bug §7.1)
-- [x] **Convenção dos parafusos conferida no físico (jul/2026):** girar **horário (CW)
-      SOBE** o canto; **anti-horário (CCW) BAIXA**. A **direção** exibida (seta + rótulo
-      horário/anti-horário) já estava **correta** — vem do `sign` do backend (`CW` = canto
-      baixo → subir por horário; `CCW` = canto alto → descer por anti-horário). **Não**
-      inverter `const aperta = d.sign === "CW"` nem `_acao_pt` (a seta depende deles). O que
-      estava invertido eram os **rótulos de efeito** (`canto ALTO/BAIXO`, `vai descer/subir`,
-      aviso do rodapé, dica de nivelamento manual) — corrigidos pra "horário = sobe".
-      `APERTAR ≡ horário`, `SOLTAR ≡ anti-horário`.
+- [x] **Parafusos — instrução por EFEITO, não por sentido (jul/2026).** O knob fica por
+      baixo → "horário/anti-horário" se inverte conforme o ângulo de visão (o Israel testou
+      2× e deu **oposto**). Redesenho: a estrela do card virou o **efeito medido pelo probe**
+      (`SUBIR`/`DESCER` o canto), inequívoco — `sign=CW` = canto abaixo da base → SUBIR;
+      `sign=CCW` = acima → DESCER (`_acao_pt` e `const sobe = d.sign === "CW"`; **nunca inverte**,
+      vem da medição). O **sentido** é só dica secundária (`horario = !sobe`, "visto por
+      baixo", com "inverta se o desvio aumentar"). Se o sentido precisar mudar, mexer **só em
+      `horario`** — jamais no `sobe`/`_acao_pt`.
 - [ ] Nivelamento físico pelos gauges → PID mesa/bico → SAVE_CONFIG pela Central.
 - [ ] Testar o botão "Sincronizar com Spoolman" (criará 2 filaments novos — esperado).
 - [ ] Ligar "Label objects" no slicer + gcode `START_PRINT ... ADAPTIVE=1`, `LINE_PURGE`.

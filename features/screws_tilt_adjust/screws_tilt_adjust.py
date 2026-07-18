@@ -13,11 +13,11 @@ def _acao_pt(sign, full_turns, minutes):
     tot = full_turns * 60 + m
     if tot <= 3:
         return "OK"
-    # Teste fisico Joelma (jul/2026): horario (CW) SOBE o canto; anti-horario
-    # (CCW) BAIXA. O sign do algoritmo ja da a direcao certa (canto baixo ->
-    # CW/horario pra subir; canto alto -> CCW pra descer). APERTAR == horario
-    # (CW) por convencao do repo (bate com a dica de nivelamento manual).
-    acao = "APERTAR" if sign == "CW" else "SOLTAR"
+    # A instrucao inequivoca vem da MEDICAO, nao de sentido: sign=CW => canto
+    # probado abaixo da base => SUBIR; sign=CCW => acima => DESCER. O sentido do
+    # knob (horario/anti-horario) e ambiguo na K2 (knob por baixo, inverte
+    # conforme o angulo de visao) - fica so como dica na Central, nunca aqui.
+    acao = "SUBIR" if sign == "CW" else "DESCER"
     graus = m * 6
     if full_turns > 0:
         qtd = "%d volta(s)" % full_turns + (" + %d\xb0" % graus if graus > 0 else "")

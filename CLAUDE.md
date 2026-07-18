@@ -154,14 +154,18 @@ pesquisa do CFS no OrcaSlicer, receitas de curl. **Leia sob demanda.**
   **Se "não aparecer": Ctrl+F5** (cache). Obs.: o offset fica zerado (transitório; reseta no
   restart) — re-grave seu Z-offset e crie o mesh de novo depois. Implementado na web de
   propósito (o `bl_macros.cfg` do DnG some em firmware update → erro XS3002).
-- **Convenção dos parafusos — CONFERIDA no físico (jul/2026):** girar **horário (CW)
-  SOBE** o canto; **anti-horário (CCW) BAIXA**. Consequências:
-  - **Direção (seta + rótulo horário/anti-horário) já está certa** e vem do backend:
-    `sign=CW` só sai pra canto **baixo** (subir por horário), `sign=CCW` pra canto
-    **alto** (descer por anti-horário). **Não inverter** `const aperta = d.sign === "CW"`
-    (calibra.html) nem o `_acao_pt` (screws_tilt_adjust.py) — a seta depende deles.
-  - O que estava invertido eram só os **rótulos de efeito**: `canto ALTO/BAIXO` e
-    `vai descer/subir` no card, o aviso do rodapé e a dica de nivelamento manual.
-    Corrigidos pra bater com "horário = sobe". `APERTAR ≡ horário`, `SOLTAR ≡ anti-horário`.
+- **Parafusos — NÃO use "horário/anti-horário" como instrução principal (jul/2026).**
+  O knob da K2 fica **por baixo**, então o nome do giro **se inverte conforme o ângulo
+  de visão** — o Israel testou 2× e deu resultado **oposto** cada vez. Isso é
+  ambiguidade real, não erro dele; qualquer código que dependa de "horário = sobe"
+  vai flip-flopar pra sempre.
+  - **A estrela do card é o EFEITO medido pelo probe** (`SUBIR`/`DESCER` o canto),
+    que é **inequívoco**: `sign=CW` = canto probado abaixo da base → **SUBIR**;
+    `sign=CCW` = acima → **DESCER**. Vale no `_acao_pt` (screws_tilt_adjust.py) e no
+    `const sobe = d.sign === "CW"` (calibra.html). **Isso nunca inverte** — vem da medição.
+  - O **sentido do knob** é só **dica secundária** (`const horario = !sobe`), ancorada
+    em "**visto por baixo**", e o card manda **inverter se o desvio aumentar** (RELER).
+    Convenção atual: por baixo, SUBIR = anti-horário, DESCER = horário. Se mudar de
+    novo, mexer **só em `horario`** — nunca no `sobe`/`_acao_pt`.
 - **Testar** o botão "Sincronizar com Spoolman" (vai criar 2 filaments novos — é esperado, veja o
   HANDOFF §5).
