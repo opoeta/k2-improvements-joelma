@@ -125,27 +125,33 @@ pesquisa do CFS no OrcaSlicer, receitas de curl. **Leia sob demanda.**
   ready; se o boot reclamar do `rename_existing`, remover `[include box_guard.cfg]` de
   `custom/main.cfg`; (b) gráficos de ressonância após um TEST_RESONANCES;
   (c) vínculo Spoolman no editor do slot.
-- **Validar o `[mmu]` corrigido (jul/2026):** a 1ª versão lia `same_material` (schema K1) —
-  na Joelma o box publica `box.T1.material_type[]` e os gates vinham vazios ("Mmu (disabled)"
-  com 1 spool fantasma no Fluidd). Corrigido pra dual-schema + gates por posição física +
-  `enabled: True`. Conferir: Fluidd deve mostrar 4 slots (T1A ABS branco, T1B PLA vermelho,
-  T1C PLA cinza, T1D vazio) e o Filament Sync do Orca (Printer Agent = Moonraker) deve puxar
-  os 3. Os botões do painel MMU do Fluidd chamam macros Happy Hare que não existem — ignorar.
+- ~~Validar o `[mmu]` corrigido~~ **[mmu] REMOVIDO (jul/2026)** — decisão do Israel:
+  a emulação Happy Hare sobre o blob (3 PRs de conserto em uma semana) foi substituída
+  pelo **Filament Box da Central** (dados 100% stock) + **sync nativo do Orca pela porta
+  9999** (fork Jacob/mainline — não precisa mais do objeto `mmu`). O `install.sh` da
+  feature `macros/orca-filament-sync` virou **desinstalador idempotente** (remove
+  `klippy/extras/mmu.py`, `custom/mmu.cfg` e o include no próximo `joelma update`).
+  Código antigo vive no histórico do git (até PR #35).
 - **Testar o "Teste do papel"** (novo, no card Nivelamento dos parafusos): move o bico pra
   cima de cada parafuso a Z=0,10 mm usando as coordenadas do `[screws_tilt_adjust]`; limpa o
   mesh no início (`BED_MESH_CLEAR`). FRENTE ESQUERDO é a referência. **Se "não aparecer":
   é cache do navegador — Ctrl+F5** (o arquivo é copiado pelo install da nivela_web).
-- **CFS 100% no painel MMU do Fluidd (jul/2026):** `calibra.html` não tem mais NADA de CFS
-  (removido: cards, editor, Spoolman, RFID, seletor, CFS avançado — ~33 KB de JS/HTML). O
-  painel MMU mostra tudo (cores, material, nomes+%, temp/umidade via `temperature_sensor
-  cfs_1`, fw na unit) e faz tudo: Carregar/Ejetar (`MMU_CHANGE_TOOL`/`MMU_EJECT`→`BOX_*`,
-  com guarda de slot vazio) e **editar gate** (`MMU_GATE_MAP`→grava o overlay
-  `material_modify_info.json` que o `mmu.py` lê → cor/material ao vivo no painel e no Orca).
-  Reler RFID / Spoolman ficam na tela da impressora (dependem de Moonraker/9999).
-- **Sync robusto (regressão corrigida):** a auto-detecção por `state` zerava o `num_gates`
-  quando o box reportava outro estado → **T1 agora SEMPRE aparece** se existir; `get_status`
-  nunca levanta exceção. Conferir: Fluidd mostra "CFS 1" com os slots reais e o Filament
-  Sync do Orca (Printer Agent = Moonraker) puxa cor/tipo/%.
+- **CFS = painel "Filament Box" da Central (jul/2026, substituiu o painel MMU):**
+  reimplementação stock do widget do Jacob10383 no `calibra.html` — status + **temp/umidade
+  do CFS** (`box.T1.temperature`/`dry_and_humidity`), bico com/sem filamento
+  (`filament_switch_sensor filament_sensor`), grade de slots com **heurística
+  anti-fantasma** (presença = `vender` OU `remain_len` válidos; nunca cor/material, que são
+  RFID "latcheados"), peso restante via Spoolman (`extra.tag` = TNN), **cadeia de runout
+  calculada no cliente** (mesmo tipo+cor; o firmware faz a troca se `auto_refill=1`),
+  Load (`BOX_LOAD_MATERIAL` com confirm + guarda) / Unload (`BOX_QUIT_MATERIAL`), RFID por
+  slot (`/server/joelma/cfs/rfid`) e **editor ao vivo** (`POST /server/joelma/cfs/edit` →
+  porta 9999, sem restart). Encoder/buffer/clog do widget do Jacob **não existem no stock**
+  (plugin fechado) — omitidos de propósito. `box.filament` é índice de seleção *stale*:
+  "Loaded" só quando o sensor do printhead confirma.
+- **Sync do Orca sem o `[mmu]`:** o caminho é o **CFS nativo pela porta 9999** (build do
+  fork Jacob / mainline com CFS — HANDOFF §9). No Orca: impressora conectada via IP →
+  sync de filamento lê o `boxsInfo` direto. O Filament Sync via "Printer Agent = Moonraker"
+  (Happy Hare) **deixou de existir** junto com o `[mmu]`.
 - **Testar a "Calibração pelo papel"** (base DnG-Crafts/K2-Leveling, card Nivelamento):
   "Iniciar (60°C + bico 205°C)" → aquece os dois e **espera o BICO** (M104/M109) → home com
   o bico quente (na K2 o probe é a célula de carga do bico; homear frio e medir quente dá Z

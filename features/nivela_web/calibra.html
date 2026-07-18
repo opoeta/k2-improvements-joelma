@@ -279,6 +279,22 @@
   .mesh-ctl button { padding:6px 12px; min-height:28px; font-size:.7rem; border-radius:16px; box-shadow:none; border:1px solid var(--line); background:transparent; }
   .mesh-ctl button.on { background:var(--primary); border-color:transparent; color:#fff; }
   #papelbox button.on { background:var(--primary); border-color:transparent; color:#fff; }
+  /* ---------- Filament Box (CFS) ---------- */
+  .fb-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px; margin-top:8px; }
+  .fb-slot { background:var(--card); border-radius:10px; padding:8px 10px; box-shadow:var(--elev);
+             border:1.5px solid transparent; animation:floatIn .3s ease both; }
+  .fb-slot.on { border-color:var(--warn); }
+  .fb-slot.vazio { opacity:.55; }
+  .fb-slot h4 { font-size:.82rem; display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+  .fb-slot h4 .est { font-size:.66rem; font-weight:500; padding:1px 7px; border-radius:9px; border:1px solid var(--line); }
+  .fb-slot.on h4 .est { color:var(--warn); border-color:var(--warn); }
+  .fb-slot .mat { display:flex; align-items:center; gap:7px; font-weight:700; font-size:.95rem; }
+  .fb-swatch { width:17px; height:17px; border-radius:50%; border:2px solid var(--line); flex:none; }
+  .fb-slot .peso { font-size:.7rem; color:var(--mut); margin-top:2px; }
+  .fb-slot .barra { height:4px; border-radius:2px; background:var(--card2); margin-top:3px; overflow:hidden; }
+  .fb-slot .barra > i { display:block; height:100%; background:var(--primary); }
+  .fb-slot .acts { display:flex; gap:4px; margin-top:6px; }
+  .fb-slot .acts button { padding:3px 8px; font-size:.68rem; min-width:0; }
   #papelnav [data-papel].ok { background:var(--ok); border-color:transparent; color:#fff; }
   #papelnav [data-papel].ok.on { box-shadow:0 0 0 2px var(--primary); }
   .mesh-ctl .rel { display:flex; align-items:center; gap:7px; flex:1; min-width:150px; }
@@ -410,6 +426,36 @@
   <button id="luztog" class="ghost"><i data-ic="bulb"></i> <span id="luztxt">Luz</span></button>
   <input type="range" id="luzdim" min="0" max="100" step="5" value="0">
   <span class="luz-pct" id="luzpct">0%</span>
+</div>
+
+<h2><i data-ic="cube"></i> FILAMENT BOX (CFS)</h2>
+<div class="lin" style="gap:8px;flex-wrap:wrap;align-items:center">
+  <span class="acc-tag" id="fb-status">—</span>
+  <span class="acc-tag" id="fb-clima">🌡 — · 💧 —</span>
+  <span class="acc-tag" id="fb-path">bico: —</span>
+  <span class="acc-tag" id="fb-refill">runout: —</span>
+  <button class="ghost" id="fb-reload" title="Atualizar agora" style="padding:4px 10px"><i data-ic="refresh"></i></button>
+</div>
+<div class="fb-grid" id="fb-grid"><div class="det" style="grid-column:1/-1">lendo o CFS…</div></div>
+<div class="det" id="fb-runout" style="margin-top:4px"></div>
+<div id="fb-editor" style="display:none">
+  <div class="lin" style="gap:8px;flex-wrap:wrap;align-items:end;margin-top:8px">
+    <b id="fb-ed-tnn" style="min-width:38px">—</b>
+    <label style="min-width:auto">Material
+      <select id="fb-ed-mat">
+        <option>PLA</option><option>PLA-CF</option><option>PETG</option><option>PETG-CF</option>
+        <option>ABS</option><option>TPU</option><option>ASA</option><option>PA</option><option>PC</option>
+      </select></label>
+    <label style="min-width:auto">Cor <input type="color" id="fb-ed-cor" value="#22aa55" style="width:44px;height:30px;padding:0"></label>
+    <label style="min-width:auto">Marca <input id="fb-ed-marca" placeholder="Generic" style="width:90px"></label>
+    <label style="min-width:auto">Nome <input id="fb-ed-nome" placeholder="(= material)" style="width:110px"></label>
+    <label style="min-width:auto">°C min <input type="number" id="fb-ed-tmin" style="width:58px"></label>
+    <label style="min-width:auto">°C max <input type="number" id="fb-ed-tmax" style="width:58px"></label>
+    <label style="min-width:auto">PA <input id="fb-ed-pa" placeholder="0.04" style="width:56px"></label>
+    <button id="fb-ed-ok" class="salvar"><i data-ic="check"></i> Aplicar ao vivo</button>
+    <button id="fb-ed-x" class="ghost">Fechar</button>
+  </div>
+  <div class="dica" style="margin-top:4px">Grava no CFS e sincroniza <b>ao vivo</b> pela porta 9999 (tela + Orca, sem restart). Slot com tag RFID: a tag manda — use RFID pra reler.</div>
 </div>
 
 <h2><i data-ic="settings"></i> CALIBRAÇÕES</h2>
@@ -1064,6 +1110,177 @@ async function render(){
 }
 
 // ---------- Botoes ----------
+// ---------- Filament Box (CFS) — dados 100% stock ----------
+// Reimplementação do widget do Jacob10383 SEM o plugin fechado dele: objeto
+// Klipper `box` (T1.temperature/dry_and_humidity/material_type/color_value/
+// vender/remain_len), sensor `filament_switch_sensor filament_sensor` no
+// printhead, Spoolman (extra.tag = TNN) e edição ao vivo pela porta 9999
+// (joelma_cfs_edit). Encoder/buffer/clog não existem no stock — omitidos em
+// vez de exibir "--" falso.
+// Heurística de PRESENÇA (do HelixScreen): vender OU remain_len válidos —
+// nunca color/material, que são RFID "latcheados" e criam slots-fantasma.
+const FB_TIPO = {"000001":"PLA","002001":"PETG","003001":"ABS","004001":"TPU","005001":"ASA","006001":"PA","007001":"PC"};
+const FB_CAT5 = {"00001":"PLA","00002":"PLA Silk","00003":"PETG","00004":"ABS","00005":"TPU","00006":"PLA-CF",
+                 "00007":"ASA","00008":"PA","00009":"PA-CF","00012":"HIPS","00013":"PET-CF","00014":"PETG-CF",
+                 "00019":"PP","00020":"PET"};
+const FB_SLOTS = ["A","B","C","D"];
+let fbSpool = {};        // TNN -> {nome, resta, total} via Spoolman
+let fbUlt = null;        // ultimo snapshot do box (pro editor/load)
+function fbTipo(cod){
+  if (cod == null || cod === "" || cod === "-1") return null;
+  const c = String(cod);
+  return FB_TIPO[c] || FB_CAT5[c.slice(-5)] || ("cod " + c);
+}
+function fbCor(v){
+  if (v == null || v === "" || v === "-1") return null;
+  const h = String(v).replace(/^#/, "").replace(/^0/, "");
+  return /^[0-9a-fA-F]{6}$/.test(h) ? "#" + h.toLowerCase() : null;
+}
+function fbPresente(t1, i){
+  const vd = (t1.vender || [])[i], rl = (t1.remain_len || [])[i];
+  const okV = vd != null && String(vd) !== "" && String(vd) !== "-1" && String(vd) !== "0";
+  const okR = rl != null && String(rl) !== "" && String(rl) !== "-1";
+  return okV || okR;
+}
+async function fbSpoolman(){
+  try {
+    const r = await fetch(base + "/server/spoolman/proxy", {method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({request_method:"GET", path:"/v1/spool"})});
+    if (!r.ok) return;
+    const spools = (await r.json()).result || [];
+    fbSpool = {};
+    for (const s of spools) {
+      const tag = String(((s.extra || {}).tag) || "").replace(/"/g, "");
+      if (!/^T[1-4][A-D]$/.test(tag)) continue;
+      fbSpool[tag] = { nome: ((s.filament || {}).name) || "", resta: s.remaining_weight, total: s.initial_weight };
+    }
+  } catch(e){}
+}
+async function fbAtualiza(){
+  let box = null, sensor = null;
+  try {
+    const q = await rpc("printer.objects.query", {objects:{box:null, "filament_switch_sensor filament_sensor":null}});
+    box = q.status.box || null;
+    sensor = q.status["filament_switch_sensor filament_sensor"] || null;
+  } catch(e){ $("fb-status").textContent = "CFS: sem leitura"; return; }
+  if (!box || !box.T1 || box.T1 === "None" || typeof box.T1 !== "object") {
+    $("fb-status").textContent = "CFS: desconectado";
+    $("fb-grid").innerHTML = '<div class="det" style="grid-column:1/-1">objeto box indisponível</div>';
+    return;
+  }
+  fbUlt = box;
+  const t1 = box.T1;
+  $("fb-status").textContent = "CFS: " + (t1.state || box.state || "?") + (t1.version ? " · fw " + t1.version : "");
+  $("fb-clima").textContent = "🌡 " + (t1.temperature ?? "—") + "°C · 💧 " + (t1.dry_and_humidity ?? "—") + "%";
+  const noBico = sensor ? !!sensor.filament_detected : null;
+  // box.filament = índice de SELEÇÃO (pode ficar "stale" — caveat HelixScreen);
+  // só rotulamos "carregado" quando o sensor do printhead confirma filamento
+  const sel = parseInt(box.filament, 10);
+  const selTnn = (!isNaN(sel) && sel >= 0 && sel < 4) ? "T1" + FB_SLOTS[sel] : null;
+  $("fb-path").textContent = "bico: " + (noBico === null ? "?" : noBico ? ("com filamento" + (selTnn ? " (" + selTnn + ")" : "")) : "vazio");
+  const runoutGate = String(box.filament_useup ?? "0") === "1";
+  $("fb-refill").textContent = "runout: " + (runoutGate ? "SLOT ESGOTADO!" : (String(box.auto_refill ?? "0") === "1" ? "auto-troca ligada" : "pausa (auto off)"));
+  // grade de slots
+  let html = "";
+  const carregadoTnn = (noBico && selTnn) ? selTnn : null;
+  for (let i = 0; i < 4; i++) {
+    const tnn = "T1" + FB_SLOTS[i];
+    const pres = fbPresente(t1, i);
+    const cor = fbCor((t1.color_value || [])[i]);
+    const tipo = fbTipo((t1.material_type || [])[i]);
+    const sp = fbSpool[tnn];
+    const carregado = tnn === carregadoTnn;
+    const pct = sp && sp.total > 0 ? Math.max(0, Math.min(100, Math.round(100 * sp.resta / sp.total))) : null;
+    html += '<div class="fb-slot' + (carregado ? " on" : "") + (pres ? "" : " vazio") + '">' +
+      '<h4>' + tnn + '<span class="est">' + (carregado ? "Loaded" : pres ? "Ready" : "vazio") + '</span></h4>' +
+      '<div class="mat"><span class="fb-swatch" style="background:' + (cor || "transparent") + '"></span>' + (tipo || "—") + '</div>' +
+      (sp && sp.resta != null ? '<div class="peso">' + Math.round(sp.resta) + 'g/' + Math.round(sp.total) + 'g' + (sp.nome ? " · " + sp.nome : "") + '</div>' +
+        (pct != null ? '<div class="barra"><i style="width:' + pct + '%"></i></div>' : "") : "") +
+      '<div class="acts">' +
+        (pres && !carregado ? '<button class="ghost" data-fb-load="' + tnn + '">Load</button>' : "") +
+        (carregado ? '<button class="ghost" data-fb-unload="1">Unload</button>' : "") +
+        '<button class="ghost" data-fb-edit="' + tnn + '">Editar</button>' +
+        '<button class="ghost" data-fb-rfid="' + tnn + '" title="Reler a tag RFID deste slot">RFID</button>' +
+      '</div></div>';
+  }
+  $("fb-grid").innerHTML = html;
+  // cadeia de runout calculada no cliente: reservas = mesmo tipo + mesma cor
+  let cadeia = "";
+  if (carregadoTnn) {
+    const i0 = FB_SLOTS.indexOf(carregadoTnn[2]);
+    const t0 = fbTipo((t1.material_type || [])[i0]), c0 = fbCor((t1.color_value || [])[i0]);
+    const reservas = [];
+    for (let i = 0; i < 4; i++) {
+      if (i === i0 || !fbPresente(t1, i)) continue;
+      if (fbTipo((t1.material_type || [])[i]) === t0 && fbCor((t1.color_value || [])[i]) === c0) reservas.push("T1" + FB_SLOTS[i]);
+    }
+    cadeia = reservas.length
+      ? "Se acabar: " + carregadoTnn + " → " + reservas.join(" → ") + (String(box.auto_refill ?? "0") === "1" ? " (troca automática do firmware)" : " (auto-troca DESLIGADA — vai pausar)")
+      : "Sem slot reserva do mesmo material+cor — runout vai pausar a impressão.";
+  }
+  $("fb-runout").textContent = cadeia;
+}
+$("fb-grid").addEventListener("click", async ev => {
+  const b = ev.target.closest("button");
+  if (!b || ocupado) return;
+  if (b.dataset.fbLoad) {
+    const tnn = b.dataset.fbLoad;
+    // guarda dupla: presença física (já filtrada no render) + bico livre —
+    // BOX_LOAD_MATERIAL com filamento no bico / slot vazio já derrubou o Klipper
+    if (!confirm("Carregar " + tnn + "? O CFS vai alimentar, cortar e purgar. Confirme que o bico está SEM filamento (Unload antes, se preciso).")) return;
+    roda("BOX_LOAD_MATERIAL TNN=" + tnn, "CFS: carregando " + tnn, 12, () => fbAtualiza());
+  } else if (b.dataset.fbUnload) {
+    if (!confirm("Descarregar o filamento do bico?")) return;
+    roda("BOX_QUIT_MATERIAL", "CFS: descarregando", 12, () => fbAtualiza());
+  } else if (b.dataset.fbRfid) {
+    const tnn = b.dataset.fbRfid;
+    try {
+      const r = await fetch(base + "/server/joelma/cfs/rfid", {method:"POST",
+        headers:{"Content-Type":"application/json"}, body:JSON.stringify({tnn})});
+      const j = await r.json().catch(() => ({}));
+      logLinha("// RFID " + tnn + ": " + ((j.result || j).ok ? "pedido enviado pela porta 9999" : "falhou"));
+      setTimeout(fbAtualiza, 3000);
+    } catch(e){ logLinha("!! RFID " + tnn + ": " + e.message); }
+  } else if (b.dataset.fbEdit) {
+    const tnn = b.dataset.fbEdit, i = FB_SLOTS.indexOf(tnn[2]);
+    const t1 = (fbUlt || {}).T1 || {};
+    $("fb-ed-tnn").textContent = tnn;
+    const tipo = fbTipo((t1.material_type || [])[i]);
+    if (tipo) { const sel = $("fb-ed-mat"); for (const o of sel.options) if (o.value === tipo) sel.value = tipo; }
+    const cor = fbCor((t1.color_value || [])[i]);
+    if (cor) $("fb-ed-cor").value = cor;
+    $("fb-editor").style.display = "";
+    $("fb-editor").scrollIntoView({behavior:"smooth", block:"nearest"});
+  }
+});
+$("fb-ed-x").onclick = () => { $("fb-editor").style.display = "none"; };
+$("fb-ed-ok").onclick = async () => {
+  const tnn = $("fb-ed-tnn").textContent;
+  if (!/^T[1-4][A-D]$/.test(tnn) || ocupado) return;
+  const corpo = { tnn, materialType: $("fb-ed-mat").value, color: $("fb-ed-cor").value,
+                  name: $("fb-ed-nome").value.trim(), brand: $("fb-ed-marca").value.trim() };
+  const tmin = parseInt($("fb-ed-tmin").value, 10), tmax = parseInt($("fb-ed-tmax").value, 10);
+  if (!isNaN(tmin)) corpo.minTemp = tmin;
+  if (!isNaN(tmax)) corpo.maxTemp = tmax;
+  const pa = $("fb-ed-pa").value.trim();
+  if (pa) corpo.pressure = pa;
+  try {
+    const r = await fetch(base + "/server/joelma/cfs/edit", {method:"POST",
+      headers:{"Content-Type":"application/json"}, body:JSON.stringify(corpo)});
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error((j.error && j.error.message) || ("HTTP " + r.status));
+    const res = j.result || j;
+    logLinha("// Slot " + tnn + " editado" + (res.enviado_9999 ? " e sincronizado AO VIVO pela porta 9999" : " (9999 falhou — pode precisar de restart)"));
+    $("fb-editor").style.display = "none";
+    setTimeout(fbAtualiza, 1500);
+  } catch(e){ logLinha("!! editar " + tnn + ": " + e.message); }
+};
+$("fb-reload").onclick = () => { if (!ocupado) { fbSpoolman().then(fbAtualiza); } };
+fbSpoolman().then(fbAtualiza);
+setInterval(fbAtualiza, 20000);
+setInterval(fbSpoolman, 90000);
+
 // ---------- Medição robusta (multi-passe) ----------
 // Por que multi-passe: o probe é a célula de carga do bico (ruído de centésimos)
 // e o Z_TILT_ADJUST re-converge diferente a cada rodada — 1 passe isolado dava
