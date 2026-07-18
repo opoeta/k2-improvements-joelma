@@ -13,9 +13,10 @@ def _acao_pt(sign, full_turns, minutes):
     tot = full_turns * 60 + m
     if tot <= 3:
         return "OK"
-    # Teste fisico na Joelma (jul/2026): a suposicao de "sentido invertido
-    # por knob embaixo" estava ERRADA — vale a convencao padrao do Klipper.
-    # CW = APERTAR (canto alto desce).
+    # Teste fisico Joelma (jul/2026): horario (CW) SOBE o canto; anti-horario
+    # (CCW) BAIXA. O sign do algoritmo ja da a direcao certa (canto baixo ->
+    # CW/horario pra subir; canto alto -> CCW pra descer). APERTAR == horario
+    # (CW) por convencao do repo (bate com a dica de nivelamento manual).
     acao = "APERTAR" if sign == "CW" else "SOLTAR"
     graus = m * 6
     if full_turns > 0:

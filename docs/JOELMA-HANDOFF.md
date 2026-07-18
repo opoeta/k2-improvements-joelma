@@ -269,11 +269,14 @@ manda o `cRFIDRefresh`. Na Central: o **RELER RFID** agora tenta a 9999 por slot
 
 **Decisões do Israel:**
 - [x] **Botão RELER RFID:** mantido com confirmação + botão de recuperação + guarda `box_guard` (bug §7.1)
-- [x] **Teste físico da inversão APERTAR/SOLTAR (jul/2026):** o teste mostrou que a
-      convenção "invertida por knob embaixo" estava **errada** — vale a **padrão do
-      Klipper** (CW = APERTAR = canto alto desce). Invertidas as duas linhas casadas:
-      `_acao_pt` no `screws_tilt_adjust.py` e `const aperta = d.sign === "CW"` no
-      `calibra.html` (+ aviso do rodapé). **As duas andam sempre juntas.**
+- [x] **Convenção dos parafusos conferida no físico (jul/2026):** girar **horário (CW)
+      SOBE** o canto; **anti-horário (CCW) BAIXA**. A **direção** exibida (seta + rótulo
+      horário/anti-horário) já estava **correta** — vem do `sign` do backend (`CW` = canto
+      baixo → subir por horário; `CCW` = canto alto → descer por anti-horário). **Não**
+      inverter `const aperta = d.sign === "CW"` nem `_acao_pt` (a seta depende deles). O que
+      estava invertido eram os **rótulos de efeito** (`canto ALTO/BAIXO`, `vai descer/subir`,
+      aviso do rodapé, dica de nivelamento manual) — corrigidos pra "horário = sobe".
+      `APERTAR ≡ horário`, `SOLTAR ≡ anti-horário`.
 - [ ] Nivelamento físico pelos gauges → PID mesa/bico → SAVE_CONFIG pela Central.
 - [ ] Testar o botão "Sincronizar com Spoolman" (criará 2 filaments novos — esperado).
 - [ ] Ligar "Label objects" no slicer + gcode `START_PRINT ... ADAPTIVE=1`, `LINE_PURGE`.
