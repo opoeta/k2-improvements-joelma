@@ -14,9 +14,10 @@ def _acao_pt(sign, full_turns, minutes):
     if tot <= 3:
         return "OK"
     # A instrucao inequivoca vem da MEDICAO, nao de sentido: sign=CW => canto
-    # probado abaixo da base => SUBIR; sign=CCW => acima => DESCER. O sentido do
-    # knob (horario/anti-horario) e ambiguo na K2 (knob por baixo, inverte
-    # conforme o angulo de visao) - fica so como dica na Central, nunca aqui.
+    # probado abaixo da base => SUBIR; sign=CCW => acima => DESCER. Sentido
+    # fisico (Klipper Config_Reference, screw_thread CW-M4): CW/horario diminui
+    # o gap = mesa sobe, visto DE CIMA (PR Klipper #4658; por baixo o giro
+    # aparente inverte). A Central mostra o sentido como dica secundaria.
     acao = "SUBIR" if sign == "CW" else "DESCER"
     graus = m * 6
     if full_turns > 0:

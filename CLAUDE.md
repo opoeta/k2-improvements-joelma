@@ -154,18 +154,17 @@ pesquisa do CFS no OrcaSlicer, receitas de curl. **Leia sob demanda.**
   **Se "não aparecer": Ctrl+F5** (cache). Obs.: o offset fica zerado (transitório; reseta no
   restart) — re-grave seu Z-offset e crie o mesh de novo depois. Implementado na web de
   propósito (o `bl_macros.cfg` do DnG some em firmware update → erro XS3002).
-- **Parafusos — NÃO use "horário/anti-horário" como instrução principal (jul/2026).**
-  O knob da K2 fica **por baixo**, então o nome do giro **se inverte conforme o ângulo
-  de visão** — o Israel testou 2× e deu resultado **oposto** cada vez. Isso é
-  ambiguidade real, não erro dele; qualquer código que dependa de "horário = sobe"
-  vai flip-flopar pra sempre.
-  - **A estrela do card é o EFEITO medido pelo probe** (`SUBIR`/`DESCER` o canto),
-    que é **inequívoco**: `sign=CW` = canto probado abaixo da base → **SUBIR**;
-    `sign=CCW` = acima → **DESCER**. Vale no `_acao_pt` (screws_tilt_adjust.py) e no
-    `const sobe = d.sign === "CW"` (calibra.html). **Isso nunca inverte** — vem da medição.
-  - O **sentido do knob** é só **dica secundária** (`const horario = !sobe`), ancorada
-    em "**visto por baixo**", e o card manda **inverter se o desvio aumentar** (RELER).
-    Convenção atual: por baixo, SUBIR = anti-horário, DESCER = horário. Se mudar de
-    novo, mexer **só em `horario`** — nunca no `sobe`/`_acao_pt`.
+- **Parafusos — convenção FECHADA com fonte (pesquisa jul/2026).** Klipper
+  `Config_Reference`, `screw_thread: CW-M4`: *"A clockwise rotation of the knob
+  **decreases the gap** between the nozzle and the bed"* → **horário = mesa SOBE**,
+  visto **de cima**, "através da mesa" (Klipper **PR #4658**: por baixo o giro aparente
+  inverte — foi a causa do flip-flop dos testes físicos). Teste físico do Israel
+  confirmou. Creality (manual + wiki) e DnG-Crafts **não documentam** sentido nenhum.
+  - **A estrela do card é o EFEITO medido pelo probe** (`SUBIR`/`DESCER`), inequívoco:
+    `sign=CW` = canto abaixo da base → **SUBIR**; `sign=CCW` = acima → **DESCER**
+    (`_acao_pt` no py e `const sobe = d.sign === "CW"` no html). **Nunca inverte.**
+  - A dica de sentido é **`const horario = sobe`** (CW-M4: horário diminui o gap).
+    Se um teste físico contradisser de novo, é **ângulo de visão** — a resposta é o
+    "se piorar, inverta" do card, **não** flipar o código.
 - **Testar** o botão "Sincronizar com Spoolman" (vai criar 2 filaments novos — é esperado, veja o
   HANDOFF §5).

@@ -435,7 +435,7 @@
       <button id="papel"><i data-ic="ruler"></i> Calibração pelo papel</button>
     </div>
     <div id="papelbox" style="display:none">
-      <div class="dica" style="margin:10px 0 8px">Nivelamento manual completo (base <b>DnG-Crafts/K2-Leveling</b>). Aquece <b>mesa + bico</b> e faz o home com o <b>bico quente</b> — na K2 o probe é a célula de carga do bico, então medir frio dá Z errado. Zera o offset, limpa o mesh e leva o bico a <b>Z = folha</b> no centro e em cada canto. Gire o knob até a folha <b>raspar de leve</b>: <b>muito presa</b> (bico perto) → o canto precisa <b>DESCER</b> (gire horário, visto por baixo); <b>muito solta →</b> precisa <b>SUBIR</b> (anti-horário). Se ao girar a folha <b>piorar</b>, inverta o sentido. Use o <b>Centro</b> como referência e iguale os cantos. Use o <b>ajuste fino de Z</b> pra achar o contato exato e marque <b>✓ OK</b> cada ponto.</div>
+      <div class="dica" style="margin:10px 0 8px">Nivelamento manual completo (base <b>DnG-Crafts/K2-Leveling</b>). Aquece <b>mesa + bico</b> e faz o home com o <b>bico quente</b> — na K2 o probe é a célula de carga do bico, então medir frio dá Z errado. Zera o offset, limpa o mesh e leva o bico a <b>Z = folha</b> no centro e em cada canto. Gire o knob até a folha <b>raspar de leve</b>: <b>muito presa</b> (bico perto) → o canto precisa <b>DESCER</b> (gire anti-horário); <b>muito solta →</b> precisa <b>SUBIR</b> (horário). Se ao girar a folha <b>piorar</b>, inverta o sentido. Use o <b>Centro</b> como referência e iguale os cantos. Use o <b>ajuste fino de Z</b> pra achar o contato exato e marque <b>✓ OK</b> cada ponto.</div>
       <div class="lin" id="papelcfg" style="gap:14px;margin:0 0 4px">
         <label style="min-width:auto">Folha (mm) <input type="number" id="papel-z" value="0.10" step="0.01" min="0" max="0.6" style="width:64px"></label>
         <label style="min-width:auto">Mesa °C <input type="number" id="papel-bed" value="60" step="5" min="0" max="110" style="width:56px"></label>
@@ -655,7 +655,7 @@
 </div>
 
 <div class="aviso">
-  Cada card manda <b>SUBIR</b> ou <b>DESCER</b> o canto (medido pelo probe — sempre certo). O <b>sentido do knob é visto POR BAIXO</b>: SUBIR = anti-horário, DESCER = horário. Na dúvida gire um pouco e aperte RELER — se o desvio <b>aumentar</b>, é o contrário: inverta.<br>
+  Cada card manda <b>SUBIR</b> ou <b>DESCER</b> o canto (medido pelo probe — sempre certo). Sentido (padrão Klipper CW-M4, confirmado na Joelma): <b>SUBIR = horário</b> • <b>DESCER = anti-horário</b>. Na dúvida gire um pouco e aperte RELER — se o desvio <b>aumentar</b>, inverta.<br>
   Repita a medição até todos ✓ OK (≤ 18°). Após PID concluído, aperte SALVAR para gravar.
 </div>
 <script>
@@ -1006,16 +1006,16 @@ async function render(){
     //   sign=CCW => canto probado ACIMA  da base => precisa DESCER
     // Isso e o que a estrela do card mostra (SUBIR/DESCER) e esta sempre certo.
     //
-    // O SENTIDO do knob (horario/anti-horario) e AMBIGUO na K2: o knob fica por
-    // baixo, entao o nome do giro se inverte conforme voce olha por cima ou por
-    // baixo — foi o que fez os dois testes fisicos do Israel sairem OPOSTOS.
-    // Por isso o sentido aqui e so uma DICA secundaria, ancorada em "visto por
-    // baixo", e o card manda inverter se o desvio aumentar. Convencao atual
-    // (2o teste Israel, jul/2026): visto por baixo -> SUBIR = anti-horario,
-    // DESCER = horario. Se algum dia mudar, mexer SO em `horario` (a estrela
-    // SUBIR/DESCER nunca muda, e da medicao).
+    // SENTIDO do knob — FECHADO com fonte (pesquisa jul/2026):
+    // Klipper Config_Reference, screw_thread CW-M4: "A clockwise rotation of
+    // the knob DECREASES the gap between the nozzle and the bed" => HORARIO =
+    // mesa SOBE. Ponto de vista da convencao: DE CIMA, "atraves da mesa"
+    // (Klipper PR #4658 — visto por baixo o giro aparente inverte, e foi isso
+    // que causou o flip-flop dos testes). Teste fisico do Israel confirmou:
+    // horario sobe, anti-horario desce. Se o fisico contradisser de novo, e
+    // angulo de visao — usar o "se piorar, inverta", NAO flipar o codigo.
     const sobe = d.sign === "CW";        // precisa subir? (medido pelo probe)
-    const horario = !sobe;               // dica de giro visto por baixo
+    const horario = sobe;                // CW-M4: horario diminui o gap (sobe)
     el.className = "canto " + (tot > 20 ? "bad" : "warn");
     const gg = v*360 + m*6;
     const cor = tot > 20 ? "#e57373" : "#ffb74d";
@@ -1023,7 +1023,7 @@ async function render(){
       '<div style="display:flex;gap:10px;align-items:center">' + gaugeSVG(gg, horario, cor) +
       '<div><div class="acao">' + (sobe ? "SUBIR" : "DESCER") + ' o canto</div>' +
       '<div class="qtd">' + graus(d.adjust_raw || d.adjust) + '</div>' +
-      '<div class="det">Canto ' + (sobe ? "BAIXO" : "ALTO") + " " + delta + "mm · gire " + (horario ? "horário" : "anti-horário") + " (por baixo; se piorar, inverta)" + '</div>' + '</div></div>';
+      '<div class="det">Canto ' + (sobe ? "BAIXO" : "ALTO") + " " + delta + "mm · gire " + (horario ? "horário" : "anti-horário") + " (se piorar, inverta)" + '</div>' + '</div></div>';
   }
 }
 
