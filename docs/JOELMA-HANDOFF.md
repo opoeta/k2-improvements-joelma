@@ -277,6 +277,13 @@ manda o `cRFIDRefresh`. Na Central: o **RELER RFID** agora tenta a 9999 por slot
       de `sign=CW` = canto baixo; **nunca inverte**); a dica de sentido é `horario = sobe`,
       com o fallback "se o desvio aumentar, inverta". Ângulo de visão explica qualquer
       contradição futura — não flipar o código.
+- [x] **Medição instável dos parafusos resolvida (jul/2026):** causas — z_tilt re-rodando
+      a cada medição (referência móvel), bico frio (probe = célula de carga; firmware proba
+      a 140°C), 1 amostra por ponto, e o `_RELATORIO_PARAFUSOS` com a convenção invertida
+      (bug). Agora: wrapper `SCREWS_TILT_CALCULATE TILT=0` p/ re-medições, `NIVELA_PARAFUSOS
+      [NOZ_TEMP=140] [TILT=]` aquece o bico, Central mede 2–3 passes com mediana +
+      repetibilidade por canto, e o wizard da folha térmica (0,10mm, bico 140°C, mesa lisa)
+      guia o nivelamento manual com validação pelo probe no fim.
 - [ ] Nivelamento físico pelos gauges → PID mesa/bico → SAVE_CONFIG pela Central.
 - [ ] Testar o botão "Sincronizar com Spoolman" (criará 2 filaments novos — esperado).
 - [ ] Ligar "Label objects" no slicer + gcode `START_PRINT ... ADAPTIVE=1`, `LINE_PURGE`.
