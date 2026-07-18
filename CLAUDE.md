@@ -154,10 +154,14 @@ pesquisa do CFS no OrcaSlicer, receitas de curl. **Leia sob demanda.**
   **Se "não aparecer": Ctrl+F5** (cache). Obs.: o offset fica zerado (transitório; reseta no
   restart) — re-grave seu Z-offset e crie o mesh de novo depois. Implementado na web de
   propósito (o `bl_macros.cfg` do DnG some em firmware update → erro XS3002).
-- ~~Teste físico da inversão APERTAR/SOLTAR~~ **FEITO (jul/2026):** a convenção
-  "invertida por knob embaixo" estava errada — vale a **padrão do Klipper**
-  (CW = APERTAR = canto alto desce). Corrigido em `_acao_pt`
-  (screws_tilt_adjust.py) **e** `const aperta = d.sign === "CW"` (calibra.html) —
-  **as duas linhas andam sempre juntas**; nunca inverter só uma.
+- **Convenção dos parafusos — CONFERIDA no físico (jul/2026):** girar **horário (CW)
+  SOBE** o canto; **anti-horário (CCW) BAIXA**. Consequências:
+  - **Direção (seta + rótulo horário/anti-horário) já está certa** e vem do backend:
+    `sign=CW` só sai pra canto **baixo** (subir por horário), `sign=CCW` pra canto
+    **alto** (descer por anti-horário). **Não inverter** `const aperta = d.sign === "CW"`
+    (calibra.html) nem o `_acao_pt` (screws_tilt_adjust.py) — a seta depende deles.
+  - O que estava invertido eram só os **rótulos de efeito**: `canto ALTO/BAIXO` e
+    `vai descer/subir` no card, o aviso do rodapé e a dica de nivelamento manual.
+    Corrigidos pra bater com "horário = sobe". `APERTAR ≡ horário`, `SOLTAR ≡ anti-horário`.
 - **Testar** o botão "Sincronizar com Spoolman" (vai criar 2 filaments novos — é esperado, veja o
   HANDOFF §5).
