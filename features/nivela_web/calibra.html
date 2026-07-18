@@ -435,7 +435,7 @@
       <button id="papel"><i data-ic="ruler"></i> Calibração pelo papel</button>
     </div>
     <div id="papelbox" style="display:none">
-      <div class="dica" style="margin:10px 0 8px">Nivelamento manual completo (base <b>DnG-Crafts/K2-Leveling</b>). Aquece <b>mesa + bico</b> e faz o home com o <b>bico quente</b> — na K2 o probe é a célula de carga do bico, então medir frio dá Z errado. Zera o offset, limpa o mesh e leva o bico a <b>Z = folha</b> no centro e em cada canto. Gire o knob até a folha <b>raspar de leve</b>: <b>muito presa →</b> SOLTE (anti-horário, canto desce); <b>muito solta →</b> APERTE (horário, canto sobe). Use o <b>Centro</b> como referência e iguale os cantos. Use o <b>ajuste fino de Z</b> pra achar o contato exato e marque <b>✓ OK</b> cada ponto.</div>
+      <div class="dica" style="margin:10px 0 8px">Nivelamento manual completo (base <b>DnG-Crafts/K2-Leveling</b>). Aquece <b>mesa + bico</b> e faz o home com o <b>bico quente</b> — na K2 o probe é a célula de carga do bico, então medir frio dá Z errado. Zera o offset, limpa o mesh e leva o bico a <b>Z = folha</b> no centro e em cada canto. Gire o knob até a folha <b>raspar de leve</b>: <b>muito presa</b> (bico perto) → o canto precisa <b>DESCER</b> (gire horário, visto por baixo); <b>muito solta →</b> precisa <b>SUBIR</b> (anti-horário). Se ao girar a folha <b>piorar</b>, inverta o sentido. Use o <b>Centro</b> como referência e iguale os cantos. Use o <b>ajuste fino de Z</b> pra achar o contato exato e marque <b>✓ OK</b> cada ponto.</div>
       <div class="lin" id="papelcfg" style="gap:14px;margin:0 0 4px">
         <label style="min-width:auto">Folha (mm) <input type="number" id="papel-z" value="0.10" step="0.01" min="0" max="0.6" style="width:64px"></label>
         <label style="min-width:auto">Mesa °C <input type="number" id="papel-bed" value="60" step="5" min="0" max="110" style="width:56px"></label>
@@ -655,7 +655,7 @@
 </div>
 
 <div class="aviso">
-  APERTAR (horário) = canto SOBE • SOLTAR (anti-horário) = canto DESCE<br>
+  Cada card manda <b>SUBIR</b> ou <b>DESCER</b> o canto (medido pelo probe — sempre certo). O <b>sentido do knob é visto POR BAIXO</b>: SUBIR = anti-horário, DESCER = horário. Na dúvida gire um pouco e aperte RELER — se o desvio <b>aumentar</b>, é o contrário: inverta.<br>
   Repita a medição até todos ✓ OK (≤ 18°). Após PID concluído, aperte SALVAR para gravar.
 </div>
 <script>
@@ -1001,22 +1001,29 @@ async function render(){
     const tot = v*60 + m;
     const delta = Math.abs(d.z - zbase).toFixed(3);
     if (tot <= 3) { el.className = "canto ok"; el.innerHTML = h3 + '<div class="acao">✓ OK</div><div class="det">Desvio ' + delta + 'mm</div>'; continue; }
-    // Teste fisico Joelma (jul/2026): horario (CW) SOBE o canto; anti-horario
-    // (CCW) BAIXA. O backend ja manda a direcao certa: sign=CW p/ canto BAIXO
-    // (subir por horario), sign=CCW p/ canto ALTO (descer por anti-horario).
-    // Ou seja: a SETA e o rotulo horario/anti-horario aqui JA estao corretos.
-    // O que estava invertido eram so os rotulos de EFEITO (alto/baixo e
-    // sobe/desce) — corrigidos abaixo. Nao mexer no `aperta` nem no _acao_pt
-    // do screws_tilt_adjust.py (a direcao das duas pontas anda junta).
-    const aperta = d.sign === "CW";
+    // A instrucao INEQUIVOCA vem da MEDICAO do probe, nao de sentido nenhum:
+    //   sign=CW  => canto probado ABAIXO da base => precisa SUBIR
+    //   sign=CCW => canto probado ACIMA  da base => precisa DESCER
+    // Isso e o que a estrela do card mostra (SUBIR/DESCER) e esta sempre certo.
+    //
+    // O SENTIDO do knob (horario/anti-horario) e AMBIGUO na K2: o knob fica por
+    // baixo, entao o nome do giro se inverte conforme voce olha por cima ou por
+    // baixo — foi o que fez os dois testes fisicos do Israel sairem OPOSTOS.
+    // Por isso o sentido aqui e so uma DICA secundaria, ancorada em "visto por
+    // baixo", e o card manda inverter se o desvio aumentar. Convencao atual
+    // (2o teste Israel, jul/2026): visto por baixo -> SUBIR = anti-horario,
+    // DESCER = horario. Se algum dia mudar, mexer SO em `horario` (a estrela
+    // SUBIR/DESCER nunca muda, e da medicao).
+    const sobe = d.sign === "CW";        // precisa subir? (medido pelo probe)
+    const horario = !sobe;               // dica de giro visto por baixo
     el.className = "canto " + (tot > 20 ? "bad" : "warn");
     const gg = v*360 + m*6;
     const cor = tot > 20 ? "#e57373" : "#ffb74d";
     el.innerHTML = h3 +
-      '<div style="display:flex;gap:10px;align-items:center">' + gaugeSVG(gg, aperta, cor) +
-      '<div><div class="acao">' + (aperta ? "APERTAR" : "SOLTAR") + '</div>' +
-      '<div class="qtd">' + graus(d.adjust_raw || d.adjust) + " " + (aperta ? "(horário)" : "(anti-horário)") + '</div>' +
-      '<div class="det">Canto ' + (aperta ? "BAIXO" : "ALTO") + " " + delta + "mm — vai " + (aperta ? "subir" : "descer") + '</div>' + '</div></div>';
+      '<div style="display:flex;gap:10px;align-items:center">' + gaugeSVG(gg, horario, cor) +
+      '<div><div class="acao">' + (sobe ? "SUBIR" : "DESCER") + ' o canto</div>' +
+      '<div class="qtd">' + graus(d.adjust_raw || d.adjust) + '</div>' +
+      '<div class="det">Canto ' + (sobe ? "BAIXO" : "ALTO") + " " + delta + "mm · gire " + (horario ? "horário" : "anti-horário") + " (por baixo; se piorar, inverta)" + '</div>' + '</div></div>';
   }
 }
 
