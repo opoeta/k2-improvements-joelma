@@ -269,14 +269,14 @@ manda o `cRFIDRefresh`. Na Central: o **RELER RFID** agora tenta a 9999 por slot
 
 **Decisões do Israel:**
 - [x] **Botão RELER RFID:** mantido com confirmação + botão de recuperação + guarda `box_guard` (bug §7.1)
-- [x] **Parafusos — instrução por EFEITO, não por sentido (jul/2026).** O knob fica por
-      baixo → "horário/anti-horário" se inverte conforme o ângulo de visão (o Israel testou
-      2× e deu **oposto**). Redesenho: a estrela do card virou o **efeito medido pelo probe**
-      (`SUBIR`/`DESCER` o canto), inequívoco — `sign=CW` = canto abaixo da base → SUBIR;
-      `sign=CCW` = acima → DESCER (`_acao_pt` e `const sobe = d.sign === "CW"`; **nunca inverte**,
-      vem da medição). O **sentido** é só dica secundária (`horario = !sobe`, "visto por
-      baixo", com "inverta se o desvio aumentar"). Se o sentido precisar mudar, mexer **só em
-      `horario`** — jamais no `sobe`/`_acao_pt`.
+- [x] **Parafusos — convenção fechada com fonte (jul/2026).** Klipper `Config_Reference`
+      (`screw_thread: CW-M4`): *"a clockwise rotation of the knob decreases the gap"* →
+      **horário = mesa sobe**, visto **de cima** (Klipper PR #4658: por baixo o giro aparente
+      inverte — era a causa do flip-flop). Teste físico confirmou. Creality/DnG-Crafts não
+      documentam sentido. A estrela do card segue sendo o **efeito medido** (`SUBIR`/`DESCER`,
+      de `sign=CW` = canto baixo; **nunca inverte**); a dica de sentido é `horario = sobe`,
+      com o fallback "se o desvio aumentar, inverta". Ângulo de visão explica qualquer
+      contradição futura — não flipar o código.
 - [ ] Nivelamento físico pelos gauges → PID mesa/bico → SAVE_CONFIG pela Central.
 - [ ] Testar o botão "Sincronizar com Spoolman" (criará 2 filaments novos — esperado).
 - [ ] Ligar "Label objects" no slicer + gcode `START_PRINT ... ADAPTIVE=1`, `LINE_PURGE`.
