@@ -417,10 +417,10 @@
 <details class="acc" open>
   <summary><i data-ic="screw"></i> Nivelamento dos parafusos <span class="acc-tag vazio" id="tag-nivel">—</span></summary>
   <div class="acc-body">
-    <div class="dica">Mede os 4 cantos com o probe e diz quanto girar cada knob. Repita até todos ficarem <b>✓ OK</b> (≤ 18°).</div>
+    <div class="dica">Mede os 4 cantos com o probe e diz quanto girar cada knob. <b>MEDIR</b> aquece <b>bico 140°C</b> (ele É o sensor) + mesa 60°C, alinha os fusos e faz <b>2–3 passes</b> — o card mostra a <b>repetibilidade</b> de cada canto. Depois de girar um knob use <b>Re-medir</b> (1 passe rápido, sem re-alinhar os fusos — mesma referência). Repita até todos <b>✓ OK</b> (≤ 18°).</div>
     <div class="botoes">
-      <button id="medir" class="principal"><i data-ic="ruler"></i> MEDIR (aquece mesa a 60°C)</button>
-      <button id="frio"><i data-ic="snow"></i> Medir a frio</button>
+      <button id="medir" class="principal"><i data-ic="ruler"></i> MEDIR robusto (2–3 passes)</button>
+      <button id="frio"><i data-ic="target"></i> Re-medir (1 passe)</button>
       <button id="reler"><i data-ic="refresh"></i> Reler</button>
     </div>
     <div class="mesa-wrap">
@@ -435,15 +435,15 @@
       <button id="papel"><i data-ic="ruler"></i> Calibração pelo papel</button>
     </div>
     <div id="papelbox" style="display:none">
-      <div class="dica" style="margin:10px 0 8px">Nivelamento manual completo (base <b>DnG-Crafts/K2-Leveling</b>). Aquece <b>mesa + bico</b> e faz o home com o <b>bico quente</b> — na K2 o probe é a célula de carga do bico, então medir frio dá Z errado. Zera o offset, limpa o mesh e leva o bico a <b>Z = folha</b> no centro e em cada canto. Gire o knob até a folha <b>raspar de leve</b>: <b>muito presa</b> (bico perto) → o canto precisa <b>DESCER</b> (gire anti-horário); <b>muito solta →</b> precisa <b>SUBIR</b> (horário). Se ao girar a folha <b>piorar</b>, inverta o sentido. Use o <b>Centro</b> como referência e iguale os cantos. Use o <b>ajuste fino de Z</b> pra achar o contato exato e marque <b>✓ OK</b> cada ponto.</div>
+      <div class="dica" style="margin:10px 0 8px">Nivelamento manual com <b>folha térmica de 0,10mm</b> (mesa lisa; base DnG-Crafts/K2-Leveling). O bico aquece a <b>140°C</b> — quente o bastante pra <b>marcar a folha térmica</b> no contato (feedback visual, não só o arrasto) e é a mesma temperatura que o firmware usa pro probe; sem filamento carregado não há ooze. Sequência: aquece → home com bico quente → alinha fusos → zera offset e mesh → bico a <b>Z = 0,10</b> em cada ponto. <b>Deslize a folha sob o bico e leia a marca:</b> ▪ <b>listra forte / folha prende</b> → canto <b>ALTO</b> → <b>DESCER</b> (gire <b>anti-horário</b>) ▪ <b>desliza livre, sem marca</b> → canto <b>BAIXO</b> → <b>SUBIR</b> (gire <b>horário</b>) ▪ <b>marca leve e contínua</b> → ponto certo, <b>✓ OK</b>. No <b>Centro</b> (referência, sem knob) use o <b>ajuste fino de Z</b> até a marca leve e memorize essa sensação; nos cantos iguale <b>girando o knob</b>, não o Z. Ao final use <b>Validar com o probe</b> — e como zeramos o offset: re-grave o <b>Z-offset</b> e crie o <b>mesh</b> de novo antes de imprimir.</div>
       <div class="lin" id="papelcfg" style="gap:14px;margin:0 0 4px">
-        <label style="min-width:auto">Folha (mm) <input type="number" id="papel-z" value="0.10" step="0.01" min="0" max="0.6" style="width:64px"></label>
+        <label style="min-width:auto">Folha (mm) <input type="number" id="papel-z" value="0.10" step="0.01" min="0.02" max="0.6" style="width:64px"></label>
         <label style="min-width:auto">Mesa °C <input type="number" id="papel-bed" value="60" step="5" min="0" max="110" style="width:56px"></label>
-        <label style="min-width:auto">Bico °C <input type="number" id="papel-noz" value="205" step="5" min="0" max="260" style="width:56px"></label>
+        <label style="min-width:auto">Bico °C <input type="number" id="papel-noz" value="140" step="5" min="0" max="260" style="width:56px"></label>
       </div>
       <div class="botoes" id="papelini">
         <button id="papelquente" class="principal"><i data-ic="flame"></i> Iniciar (aquece + home quente)</button>
-        <button id="papelfrio"><i data-ic="snow"></i> A frio (menos preciso)</button>
+        <button id="papelfrio"><i data-ic="snow"></i> Mesa fria (bico aquece mesmo assim)</button>
       </div>
       <div id="papelnav" style="display:none">
         <div class="dica" id="papeldica" style="margin:4px 0 8px">Escolha um ponto:</div>
@@ -459,6 +459,8 @@
             <span class="det" style="margin:0">Z ao vivo: <b id="papel-zlive" class="val">—</b> mm</span>
             <button class="ghost" data-znudge="-0.05">Z −0,05</button>
             <button class="ghost" data-znudge="-0.02">−0,02</button>
+            <button class="ghost" data-znudge="-0.01">−0,01</button>
+            <button class="ghost" data-znudge="0.01">+0,01</button>
             <button class="ghost" data-znudge="0.02">+0,02</button>
             <button class="ghost" data-znudge="0.05">+0,05</button>
             <button id="papelok" class="principal"><i data-ic="check"></i> Marcar OK</button>
@@ -473,7 +475,8 @@
           </div>
         </div>
         <div class="botoes" style="margin-top:8px">
-          <button id="papelsobe" class="ghost"><i data-ic="ruler"></i> Subir 5&nbsp;mm (trocar papel)</button>
+          <button id="papelsobe" class="ghost"><i data-ic="ruler"></i> Subir 5&nbsp;mm (trocar folha)</button>
+          <button id="papelval" class="ghost"><i data-ic="target"></i> Validar com o probe</button>
           <button id="papelfim" class="ghost"><i data-ic="check"></i> Encerrar (home + desliga)</button>
         </div>
         <div class="dica" id="papelprog" style="margin-top:6px">0/5 pontos conferidos</div>
@@ -835,8 +838,12 @@ function aplicaStatus(st){
       $("posy").textContent = st.toolhead.position[1].toFixed(1);
       $("posz").textContent = st.toolhead.position[2].toFixed(2);
       const pzl = document.getElementById("papel-zlive");
-      papelZlive = st.toolhead.position[2];
-      if (pzl) pzl.textContent = papelZlive.toFixed(3);
+      // nao sobrescrever durante um movimento do wizard: uma resposta de poll
+      // em voo chegaria DEPOIS do movimento com a posicao antiga (corrida)
+      if (!ocupado) {
+        papelZlive = st.toolhead.position[2];
+        if (pzl) pzl.textContent = papelZlive.toFixed(3);
+      }
     }
     if (st.toolhead.homed_axes !== undefined)
       $("poshome").textContent = (st.toolhead.homed_axes || "").length < 3 ? "sem home" : "";
@@ -985,22 +992,51 @@ function gaugeSVG(g, horario, cor){
     '<text x="50" y="57" text-anchor="middle" font-size="21" font-weight="800" fill="#eceff1">' + rotulo + '</text></svg>';
 }
 async function render(){
-  const q = await rpc("printer.objects.query", {objects:{screws_tilt_adjust:null}});
-  const s = q.status.screws_tilt_adjust;
-  if (!s || s.error) return;
-  const res = s.results || {};
+  let res;
+  if (medAgg) {
+    // Resultados AGREGADOS: cada canto traz a MEDIANA das diferenças por passe
+    // (z_base − z_canto no mesmo passe). Reconstrói adjust/sign com a mesma
+    // matemática do screws_tilt_adjust.py — voltas = |diff| / 0.7 (passo do
+    // M4, threads_factor do CW-M4), sign=CW quando o canto está abaixo da
+    // base (precisa SUBIR). Divergências deliberadas do py: rollover de 60min
+    // ("02:00" em vez de "01:60") e half-up no arredondamento — só display,
+    // a decisão do card (tot<=3) não muda.
+    res = {};
+    for (const k of CANTOS) {
+      const a = medAgg[k];
+      if (!a) continue;
+      if (k === medAgg.base) { res[k] = {sign:"CW", adjust_raw:"00:00", is_base:true}; continue; }
+      const adj = Math.abs(a.diff) < 0.001 ? 0 : Math.abs(a.diff) / 0.7;
+      let volt = Math.trunc(adj), min = Math.round((adj - volt) * 60);
+      if (min === 60) { volt++; min = 0; }
+      res[k] = {delta: Math.abs(a.diff), sign: a.diff >= 0 ? "CW" : "CCW",
+                adjust_raw: String(volt).padStart(2,"0") + ":" + String(min).padStart(2,"0"),
+                is_base:false, spread:a.spread};
+    }
+  } else {
+    const q = await rpc("printer.objects.query", {objects:{screws_tilt_adjust:null}});
+    const s = q.status.screws_tilt_adjust;
+    if (!s || s.error) return;
+    res = s.results || {};
+  }
   if (!Object.keys(res).length) return;
   let zbase = 0;
-  for (const k in res) if (res[k].is_base) zbase = res[k].z;
+  for (const k in res) if (res[k].is_base && typeof res[k].z === "number") zbase = res[k].z;
+  // variação da diferença entre passes: >0,03 = instável (mesmo limiar do
+  // desempate — não é parafuso, é bico sujo/térmica/folga do knob)
+  const rep = d => d.spread == null ? "" :
+    (d.spread > 0.03
+      ? ' · <b style="color:var(--bad)">Δ' + d.spread.toFixed(3) + ' entre passes — INSTÁVEL</b>: limpe o bico, espere a temperatura estabilizar e cheque folga no knob'
+      : ' · Δ' + d.spread.toFixed(3) + ' entre ' + (medAgg ? medAgg.n : "?") + ' passes');
   for (const k of ["screw1","screw2","screw3","screw4"]) {
     const el = $(k), d = res[k];
     const h3 = el.querySelector("h3").outerHTML;
     if (!d) { el.innerHTML = h3 + '<div class="acao">—</div>'; continue; }
-    if (d.is_base) { el.className = "canto base"; el.innerHTML = h3 + '<div class="acao">🔵 BASE</div><div class="det">Referência — não mexer</div>'; continue; }
+    if (d.is_base) { el.className = "canto base"; el.innerHTML = h3 + '<div class="acao">🔵 BASE</div><div class="det">Referência — não mexer' + rep(d) + '</div>'; continue; }
     const [v,m] = (d.adjust_raw || d.adjust).split(":").map(Number);
     const tot = v*60 + m;
-    const delta = Math.abs(d.z - zbase).toFixed(3);
-    if (tot <= 3) { el.className = "canto ok"; el.innerHTML = h3 + '<div class="acao">✓ OK</div><div class="det">Desvio ' + delta + 'mm</div>'; continue; }
+    const delta = (d.delta != null ? d.delta : Math.abs(d.z - zbase)).toFixed(3);
+    if (tot <= 3) { el.className = "canto ok"; el.innerHTML = h3 + '<div class="acao">✓ OK</div><div class="det">Desvio ' + delta + 'mm' + rep(d) + '</div>'; continue; }
     // A instrucao INEQUIVOCA vem da MEDICAO do probe, nao de sentido nenhum:
     //   sign=CW  => canto probado ABAIXO da base => precisa SUBIR
     //   sign=CCW => canto probado ACIMA  da base => precisa DESCER
@@ -1023,14 +1059,94 @@ async function render(){
       '<div style="display:flex;gap:10px;align-items:center">' + gaugeSVG(gg, horario, cor) +
       '<div><div class="acao">' + (sobe ? "SUBIR" : "DESCER") + ' o canto</div>' +
       '<div class="qtd">' + graus(d.adjust_raw || d.adjust) + '</div>' +
-      '<div class="det">Canto ' + (sobe ? "BAIXO" : "ALTO") + " " + delta + "mm · gire " + (horario ? "horário" : "anti-horário") + " (se piorar, inverta)" + '</div>' + '</div></div>';
+      '<div class="det">Canto ' + (sobe ? "BAIXO" : "ALTO") + " " + delta + "mm · gire " + (horario ? "horário" : "anti-horário") + " (se piorar, inverta)" + rep(d) + '</div>' + '</div></div>';
   }
 }
 
 // ---------- Botoes ----------
-$("medir").onclick = () => roda("NIVELA_PARAFUSOS", "Nivelamento (aquece 60°C + mede)", 12, () => render());
-$("frio").onclick  = () => roda("NIVELA_PARAFUSOS BED_TEMP=0", "Nivelamento a frio", 12, () => render());
-$("reler").onclick = () => render().catch(e => logLinha("!! " + e.message));
+// ---------- Medição robusta (multi-passe) ----------
+// Por que multi-passe: o probe é a célula de carga do bico (ruído de centésimos)
+// e o Z_TILT_ADJUST re-converge diferente a cada rodada — 1 passe isolado dava
+// "valores que mudam sozinhos". Protocolo: passe 1 com TILT=1 (alinha fusos +
+// home Z com bico quente a 140°C), passe 2 com TILT=0 (MESMA referência). Se
+// algum canto divergir >0,03mm entre passes, roda um 3º de desempate.
+// ESTATÍSTICA: agrega a MEDIANA DAS DIFERENÇAS por passe (z_base − z_canto
+// dentro do MESMO passe) — nunca diferença de medianas, que injetaria de volta
+// o drift de referência entre passes que o protocolo elimina. O Δ do card é a
+// variação da diferença entre passes: Δ alto não é parafuso — é bico sujo,
+// temperatura instável ou knob com folga.
+let medAgg = null;   // {n, base:"screwK", screwN:{diff, spread}} quando há agregado
+const CANTOS = ["screw1","screw2","screw3","screw4"];
+async function lerResults(){
+  const q = await rpc("printer.objects.query", {objects:{screws_tilt_adjust:null}});
+  const s = q.status.screws_tilt_adjust || {};
+  if (s.error) throw new Error("screws_tilt_adjust reportou erro (desvio grande ou probe falhou)");
+  return s.results || {};
+}
+function mediana(a){ const s = [...a].sort((x,y)=>x-y), m = Math.floor(s.length/2); return s.length%2 ? s[m] : (s[m-1]+s[m])/2; }
+// difs por passe: {base, difs:{screwN: z_base - z_screwN}} ou null se passe inválido
+function difsDoPasse(p){
+  const kb = CANTOS.find(k => p[k] && p[k].is_base);
+  if (!kb || typeof p[kb].z !== "number") return null;
+  const d = {base: kb, difs: {}};
+  for (const k of CANTOS) if (p[k] && typeof p[k].z === "number") d.difs[k] = p[kb].z - p[k].z;
+  return d;
+}
+async function medirRobusto(opts){
+  const o = Object.assign({bed:60, noz:140, tilt1:1, rotulo:"Medição"}, opts || {});
+  const anterior = medAgg;
+  medAgg = null;
+  const passes = [];
+  trava(true);
+  try {
+    setStatus(o.rotulo + " — passe 1", "aquece bico " + o.noz + "°C" + (o.bed>0 ? " + mesa " + o.bed + "°C" : "") + (o.tilt1 ? ", alinha fusos" : "") + " e mede", "busy");
+    await gcode("NIVELA_PARAFUSOS BED_TEMP=" + o.bed + " NOZ_TEMP=" + o.noz + " TILT=" + (o.tilt1 ? 1 : 0), 18);
+    passes.push(await lerResults());
+    setStatus(o.rotulo + " — passe 2", "re-medindo com a MESMA referência (sem z_tilt)", "busy");
+    await gcode("NIVELA_PARAFUSOS BED_TEMP=0 NOZ_TEMP=" + o.noz + " TILT=0", 8);
+    passes.push(await lerResults());
+    const validos = () => passes.map(difsDoPasse).filter(Boolean);
+    const rangeDe = (vs, k) => { const ds = vs.map(v => v.difs[k]).filter(x => typeof x === "number"); return ds.length ? Math.max(...ds) - Math.min(...ds) : 0; };
+    if (CANTOS.some(k => rangeDe(validos(), k) > 0.03)) {
+      setStatus(o.rotulo + " — desempate (3º passe)", "passes divergiram >0,03mm — medindo de novo", "busy");
+      await gcode("NIVELA_PARAFUSOS BED_TEMP=0 NOZ_TEMP=" + o.noz + " TILT=0", 8);
+      passes.push(await lerResults());
+    }
+    const vs = validos();
+    if (!vs.length) throw new Error("nenhum passe retornou uma base válida — medição descartada");
+    const agg = { n: vs.length, base: vs[vs.length-1].base };
+    for (const k of CANTOS) {
+      const ds = vs.map(v => v.difs[k]).filter(x => typeof x === "number");
+      if (!ds.length) continue;
+      agg[k] = { diff: mediana(ds), spread: Math.max(...ds) - Math.min(...ds) };
+    }
+    medAgg = agg;
+    setStatus(o.rotulo + " concluída (" + vs.length + " passes)", "gire conforme os cards; depois Re-medir (1 passe)", "on");
+    await render();
+  } catch(e){
+    medAgg = anterior;   // falha não destrói o agregado anterior
+    const to = /abort/i.test(e.name || "") || /timeout|abort/i.test(e.message);
+    setStatus("FALHOU: " + o.rotulo.toLowerCase(), e.message + (to ? " — o comando pode AINDA estar rodando na impressora; espere ficar ociosa antes de repetir" : ""), "err");
+    logLinha("!! " + e.message);
+  }
+  finally { trava(false); }
+}
+async function medirRapido(){
+  trava(true);
+  try {
+    setStatus("Re-medição rápida", "1 passe, sem z_tilt — mesma referência da anterior", "busy");
+    await gcode("NIVELA_PARAFUSOS BED_TEMP=0 NOZ_TEMP=140 TILT=0", 8);
+    medAgg = null;   // só invalida o agregado DEPOIS do sucesso
+    setStatus("Re-medição concluída", "compare com a anterior", "on");
+    await render();
+  } catch(e){ setStatus("FALHOU: re-medição", e.message + " — se foi timeout, o comando pode ainda estar rodando na impressora", "err"); logLinha("!! " + e.message); }
+  finally { trava(false); }
+}
+$("medir").onclick = () => { if (!ocupado) medirRobusto(); };
+$("frio").onclick  = () => { if (!ocupado) medirRapido(); };
+// Reler = buscar do printer AGORA (descarta o agregado em cache — senão
+// "reler" renderizaria dados velhos depois de uma medição externa/console)
+$("reler").onclick = () => { medAgg = null; render().catch(e => logLinha("!! " + e.message)); };
 
 // ---------- Calibração pelo papel (nivelamento manual, base DnG-Crafts) ----------
 // Baseado em DnG-Crafts/K2-Leveling — implementado aqui na web (mais robusto
@@ -1039,13 +1155,27 @@ $("reler").onclick = () => render().catch(e => logLinha("!! " + e.message));
 // o probe da K2 e a celula de carga do proprio bico (homear frio e medir quente
 // da Z errado). Depois zera o offset, limpa o mesh e leva o bico a Z=0.1mm (uma
 // folha) no centro e em cada canto. Centro e a referencia (DnG A_0_START_CENTER).
-const PAPEL = {z:0.1, sobe:5, fim:15, bed:60, noz:205,
+const PAPEL = {z:0.1, sobe:5, fim:15, bed:60, noz:140,
   fb:{screw1:[45,28], screw2:[307,28], screw3:[307,314], screw4:[45,314]},
-  dica:{center:"REFERÊNCIA — sinta o arrasto da folha aqui e memorize.",
-        screw1:"Gire até a folha raspar IGUAL ao Centro.",
-        screw2:"Gire até a folha raspar IGUAL ao Centro.",
-        screw3:"Gire até a folha raspar IGUAL ao Centro.",
-        screw4:"Gire até a folha raspar IGUAL ao Centro."}};
+  dica:{center:"REFERÊNCIA (sem knob) — ajuste o Z fino até a folha deslizar com MARCA LEVE e contínua. Memorize.",
+        screw1:"Gire o KNOB até a folha marcar IGUAL ao Centro — SUBIR = horário · DESCER = anti-horário.",
+        screw2:"Gire o KNOB até a folha marcar IGUAL ao Centro — SUBIR = horário · DESCER = anti-horário.",
+        screw3:"Gire o KNOB até a folha marcar IGUAL ao Centro — SUBIR = horário · DESCER = anti-horário.",
+        screw4:"Gire o KNOB até a folha marcar IGUAL ao Centro — SUBIR = horário · DESCER = anti-horário."}};
+// progresso persistente: sobrevive a reload/queda da pagina no meio do processo
+const PAPEL_LS = "papelterm:feitos";
+function papelSalva(){ try { localStorage.setItem(PAPEL_LS, JSON.stringify([...papelFeito])); } catch(e){} }
+function papelRestaura(){
+  try {
+    const v = JSON.parse(localStorage.getItem(PAPEL_LS) || "[]");
+    const s = new Set((Array.isArray(v) ? v : []).filter(x => PAPEL_PTS.includes(x)));
+    // o Centro NUNCA e restaurado: a retomada re-roda z_tilt/G28 (referencia
+    // nova em centesimos) — re-conferir a referencia e obrigatorio, senao os
+    // cantos da sessao 2 nivelam contra um zero diferente do da sessao 1
+    s.delete("center");
+    return s;
+  } catch(e){ return new Set(); }
+}
 let papelXY = null;
 async function papelCoords(){
   if (papelXY) return papelXY;
@@ -1068,7 +1198,8 @@ let papelFeito = new Set(), papelAtual = null, papelZlive = null;
 // le folha/temperaturas dos inputs (com fallback pros defaults)
 function papelNum(){
   const z = +$("papel-z").value, bed = +$("papel-bed").value, noz = +$("papel-noz").value;
-  return { z: z>=0 && z<=0.6 ? z : 0.10, bed: bed>=0 ? bed : 60, noz: noz>=0 ? noz : 205 };
+  // piso 0,02: folha 0 significaria comandar contato metal-PEI em cada ponto
+  return { z: z>=0.02 && z<=0.6 ? z : 0.10, bed: bed>=0 ? bed : 60, noz: noz>=0 ? noz : 140 };
 }
 function papelProg(){
   $("papelprog").textContent = papelFeito.size + "/5 pontos conferidos" + (papelFeito.size>=5 ? " — pode Encerrar ✓" : "");
@@ -1077,8 +1208,9 @@ function papelProg(){
 async function papelVai(k){
   const nome = PAPEL_NOME[k] || k, cfg = papelNum();
   papelAtual = k;
-  trava(true); setStatus("Papel: " + nome, "movendo o bico a Z=" + cfg.z + "mm...", "busy");
+  trava(true); setStatus("Folha: " + nome, "movendo o bico a Z=" + cfg.z + "mm...", "busy");
   try {
+    await papelZreal();   // guarda: bloqueia se offset/mesh reativaram (restart)
     const c = (await papelCoords())[k];
     await gcode("G90\nG21\nG1 Z" + PAPEL.sobe + " F300\nG1 X" + c[0] + " Y" + c[1] + " F5000\nG1 Z" + cfg.z + " F300", 3);
     document.querySelectorAll("#papelnav [data-papel]").forEach(b => b.classList.toggle("on", b.dataset.papel === k));
@@ -1088,49 +1220,86 @@ async function papelVai(k){
   } catch(e){ setStatus("FALHOU: papel", e.message, "err"); logLinha("!! " + e.message); }
   finally { trava(false); }
 }
-async function papelPrep(quente){
+async function papelPrep(mesaQuente){
   trava(true);
   const cfg = papelNum();
-  papelFeito = new Set(); papelProg();
-  setStatus("Calibração pelo papel", quente ? ("aquecendo mesa " + cfg.bed + "°C + bico " + cfg.noz + "°C...") : "preparando (a frio)...", "busy");
+  // mantem progresso parcial restaurado (retomada); sessao completa recomeça
+  if (papelFeito.size >= PAPEL_PTS.length) papelFeito = new Set();
+  papelSalva(); papelProg();
+  setStatus("Calibração pela folha", "aquecendo bico " + cfg.noz + "°C" + (mesaQuente ? (" + mesa " + cfg.bed + "°C") : " (mesa fria)") + "...", "busy");
   try {
-    if (quente){
-      // aquece os dois e ESPERA O BICO antes de homear (DnG: probe = bico)
-      await gcode("M140 S" + cfg.bed + "\nM104 S" + cfg.noz, 1);
-      await gcode("M109 S" + cfg.noz, 10);
-    }
+    // o BICO aquece SEMPRE: ele é o probe (célula de carga) e é o calor dele
+    // que marca a folha térmica — home/z_tilt/G28 frios dariam Z errado.
+    // "mesaQuente=false" só pula o aquecimento da MESA (medição rápida).
+    if (mesaQuente) await gcode("M140 S" + cfg.bed, 1);
+    await gcode("M104 S" + cfg.noz, 1);
+    await gcode("M109 S" + cfg.noz, 10);
     const q = await rpc("printer.objects.query", {objects:{toolhead:["homed_axes"]}});
     if ((((q.status.toolhead||{}).homed_axes)||"").length < 3) await gcode("G28", 8);
-    if (quente) await gcode("M190 S" + cfg.bed, 12);   // espera a mesa
+    if (mesaQuente) await gcode("M190 S" + cfg.bed, 12);   // espera a mesa
+    // alinha os fusos motorizados ANTES de nivelar os knobs (senao voce nivela
+    // a chapa em cima de um carrier torto) e re-homeia Z ja quente
+    setStatus("Calibração pela folha", "alinhando os fusos Z (Z_TILT_ADJUST)...", "busy");
+    await gcode("Z_TILT_ADJUST\nG28 Z", 8);
     // zera offset + limpa mesh: Z=0 vira o zero real do probe
     await gcode("SET_GCODE_OFFSET Z=0 MOVE=0\nBED_MESH_CLEAR", 2);
     $("papelini").style.display = "none";
     $("papelnav").style.display = "";
     trava(false);
-    await papelVai("center");   // começa no centro (referência)
+    // começa no centro (referência) ou retoma do primeiro ponto pendente
+    await papelVai(PAPEL_PTS.find(p => !papelFeito.has(p)) || "center");
   } catch(e){ trava(false); setStatus("FALHOU: calibração pelo papel", e.message, "err"); logLinha("!! " + e.message); }
+}
+// Posição Z REAL lida agora do printer (nunca do cache do poll — corrida real:
+// um poll em voo pode sobrescrever com posição velha logo após um movimento).
+// Na mesma query, GUARDA DE ESTADO: se um restart do Klipper reativou offset de
+// gcode ou o mesh "default" (o boot auto-carrega), os movimentos absolutos do
+// wizard passariam a ser compensados por uma superfície velha — bloqueia e
+// manda re-Iniciar (que zera offset e limpa o mesh de novo).
+async function papelZreal(){
+  const q = await rpc("printer.objects.query", {objects:{toolhead:["position"], gcode_move:["homing_origin"], bed_mesh:["profile_name"]}});
+  const off = (((q.status.gcode_move||{}).homing_origin)||[0,0,0])[2] || 0;
+  const mesh = ((q.status.bed_mesh||{}).profile_name) || "";
+  if (Math.abs(off) > 0.0005 || mesh !== "")
+    throw new Error("estado mudou (offset Z=" + off.toFixed(3) + (mesh ? ", mesh '" + mesh + "' ativo" : "") + ") — o Klipper reiniciou? Aperte Iniciar de novo antes de continuar");
+  const p = (q.status.toolhead||{}).position;
+  if (!Array.isArray(p)) throw new Error("nao consegui ler a posicao do toolhead");
+  papelZlive = p[2];
+  const pzl = $("papel-zlive"); if (pzl) pzl.textContent = papelZlive.toFixed(3);
+  return p[2];
+}
+async function papelMoveZ(alvo, rotulo){
+  if (alvo < 0.02) alvo = 0.02;   // piso duro: nunca esmaga o bico na mesa
+  await gcode("G90\nG21\nG1 Z" + alvo.toFixed(3) + " F100", 1);
+  papelZlive = alvo;
+  const pzl = $("papel-zlive"); if (pzl) pzl.textContent = alvo.toFixed(3);
+  setStatus("Folha: " + (PAPEL_NOME[papelAtual]||""), "Z=" + alvo.toFixed(3) + "mm — " + rotulo + (alvo === 0.02 ? " (piso de segurança)" : ""), "on");
+  return alvo;
 }
 async function papelNudge(d){
   trava(true);
   try {
-    await gcode("G91\nG1 Z" + d + " F100\nG90", 1);
-    setStatus("Papel: " + (PAPEL_NOME[papelAtual]||""), "Z ajustado " + (d>0?"+":"") + d + "mm — sinta a folha", "on");
+    const z = await papelZreal();          // posição fresca, nunca cache
+    await papelMoveZ(z + d, "deslize a folha e leia a marca");
   } catch(e){ setStatus("FALHOU: ajuste Z", e.message, "err"); logLinha("!! " + e.message); }
   finally { trava(false); }
 }
 // jog da mesa (passos maiores): sobe/desce o bico, mas DESCER nunca passa da
-// folha (piso de seguranca = cfg.z) pra nao bater o bico na mesa. Move em
-// absoluto usando o Z ao vivo -> o piso vale mesmo com cliques repetidos.
+// folha (piso = cfg.z) pra nao bater o bico na mesa. Sempre absoluto sobre a
+// posicao LIDA na hora (papelZreal) -> piso vale mesmo com cliques repetidos
+// e sem corrida com o poll.
 async function papelJog(d){
   trava(true);
   try {
     const cfg = papelNum();
-    let z = (typeof papelZlive === "number") ? papelZlive : cfg.z;
+    const z = await papelZreal();
     let alvo = z + d;
     if (alvo < cfg.z) alvo = cfg.z;   // piso: nunca desce abaixo da folha
     await gcode("G90\nG21\nG1 Z" + alvo.toFixed(3) + " F300", 2);
+    papelZlive = alvo;
+    const pzl = $("papel-zlive"); if (pzl) pzl.textContent = alvo.toFixed(3);
     const bateu = (d < 0 && alvo === cfg.z);
-    setStatus("Papel: " + (PAPEL_NOME[papelAtual]||""),
+    setStatus("Folha: " + (PAPEL_NOME[papelAtual]||""),
       "mesa em Z=" + alvo.toFixed(2) + "mm" + (bateu ? " (piso da folha)" : ""), "on");
   } catch(e){ setStatus("FALHOU: mover mesa", e.message, "err"); logLinha("!! " + e.message); }
   finally { trava(false); }
@@ -1143,6 +1312,12 @@ $("papel").onclick = () => {
   $("papelini").style.display = "";  // sempre volta pro passo de iniciar
   $("papelnav").style.display = "none";
   $("papelctl").style.display = "none";
+  // retoma progresso salvo (reload/queda no meio do processo)
+  const salvo = papelRestaura();
+  if (salvo.size > 0 && salvo.size < PAPEL_PTS.length) {
+    papelFeito = salvo; papelProg();
+    logLinha("// Folha: progresso anterior restaurado (" + salvo.size + "/5) — Iniciar re-aquece e continua");
+  }
 };
 $("papelquente").onclick = () => papelPrep(true);
 $("papelfrio").onclick   = () => papelPrep(false);
@@ -1156,12 +1331,36 @@ $("papelnav").addEventListener("click", ev => {
 });
 $("papelok").onclick = () => {
   if (!papelAtual || ocupado) return;
-  papelFeito.add(papelAtual); papelProg();
+  papelFeito.add(papelAtual); papelSalva(); papelProg();
   const prox = PAPEL_PTS.find(p => !papelFeito.has(p));   // avanca pro proximo
   if (prox) papelVai(prox);
-  else setStatus("Papel", "todos os 5 pontos conferidos — Encerrar", "on");
+  else setStatus("Folha", "todos os 5 pontos conferidos — Validar com o probe ou Encerrar", "on");
 };
-$("papelsobe").onclick = () => { if (!ocupado) roda("G91\nG1 Z5 F600\nG90", "Subindo o bico 5mm", 1); };
+$("papelval").onclick = () => {
+  // fecha o loop: depois do ajuste manual pela folha, mede com o probe
+  // (2-3 passes) e mostra nos cards se a mesa realmente ficou plana.
+  // TILT=0 no 1º passe: NAO re-roda z_tilt, senao a referencia que o usuario
+  // acabou de nivelar mudaria; temps = as da sessao da folha (validar a 60°C
+  // uma mesa nivelada a 100°C mediria expansao termica, nao parafuso).
+  if (ocupado) return;
+  if (!confirm("TIRE A FOLHA da mesa antes de validar — o probe mediria em cima dela (0,10mm falsos) e o bico quente pode marcar/colar a folha.\n\nFolha removida?")) return;
+  const cfg = papelNum();
+  medirRobusto({bed: cfg.bed, noz: cfg.noz, tilt1: 0, rotulo: "Validação"});
+};
+$("papelsobe").onclick = async () => {
+  if (ocupado) return;
+  trava(true);
+  try {
+    // absoluto via posicao lida (o relativo antigo deixava o Z ao vivo
+    // defasado em 5mm ate o proximo tick do poll — corrida perigosa)
+    const z = await papelZreal();
+    await gcode("G90\nG21\nG1 Z" + (z + 5).toFixed(3) + " F600", 1);
+    papelZlive = z + 5;
+    const pzl = $("papel-zlive"); if (pzl) pzl.textContent = (z + 5).toFixed(3);
+    setStatus("Folha", "bico subiu 5mm (Z=" + (z + 5).toFixed(2) + ") — troque a folha", "on");
+  } catch(e){ setStatus("FALHOU: subir", e.message, "err"); logLinha("!! " + e.message); }
+  finally { trava(false); }
+};
 $("papelfim").onclick = async () => {
   trava(true);
   try {
@@ -1172,8 +1371,8 @@ $("papelfim").onclick = async () => {
     $("papelctl").style.display = "none";
     $("papelbox").style.display = "none";
     document.querySelectorAll("#papelnav [data-papel]").forEach(b => b.classList.remove("on","ok"));
-    papelFeito = new Set(); papelAtual = null;
-    setStatus("Calibração pelo papel encerrada", "bico levantado e aquecedores desligados — rode MEDIR pra conferir e crie o mesh de novo", "on");
+    papelFeito = new Set(); papelSalva(); papelAtual = null;
+    setStatus("Calibração pela folha encerrada", "bico levantado e aquecedores desligados — re-grave o Z-offset e crie o mesh de novo antes de imprimir", "on");
   } catch(e){ setStatus("FALHOU: encerrar papel", e.message, "err"); logLinha("!! " + e.message); }
   finally { trava(false); }
 };

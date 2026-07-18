@@ -8,7 +8,9 @@ web completa, integração CFS ↔ Spoolman.
 - **Português do Brasil.** Aja direto, **sem pedir confirmação**.
 - Entregue **arquivos completos**, prontos pra colar. **Não use `vi`** — edite com as ferramentas
   ou `cat > arquivo << 'EOF'`.
-- Código Klipper/macro: **sem acentos** (o parser da Creality quebra).
+- Código Klipper/macro: **sem acentos** (o parser da Creality quebra). E **nunca `;` `#`
+  ou `*` dentro de `MSG="..."`** de RESPOND/M117 — o parser de gcode corta comentário
+  nesses chars **ignorando aspas** → "Malformed command" e a macro morre no meio.
 - **Preserve toda a lógica e os comentários existentes** ao modificar arquivos.
 - UI compacta. Nada de botões ou telas gigantes.
 
@@ -166,5 +168,16 @@ pesquisa do CFS no OrcaSlicer, receitas de curl. **Leia sob demanda.**
   - A dica de sentido é **`const horario = sobe`** (CW-M4: horário diminui o gap).
     Se um teste físico contradisser de novo, é **ângulo de visão** — a resposta é o
     "se piorar, inverta" do card, **não** flipar o código.
+- **Medição dos parafusos "mudava sozinha" a cada rodada (jul/2026) — causas achadas:**
+  (1) o wrapper `SCREWS_TILT_CALCULATE` rodava `Z_TILT_ADJUST` antes de **cada** medição
+  e os fusos motorizados re-convergiam diferente a cada rodada; (2) medição com **bico
+  frio** — o probe É a célula de carga do bico e o firmware só proba a 140°C; (3) 1
+  amostra por ponto (ruído da célula); (4) **bug**: o `_RELATORIO_PARAFUSOS` do console
+  ainda tinha a convenção invertida (contradizia os cards). **Protocolo atual:** wrapper
+  aceita `TILT=0` (mede sem re-alinhar fusos); `NIVELA_PARAFUSOS` aquece **bico 140°C**
+  (`NOZ_TEMP`) + mesa e só mede quente; a Central faz **MEDIR robusto** (2 passes,
+  desempate se divergir >0,03mm, mediana + repetibilidade no card) e **Re-medir (1
+  passe, TILT=0)** pro loop girar-knob→conferir. Folha térmica: nivelamento manual da
+  Central usa bico a **140°C** (marca a folha térmica de 0,10mm no contato, sem ooze).
 - **Testar** o botão "Sincronizar com Spoolman" (vai criar 2 filaments novos — é esperado, veja o
   HANDOFF §5).
