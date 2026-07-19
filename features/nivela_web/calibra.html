@@ -477,8 +477,19 @@
       <div class="canto" id="screw2"><h3>FRENTE DIREITO</h3><div class="acao">—</div></div>
     </div>
     <div class="botoes" style="margin-top:10px">
+      <button id="perf" class="principal"><i data-ic="wrench"></i> Nivelamento Perfeito (do zero)</button>
       <button id="ztilt"><i data-ic="target"></i> Z_TILT_ADJUST (alinhar os fusos Z)</button>
-      <button id="papel"><i data-ic="ruler"></i> Calibração pelo papel</button>
+      <button id="papel"><i data-ic="ruler"></i> Calibração pela folha</button>
+    </div>
+    <div id="perfbox" style="display:none">
+      <div class="dica" id="perf-dica" style="margin:10px 0 8px"></div>
+      <div class="lin" id="perf-cfg" style="gap:14px;margin:0 0 6px">
+        <label style="min-width:auto">Soltar (voltas) <input type="number" id="perf-n" value="4" step="1" min="2" max="8" style="width:52px"></label>
+        <label style="min-width:auto">Mesa °C <input type="number" id="perf-bed" value="60" step="5" min="0" max="110" style="width:56px"></label>
+        <label style="min-width:auto">Bico °C <input type="number" id="perf-noz" value="140" step="5" min="0" max="260" style="width:56px"></label>
+      </div>
+      <div class="botoes" id="perf-acoes"></div>
+      <div class="dica" id="perf-prog" style="margin-top:8px"></div>
     </div>
     <div id="papelbox" style="display:none">
       <div class="dica" style="margin:10px 0 8px">Nivelamento manual com <b>folha térmica de 0,10mm</b> (mesa lisa; base DnG-Crafts/K2-Leveling). O bico aquece a <b>140°C</b> — quente o bastante pra <b>marcar a folha térmica</b> no contato (feedback visual, não só o arrasto) e é a mesma temperatura que o firmware usa pro probe; sem filamento carregado não há ooze. Sequência: aquece → home com bico quente → alinha fusos → zera offset e mesh → bico a <b>Z = 0,10</b> em cada ponto. <b>Deslize a folha sob o bico e leia a marca:</b> ▪ <b>listra forte / folha prende</b> → canto <b>ALTO</b> → <b>DESCER</b> (gire <b>anti-horário</b>) ▪ <b>desliza livre, sem marca</b> → canto <b>BAIXO</b> → <b>SUBIR</b> (gire <b>horário</b>) ▪ <b>marca leve e contínua</b> → ponto certo, <b>✓ OK</b>. No <b>Centro</b> (referência, sem knob) use o <b>ajuste fino de Z</b> até a marca leve e memorize essa sensação; nos cantos iguale <b>girando o knob</b>, não o Z. Ao final use <b>Validar com o probe</b> — e como zeramos o offset: re-grave o <b>Z-offset</b> e crie o <b>mesh</b> de novo antes de imprimir.</div>
@@ -1364,6 +1375,143 @@ $("frio").onclick  = () => { if (!ocupado) medirRapido(); };
 // Reler = buscar do printer AGORA (descarta o agregado em cache — senão
 // "reler" renderizaria dados velhos depois de uma medição externa/console)
 $("reler").onclick = () => { medAgg = null; render().catch(e => logLinha("!! " + e.message)); };
+
+// ---------- Nivelamento Perfeito (zero mecânico + range + slip) ----------
+// A ideia do Israel: partir de um estado MECÂNICO conhecido em vez do estado
+// aleatório de cada knob. Fases: (0) apertar os 4 até o fim -> medir; (1)
+// soltar N voltas iguais -> medir. A diferença por parafuso / N = o mm-real-
+// por-volta DAQUELE parafuso; se destoar de ~0,7 (passo do M4), a porca está
+// girando em falso (defeito clássico da K2 — porca gira junto com o parafuso).
+// Com isso: ajuste primário pelos cards do MEDIR robusto (voltas exatas) ->
+// papel x3 -> validação. As duas medições usam a MESMA referência: bottom com
+// TILT=1 (alinha fusos + home Z quente), loosen com TILT=0 (sem re-homear).
+const PERF_NOMES = {screw1:"Frente Esq.", screw2:"Frente Dir.", screw3:"Tras. Dir.", screw4:"Tras. Esq."};
+const PERF_ORDEM = ["screw1","screw2","screw3","screw4"];
+const MM_VOLTA_M4 = 0.7;   // passo nominal do M4 (threads_factor do CW-M4)
+let perfEstado = "intro";
+let perfMarcado = new Set();
+let perfZ = {bottom:null, loosen:null};
+let perfMMv = null;         // {screwK: mm/volta medido}
+function perfNum(){
+  const n = Math.round(+$("perf-n").value), bed = +$("perf-bed").value, noz = +$("perf-noz").value;
+  return {n: n>=2 && n<=8 ? n : 4, bed: bed>=0 ? bed : 60, noz: noz>=0 ? noz : 140};
+}
+async function perfMedeZ(tilt, rotulo){
+  const cfg = perfNum();
+  setStatus(rotulo, tilt ? "aquece, alinha fusos e mede (bico é o probe)" : "mede na MESMA referência (sem re-alinhar)", "busy");
+  await gcode("NIVELA_PARAFUSOS BED_TEMP=" + (tilt ? cfg.bed : 0) + " NOZ_TEMP=" + cfg.noz + " TILT=" + (tilt ? 1 : 0), tilt ? 18 : 8);
+  const res = await lerResults();
+  const z = {};
+  for (const k of PERF_ORDEM) if (res[k] && typeof res[k].z === "number") z[k] = res[k].z;
+  if (Object.keys(z).length < 4) throw new Error("medição incompleta (probe não leu os 4 cantos)");
+  return z;
+}
+function perfBtn(txt, cls){ const b = document.createElement("button"); b.className = cls || "ghost"; b.innerHTML = txt; $("perf-acoes").appendChild(b); return b; }
+function perfChecklist(instr){
+  $("perf-dica").innerHTML = instr;
+  $("perf-acoes").innerHTML = "";
+  PERF_ORDEM.forEach(k => {
+    const on = perfMarcado.has(k);
+    const b = perfBtn((on ? "✓ " : "") + PERF_NOMES[k], on ? "salvar" : "ghost");
+    b.onclick = () => { if (ocupado) return; on ? perfMarcado.delete(k) : perfMarcado.add(k); perfRender(); };
+  });
+}
+function perfRender(){
+  const cfg = perfNum();
+  $("perf-cfg").style.display = (perfEstado === "intro") ? "" : "none";
+  $("perf-prog").innerHTML = "";
+  if (perfEstado === "intro") {
+    $("perf-dica").innerHTML = "<b>Nivelamento do zero.</b> Cria um ponto de partida mecânico conhecido: você aperta os 4 parafusos até o fim, eu meço, você solta <b>" + cfg.n + " voltas iguais</b>, eu meço de novo. Com isso descubro o curso real de cada parafuso e pego porca girando em falso — depois o ajuste é pelos números. <b>Aquece bico " + cfg.noz + "°C</b> (o bico É o probe). <i>Tenha a chave/allen à mão caso um knob gire em falso.</i>";
+    $("perf-acoes").innerHTML = "";
+    perfBtn('<i data-ic="flame"></i> Começar (aquece + home quente)', "principal").onclick = () => perfComeca();
+    perfBtn("Fechar", "ghost").onclick = () => { $("perfbox").style.display = "none"; };
+    pintaIcones && pintaIcones();
+    return;
+  }
+  if (perfEstado === "bottom") {
+    perfChecklist("<b>Passo 1 — apertar tudo.</b> Aperte cada parafuso até o fim, <b>firme mas SEM forçar</b> (encostou, parou — não é pra arrebentar). Marque cada um conforme aperta.");
+    if (perfMarcado.size === 4) perfBtn('<i data-ic="ruler"></i> Apertei os 4 → medir', "principal").onclick = () => perfMede("bottom");
+    pintaIcones && pintaIcones();
+    return;
+  }
+  if (perfEstado === "loosen") {
+    perfChecklist("<b>Passo 2 — soltar " + cfg.n + " voltas.</b> Solte cada parafuso <b>exatamente " + cfg.n + " voltas</b> (anti-horário = desce). Conte as voltas com calma. Marque cada um.");
+    if (perfMarcado.size === 4) perfBtn('<i data-ic="ruler"></i> Soltei ' + cfg.n + ' voltas → medir', "principal").onclick = () => perfMede("loosen");
+    pintaIcones && pintaIcones();
+    return;
+  }
+  if (perfEstado === "calib") {
+    // relatório do curso real + fuga por parafuso
+    let ruim = 0, linhas = "";
+    for (const k of PERF_ORDEM) {
+      const mm = perfMMv[k];
+      const pct = Math.round(100 * mm / MM_VOLTA_M4);
+      const slip = mm < 0.45;   // esperado ~0,7; abaixo disso a porca patina
+      if (slip) ruim++;
+      linhas += "<div>" + (slip ? "⚠️ " : "✓ ") + "<b>" + PERF_NOMES[k] + "</b>: " +
+        mm.toFixed(2) + " mm/volta (" + pct + "% do esperado)" + (slip ? " — <b style='color:var(--bad)'>gira em falso?</b> segure a cabeça do parafuso por cima com a chave e reaperte" : "") + "</div>";
+    }
+    $("perf-dica").innerHTML = "<b>Curso medido por parafuso</b> (esperado ~" + MM_VOLTA_M4 + " mm/volta no M4):" +
+      (ruim ? " <b style='color:var(--bad)'>" + ruim + " parafuso(s) suspeito(s) de girar em falso</b> — resolva antes de nivelar, senão o ajuste não segura." : " todos ok.");
+    $("perf-prog").innerHTML = linhas;
+    $("perf-acoes").innerHTML = "";
+    perfBtn('<i data-ic="ruler"></i> Ajuste primário: MEDIR e seguir os cards', "principal").onclick = () => {
+      $("perfbox").style.display = "none";
+      medirRobusto({bed: cfg.bed, noz: cfg.noz, tilt1: 1, rotulo: "Ajuste primário"});
+      logLinha("// Nivelamento: siga os cards (voltas exatas). Depois abra a Calibração pela folha (3 rounds) e por fim Validar com o probe.");
+    };
+    if (ruim) perfBtn("Re-testar o curso", "ghost").onclick = () => perfComeca();
+    perfBtn("Fechar", "ghost").onclick = () => { $("perfbox").style.display = "none"; };
+    pintaIcones && pintaIcones();
+    return;
+  }
+}
+async function perfComeca(){
+  const cfg = perfNum();
+  perfZ = {bottom:null, loosen:null}; perfMMv = null; perfMarcado = new Set();
+  trava(true);
+  setStatus("Nivelamento do zero", "aquecendo bico " + cfg.noz + "°C + mesa " + cfg.bed + "°C...", "busy");
+  try {
+    await gcode("M140 S" + cfg.bed, 1);
+    await gcode("M104 S" + cfg.noz, 1);
+    await gcode("M109 S" + cfg.noz, 10);
+    const q = await rpc("printer.objects.query", {objects:{toolhead:["homed_axes"]}});
+    if ((((q.status.toolhead||{}).homed_axes)||"").length < 3) await gcode("G28", 8);
+    perfEstado = "bottom"; perfMarcado = new Set();
+    setStatus("Nivelamento do zero", "aperte os 4 parafusos até o fim", "on");
+    perfRender();
+  } catch(e){ setStatus("FALHOU: nivelamento do zero", e.message, "err"); logLinha("!! " + e.message); }
+  finally { trava(false); }
+}
+async function perfMede(fase){
+  const cfg = perfNum();
+  trava(true);
+  try {
+    const z = await perfMedeZ(fase === "bottom", fase === "bottom" ? "Medindo (apertado)" : "Medindo (solto " + cfg.n + " voltas)");
+    perfZ[fase] = z;
+    if (fase === "bottom") {
+      perfEstado = "loosen"; perfMarcado = new Set();
+      setStatus("Apertado medido", "agora solte " + cfg.n + " voltas em cada", "on");
+    } else {
+      // mm/volta por parafuso: apertar SOBE (z maior), soltar DESCE (z menor);
+      // soltamos N voltas -> z caiu ~N*0,7. mm/volta = (z_apertado - z_solto)/N
+      perfMMv = {};
+      for (const k of PERF_ORDEM) perfMMv[k] = Math.abs((perfZ.bottom[k] - perfZ.loosen[k]) / cfg.n);
+      perfEstado = "calib";
+      setStatus("Curso medido", "confira os parafusos e siga pro ajuste", "on");
+    }
+    perfRender();
+  } catch(e){ setStatus("FALHOU: medição", e.message + (/abort|timeout/i.test(e.message) ? " — pode seguir rodando na impressora" : ""), "err"); logLinha("!! " + e.message); }
+  finally { trava(false); }
+}
+$("perf").onclick = () => {
+  const b = $("perfbox");
+  const abrir = b.style.display === "none";
+  b.style.display = abrir ? "" : "none";
+  if (!abrir) return;
+  perfEstado = "intro"; perfMarcado = new Set();
+  perfRender();
+};
 
 // ---------- Calibração pelo papel (nivelamento manual, base DnG-Crafts) ----------
 // Baseado em DnG-Crafts/K2-Leveling — implementado aqui na web (mais robusto
