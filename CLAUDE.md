@@ -94,6 +94,11 @@ devem ser **idempotentes** (`grep -q` antes de acrescentar).
 - **Spoolman:** a Central fala pelo **proxy do Moonraker** (`POST /server/spoolman/proxy`,
   body `{"request_method":"GET","path":"/v1/spool"}`) pra evitar CORS.
   O `extra.tag` do spool guarda o **TNN** do slot (ex. `"T1A"`) — é assim que slot casa com spool.
+- **Probe da K2 = `[prtouch_v3]`** (célula de carga do bico) e **expõe os params padrão de
+  sonda**: `samples`/`samples_result`/`sample_retract_dist`/`samples_tolerance` (confirmado
+  no dump). Vem `samples: 1`. O calibrador de parafusos pede **3 toques + mediana** via
+  runtime no nosso `screws_tilt_adjust.py` (`SAMPLES=`/`SAMPLES_RESULT=`, escopo só da
+  medição — **não** liga global, senão o G28/mesh de toda impressão fica 3× mais lento).
 - **Sensores:** não chute nomes. Auto-descubra via `GET /printer/objects/list` filtrando
   `extruder`, `heater_bed`, `heater_generic *`, `temperature_fan *`, `temperature_sensor *`.
 - **Componentes próprios** (em `features/moonraker-upgrade/`, copiados pelo `install.sh`):
