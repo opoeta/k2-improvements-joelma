@@ -1830,7 +1830,10 @@ async function papelVai(k){
   try {
     await papelZreal();   // guarda: bloqueia se offset/mesh reativaram (restart)
     const c = (await papelCoords())[k];
-    await gcode("G90\nG21\nG1 Z" + PAPEL.sobe + " F300\nG1 X" + c[0] + " Y" + c[1] + " F5000\nG1 Z" + cfg.z + " F300", 3);
+    // viagem XY entre os pontos na MESMA velocidade da calibracao da malha
+    // (bed_mesh speed=600mm/s = F36000). 600 < max_velocity(~800) -> nao clampa.
+    // O Z sobe/desce devagar (F300) de proposito: e o toque fino da folha.
+    await gcode("G90\nG21\nG1 Z" + PAPEL.sobe + " F300\nG1 X" + c[0] + " Y" + c[1] + " F36000\nG1 Z" + cfg.z + " F300", 3);
     document.querySelectorAll("#papelnav [data-papel]").forEach(b => b.classList.toggle("on", b.dataset.papel === k));
     $("papeldica").innerHTML = "<b>" + nome + ":</b> " + (PAPEL.dica[k]||"");
     $("papelctl").style.display = "";
