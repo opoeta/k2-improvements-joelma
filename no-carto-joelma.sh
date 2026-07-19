@@ -46,6 +46,9 @@ run_step() {
 }
 
 run_step screws_tilt_adjust features/screws_tilt_adjust/install.sh
+# acelera a viagem entre os pontos do mesh/z_tilt (bed_mesh 100->600, z_tilt
+# 300->600) sem tirar pontos - patch idempotente no printer.cfg stock
+run_step probe_speed        features/probe-speed/install.sh
 run_step macros/bed_mesh    features/macros/bed_mesh/install.sh
 run_step macros/m191        features/macros/m191/install.sh
 run_step macros/start_print features/macros/start_print/install.sh
