@@ -1206,18 +1206,68 @@ function fbPresente(t1, i, sm, tnn){
 }
 async function fbSpoolman(){
   try {
-    const r = await fetch(base + "/server/spoolman/proxy", {method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({request_method:"GET", path:"/v1/spool"})});
-    if (!r.ok) return;
-    const spools = (await r.json()).result || [];
+    const spools = await spoolProxy("GET", "/v1/spool");
     fbSpool = {};
-    for (const s of spools) {
-      const tag = String(((s.extra || {}).tag) || "").replace(/"/g, "");
-      if (!/^T[1-4][A-D]$/.test(tag)) continue;
+    for (const s of (Array.isArray(spools) ? spools : [])) {
+      const tag = spoolTnn(s);
+      if (!tag) continue;
       fbSpool[tag] = { nome: ((s.filament || {}).name) || "", resta: s.remaining_weight, total: s.initial_weight };
     }
   } catch(e){}
+}
+// ---------- Spoolman: escrita (proxy do Moonraker, sem CORS) ----------
+async function spoolProxy(metodo, caminho, body){
+  const payload = {request_method: metodo, path: caminho};
+  if (body !== undefined) payload.body = JSON.stringify(body);
+  const r = await fetch(base + "/server/spoolman/proxy", {method:"POST",
+    headers:{"Content-Type":"application/json"}, body: JSON.stringify(payload)});
+  if (!r.ok) { const j = await r.json().catch(()=>({})); throw new Error((j.error&&j.error.message)||("proxy HTTP "+r.status)); }
+  const d = await r.json();
+  return d.result !== undefined ? d.result : d;
+}
+// extra.tag guarda o TNN (ex "T1A"), com aspas do JSON — normaliza
+function spoolTnn(sp){ let t = ((sp.extra||{}).tag)||""; t = String(t).replace(/["\\]/g, "").trim(); return /^T[1-4][A-D]$/.test(t) ? t : null; }
+// acha/cria vendor por nome (pra a marca aparecer no Spoolman/Orca)
+async function fbVendor(marca){
+  if (!marca || /^generic$/i.test(marca)) return null;
+  try {
+    const vs = await spoolProxy("GET", "/v1/vendor");
+    const ex = (Array.isArray(vs)?vs:[]).find(v => (v.name||"").toLowerCase() === marca.toLowerCase());
+    if (ex) return ex.id;
+    const novo = await spoolProxy("POST", "/v1/vendor", {name: marca});
+    return novo.id;
+  } catch(e){ return null; }
+}
+// Sincroniza o slot editado -> Spoolman: cria/atualiza o filament (material,
+// cor, nome, marca, temps) e o spool vinculado por extra.tag=TNN. Best-effort:
+// se o Spoolman estiver fora, so loga e nao trava a edicao do CFS.
+async function fbSyncSpoolman(tnn, o){
+  const corHex = (o.color || "").replace(/^#/, "").toUpperCase().slice(0,6).padStart(6,"0");
+  const nome = (o.name || "").trim() || ((o.brand && !/^generic$/i.test(o.brand) ? o.brand + " " : "") + o.mat);
+  const filData = { name: nome, material: o.mat, color_hex: corHex, diameter: 1.75 };
+  if (!isNaN(o.tmax)) filData.settings_extruder_temp = o.tmax;
+  const vid = await fbVendor(o.brand);
+  if (vid) filData.vendor_id = vid;
+
+  const spools = await spoolProxy("GET", "/v1/spool");
+  const spool = (Array.isArray(spools)?spools:[]).find(s => spoolTnn(s) === tnn);
+  if (spool && spool.filament && spool.filament.id) {
+    // ja vinculado: atualiza o filament (mantem o peso do spool)
+    await spoolProxy("PATCH", "/v1/filament/" + spool.filament.id, filData);
+    return {acao:"atualizado", spool: spool.id};
+  }
+  // sem vinculo: reusa filament de mesmo material+cor ou cria um
+  let fil = null;
+  try {
+    const fils = await spoolProxy("GET", "/v1/filament");
+    fil = (Array.isArray(fils)?fils:[]).find(f => (f.material||"").toUpperCase()===o.mat.toUpperCase() && (f.color_hex||"").toUpperCase()===corHex) || null;
+  } catch(e){}
+  if (!fil) fil = await spoolProxy("POST", "/v1/filament", Object.assign({density:1.24}, filData));
+  else await spoolProxy("PATCH", "/v1/filament/" + fil.id, filData);
+  const novo = await spoolProxy("POST", "/v1/spool", {
+    filament_id: fil.id, initial_weight: 1000, remaining_weight: 1000,
+    extra: {tag: JSON.stringify(tnn)}});
+  return {acao:"criado", spool: novo.id};
 }
 async function fbAtualiza(){
   let box = null, sensor = null, rack = null;
@@ -1348,8 +1398,15 @@ $("fb-ed-ok").onclick = async () => {
     if (!r.ok) throw new Error((j.error && j.error.message) || ("HTTP " + r.status));
     const res = j.result || j;
     logLinha("// Slot " + tnn + " editado" + (res.enviado_9999 ? " e sincronizado AO VIVO pela porta 9999" : " (9999 falhou — pode precisar de restart)"));
+    // sincroniza o Spoolman (cria/atualiza o spool vinculado ao slot) —
+    // best-effort: nao trava a edicao do CFS se o Spoolman estiver fora
+    try {
+      const s = await fbSyncSpoolman(tnn, {mat: corpo.materialType, color: corpo.color,
+        name: corpo.name, brand: corpo.brand, tmin, tmax});
+      logLinha("[SPOOLMAN] spool " + s.acao + " (#" + s.spool + ") vinculado a " + tnn);
+    } catch(e){ logLinha("// Spoolman nao sincronizado: " + e.message + " (edicao do CFS ok)"); }
     $("fb-editor").style.display = "none";
-    setTimeout(fbAtualiza, 1500);
+    setTimeout(() => { fbSpoolman().then(fbAtualiza); }, 1500);
   } catch(e){ logLinha("!! editar " + tnn + ": " + e.message); }
 };
 $("fb-reload").onclick = () => { if (!ocupado) { fbSpoolman().then(fbAtualiza); spRender(); } };
