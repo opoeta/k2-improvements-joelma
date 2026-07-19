@@ -1287,22 +1287,25 @@ async function fbAtualiza(){
   $("fb-status").textContent = "CFS: " + (t1.state || box.state || "?") + (t1.version ? " · fw " + t1.version : "");
   $("fb-clima").textContent = "🌡 " + (t1.temperature ?? "—") + "°C · 💧 " + (t1.dry_and_humidity ?? "—") + "%";
   const sm = fbSameMaterial(box);
-  // slot CARREGADO: o filament_rack diz o que está NO CAMINHO do filamento
-  // (remain_material_type/color). Casa isso com o slot -> quem está na cabeça.
-  // (change_color_num e box.filament NAO servem: o 1o vira contador de uso e
-  // marca varios slots; o 2o e constante. Confirmado nos dumps jul/2026.)
-  const rackMat = rack ? String(rack.remain_material_type ?? "-1") : "-1";
-  const rackCor = rack ? fbCor(rack.remain_material_color) : null;
+  // slot CARREGADO: box.T1.filament e a LETRA do slot ativo, dada DIRETO pelo
+  // firmware (ex "B" = T1B). Autoritativa por unidade -> NAO casamos material+cor
+  // (ambiguo com 2 slots do mesmo PLA) nem lemos o filament_rack, que fica
+  // DEFASADO: no dump jul/2026, imprimindo no T1B, o rack ainda dizia
+  // remain_material_type="001601" (=T1C, ULTIMO carregado) enquanto o ativo real
+  // ja era "B". Fallback: box.filament (indice 0-based no T1) se a letra vier suja.
   let ativoIdx = -1;
-  if (rackMat !== "-1" && rackMat !== "" && rackMat !== "None") {
-    for (let i = 0; i < 4; i++) {
-      if (String((t1.material_type || [])[i]) === rackMat && fbCor((t1.color_value || [])[i]) === rackCor) { ativoIdx = i; break; }
-    }
+  const letra = t1.filament;
+  if (typeof letra === "string" && FB_SLOTS.indexOf(letra) >= 0) {
+    ativoIdx = FB_SLOTS.indexOf(letra);
+  } else {
+    const bf = parseInt(box.filament, 10);
+    if (!isNaN(bf) && bf >= 0 && bf < 4) ativoIdx = bf;
   }
   const ativoTnn = ativoIdx >= 0 ? "T1" + FB_SLOTS[ativoIdx] : null;
-  // sensor do bico está enabled:false na Joelma (inútil) -> usa o filament_rack
+  // sensor do bico esta enabled:false na Joelma (inutil) -> "tem filamento no
+  // caminho" = ha um slot ativo apontado pelo firmware (t1.filament/box.filament).
   const sensorOn = sensor && sensor.enabled;
-  const noBico = sensorOn ? !!sensor.filament_detected : (rackMat !== "-1" && rackMat !== "" && rackMat !== "None");
+  const noBico = sensorOn ? !!sensor.filament_detected : (ativoIdx >= 0);
   $("fb-path").textContent = "bico: " + (noBico ? "com filamento" : "vazio") + (ativoTnn ? " · slot " + ativoTnn : "");
   const runoutGate = String(box.filament_useup ?? "0") === "1";
   $("fb-refill").textContent = "runout: " + (runoutGate ? "SLOT ESGOTADO!" : (String(box.auto_refill ?? "0") === "1" ? "auto-troca ligada" : "pausa (auto off)"));
