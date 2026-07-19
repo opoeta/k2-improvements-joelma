@@ -1543,7 +1543,9 @@ let perfSlipIdx = 0;
 let perfSlipFase = "aperta"; // aperta | solta
 function perfNum(){
   const n = Math.round(+$("perf-n").value), bed = +$("perf-bed").value, noz = +$("perf-noz").value;
-  return {n: n>=2 && n<=8 ? n : 4, bed: bed>=0 ? bed : 60, noz: noz>=0 ? noz : 140};
+  // teto além do piso: um valor absurdo digitado (ex. 900) só faria o firmware
+  // rejeitar por max_temp e o wizard abortar com mensagem confusa
+  return {n: n>=2 && n<=8 ? n : 4, bed: Math.min(bed>=0 ? bed : 60, 120), noz: Math.min(noz>=0 ? noz : 140, 260)};
 }
 async function perfHomedZ(){
   const q = await rpc("printer.objects.query", {objects:{toolhead:["homed_axes"]}});
@@ -1570,9 +1572,9 @@ function perfChecklist(instr, rotuloOk, aoOk){
 }
 function perfLinhasMMv(){
   let s = "";
-  PERF_ORDEM.forEach(k => { if (perfMMv[k] != null) { const slip = perfMMv[k] < 0.45;
-    s += "<div>" + (slip ? "⚠️ " : "✓ ") + "<b>" + PERF_NOMES[k] + "</b>: " + perfMMv[k].toFixed(2) + " mm/volta" +
-      (slip ? " <b style='color:var(--bad)'>(gira em falso?)</b>" : "") + "</div>"; } });
+  PERF_ORDEM.forEach(k => { if (perfMMv[k] != null) { const v = perfMMv[k], slip = v < 0.45;
+    s += "<div>" + (slip ? "⚠️ " : "✓ ") + "<b>" + PERF_NOMES[k] + "</b>: " + v.toFixed(2) + " mm/volta" +
+      (v < 0 ? " <b style='color:var(--bad)'>(desceu — soltou em vez de apertar?)</b>" : slip ? " <b style='color:var(--bad)'>(gira em falso?)</b>" : "") + "</div>"; } });
   return s;
 }
 function perfRender(){
@@ -1597,9 +1599,10 @@ function perfRender(){
       $("perf-acoes").innerHTML = "";
       perfBtn('<i data-ic="ruler"></i> Apertei 1 volta → medir', "principal").onclick = () => perfSlipMede();
     } else {
-      const slip = perfMMv[k] < 0.45;
-      $("perf-dica").innerHTML = (slip ? "⚠️ " : "✓ ") + "<b>" + nome + ": " + perfMMv[k].toFixed(2) + " mm/volta</b>" +
-        (slip ? " — <b style='color:var(--bad)'>parece girar em falso</b> (segure a cabeça por cima com a chave e reaperte)." : ". ") +
+      const v = perfMMv[k], slip = v < 0.45;
+      $("perf-dica").innerHTML = (slip ? "⚠️ " : "✓ ") + "<b>" + nome + ": " + v.toFixed(2) + " mm/volta</b>" +
+        (v < 0 ? " — <b style='color:var(--bad)'>o canto DESCEU</b> (soltou em vez de apertar? refaça este)." :
+         slip ? " — <b style='color:var(--bad)'>parece girar em falso</b> (segure a cabeça por cima com a chave e reaperte)." : ". ") +
         " Agora <b>SOLTE o " + nome + " 1 volta de volta</b> pra posição de trabalho.";
       $("perf-acoes").innerHTML = "";
       const ultimo = perfSlipIdx >= 3;
@@ -1647,10 +1650,12 @@ async function perfRef(){
   trava(true);
   setStatus("Referência", "re-home + alinha fusos + mede na posição de trabalho", "busy");
   try {
-    // G28 Z ANTES do Z_TILT: a mesa se moveu (apertou+soltou) desde o home
-    // inicial; re-homear aqui fixa a referência e a folga pro Z_TILT nao
-    // viajar em XY com Z defasado. Depois NIVELA TILT=1 faz Z_TILT + G28 Z + mede.
-    await gcode("G28 Z", 6);
+    // G28 completo ANTES do Z_TILT: a mesa se moveu (apertou+soltou) desde o
+    // home inicial; re-homear aqui fixa a referência e a folga pro Z_TILT nao
+    // viajar em XY com Z defasado. G28 (nao G28 Z) cobre um restart total no
+    // meio da fase manual (G28 Z sem XY homeado falharia). Depois NIVELA TILT=1
+    // faz Z_TILT + G28 Z + mede.
+    await gcode("G28", 8);
     await gcode("NIVELA_PARAFUSOS BED_TEMP=" + cfg.bed + " NOZ_TEMP=" + cfg.noz + " TILT=1", 18);
     perfBase = await perfMedeCantos();
     perfEstado = "slip"; perfSlipIdx = 0; perfSlipFase = "aperta";
@@ -1670,7 +1675,10 @@ async function perfSlipMede(){
     // canto ~0,7mm -> a sonda toca no positivo (dentro do curso do Z).
     await gcode("NIVELA_PARAFUSOS BED_TEMP=0 NOZ_TEMP=" + cfg.noz + " TILT=0", 8);
     const z = await perfMedeCantos();
-    perfMMv[k] = Math.abs(z[k] - perfBase[k]);   // subiu ~1 volta => mm/volta
+    // sinal PRESERVADO: apertar 1 volta DEVE subir (~+0,7). Se vier negativo,
+    // o usuario soltou em vez de apertar (ou o parafuso desceu) -> nao mascarar
+    // com abs; o limiar < 0,45 pega tanto o ~0 (gira em falso) quanto o negativo
+    perfMMv[k] = z[k] - perfBase[k];
     perfSlipFase = "solta";
     setStatus("Teste " + (perfSlipIdx+1) + "/4 medido", perfMMv[k].toFixed(2) + " mm/volta", "on");
     perfRender();
