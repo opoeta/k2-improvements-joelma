@@ -77,7 +77,65 @@ class ScrewsTiltAdjust:
                     "Error on '%s': DIRECTION must be either CW or CCW" % (
                         gcmd.get_commandline(),))
         self.direction = direction
-        self.probe_helper.start_probe(gcmd)
+        # Multi-toque por ponto (pedido do Israel: 3 toques + mediana, como a
+        # Bambu). O prtouch_v3 da K2 expoe os params padrao de sonda
+        # (samples/samples_result - confirmado no dump da config, jul/2026).
+        # Sobrescrevemos SO durante esta medicao (escopo do calibrador de
+        # parafusos) e restauramos depois, pra NAO deixar o G28/mesh de toda
+        # impressao 3x mais lento.
+        restaura = self._aplica_samples(gcmd)
+        try:
+            self.probe_helper.start_probe(gcmd)
+        finally:
+            for obj, attr, val in restaura:
+                try:
+                    setattr(obj, attr, val)
+                except Exception:
+                    pass
+
+    def _aplica_samples(self, gcmd):
+        # Le SAMPLES/SAMPLES_RESULT e aplica nos objetos de sonda que expuserem
+        # esses atributos (ProbeSessionHelper no Klipper novo, ou o proprio
+        # objeto probe no antigo; tenta 'probe' e 'prtouch_v3'). Retorna a lista
+        # (obj, attr, valor_antigo) pra restaurar. Se nada expuser, loga e segue
+        # (a medicao ainda funciona; a Central tem o multi-passe como rede).
+        n = gcmd.get_int("SAMPLES", None, minval=1, maxval=10)
+        res = gcmd.get("SAMPLES_RESULT", None)
+        # recuo entre toques: menor = toques CURTOS e rapidos (estilo Bambu)
+        retr = gcmd.get_float("SAMPLE_RETRACT_DIST", None, above=0.)
+        if n is None and res is None and retr is None:
+            return []
+        alvos = []
+        for nome in ('probe', 'prtouch_v3'):
+            obj = self.printer.lookup_object(nome, None)
+            if obj is None:
+                continue
+            alvos.append(obj)
+            sess = getattr(obj, 'probe_session', None)
+            if sess is not None:
+                alvos.append(sess)
+        restaura = []
+        for obj in alvos:
+            if n is not None and hasattr(obj, 'sample_count'):
+                restaura.append((obj, 'sample_count', obj.sample_count))
+                obj.sample_count = n
+            if res is not None and hasattr(obj, 'samples_result'):
+                restaura.append((obj, 'samples_result', obj.samples_result))
+                obj.samples_result = res
+            if retr is not None and hasattr(obj, 'sample_retract_dist'):
+                restaura.append((obj, 'sample_retract_dist',
+                                 obj.sample_retract_dist))
+                obj.sample_retract_dist = retr
+        if restaura:
+            self.gcode.respond_info(
+                "[NIVELA] amostras por ponto: %s (%s), recuo %smm"
+                % (n if n is not None else '-', res or 'padrao',
+                   retr if retr is not None else '-'))
+        else:
+            self.gcode.respond_info(
+                "[NIVELA] aviso: a sonda nao expos 'samples' - multi-toque nao "
+                "aplicado (a Central ainda usa o multi-passe/mediana)")
+        return restaura
 
     def get_status(self, eventtime):
         return {'error': self.max_diff_error,
