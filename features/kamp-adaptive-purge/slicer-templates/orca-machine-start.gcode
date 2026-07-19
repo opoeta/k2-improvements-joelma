@@ -24,7 +24,7 @@ T[initial_extruder]
 M204 S2000
 M83
 M109 S[nozzle_temperature_initial_layer]
-; flush condicional: purga a cor velha SO se o slot carregado mudou (compara por
-; slot, entao dois filamentos do mesmo tipo/cor em slots diferentes disparam).
+; flush + limpeza do bico (incondicional) apos carregar o filamento inicial, pra
+; comecar sem sujeira nem cor velha. Tune purge_mm no macro (start_print.cfg).
 _BOX_PURGE_ON_CHANGE
 LINE_PURGE
