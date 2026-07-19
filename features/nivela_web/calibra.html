@@ -1220,11 +1220,12 @@ async function fbSpoolman(){
   } catch(e){}
 }
 async function fbAtualiza(){
-  let box = null, sensor = null;
+  let box = null, sensor = null, rack = null;
   try {
-    const q = await rpc("printer.objects.query", {objects:{box:null, "filament_switch_sensor filament_sensor":null}});
+    const q = await rpc("printer.objects.query", {objects:{box:null, filament_rack:null, "filament_switch_sensor filament_sensor":null}});
     box = q.status.box || null;
     sensor = q.status["filament_switch_sensor filament_sensor"] || null;
+    rack = q.status.filament_rack || null;
   } catch(e){ $("fb-status").textContent = "CFS: sem leitura"; return; }
   if (!box || !box.T1 || box.T1 === "None" || typeof box.T1 !== "object") {
     $("fb-status").textContent = "CFS: desconectado";
@@ -1236,13 +1237,23 @@ async function fbAtualiza(){
   $("fb-status").textContent = "CFS: " + (t1.state || box.state || "?") + (t1.version ? " · fw " + t1.version : "");
   $("fb-clima").textContent = "🌡 " + (t1.temperature ?? "—") + "°C · 💧 " + (t1.dry_and_humidity ?? "—") + "%";
   const sm = fbSameMaterial(box);
-  const noBico = sensor ? !!sensor.filament_detected : null;
-  // slot ATIVO: change_color_num tem um indice != -1 no slot em uso (no dump,
-  // C = "0", resto -1). box.filament NAO aponta pro slot (era o bug do "T1B").
-  const cc = t1.change_color_num || [];
-  const ativoIdx = cc.findIndex(x => x !== -1 && String(x) !== "-1" && x !== "None");
-  const ativoTnn = (ativoIdx >= 0 && ativoIdx < 4) ? "T1" + FB_SLOTS[ativoIdx] : null;
-  $("fb-path").textContent = "bico: " + (noBico === null ? "?" : noBico ? "com filamento" : "vazio") + (ativoTnn ? " · slot " + ativoTnn : "");
+  // slot CARREGADO: o filament_rack diz o que está NO CAMINHO do filamento
+  // (remain_material_type/color). Casa isso com o slot -> quem está na cabeça.
+  // (change_color_num e box.filament NAO servem: o 1o vira contador de uso e
+  // marca varios slots; o 2o e constante. Confirmado nos dumps jul/2026.)
+  const rackMat = rack ? String(rack.remain_material_type ?? "-1") : "-1";
+  const rackCor = rack ? fbCor(rack.remain_material_color) : null;
+  let ativoIdx = -1;
+  if (rackMat !== "-1" && rackMat !== "" && rackMat !== "None") {
+    for (let i = 0; i < 4; i++) {
+      if (String((t1.material_type || [])[i]) === rackMat && fbCor((t1.color_value || [])[i]) === rackCor) { ativoIdx = i; break; }
+    }
+  }
+  const ativoTnn = ativoIdx >= 0 ? "T1" + FB_SLOTS[ativoIdx] : null;
+  // sensor do bico está enabled:false na Joelma (inútil) -> usa o filament_rack
+  const sensorOn = sensor && sensor.enabled;
+  const noBico = sensorOn ? !!sensor.filament_detected : (rackMat !== "-1" && rackMat !== "" && rackMat !== "None");
+  $("fb-path").textContent = "bico: " + (noBico ? "com filamento" : "vazio") + (ativoTnn ? " · slot " + ativoTnn : "");
   const runoutGate = String(box.filament_useup ?? "0") === "1";
   $("fb-refill").textContent = "runout: " + (runoutGate ? "SLOT ESGOTADO!" : (String(box.auto_refill ?? "0") === "1" ? "auto-troca ligada" : "pausa (auto off)"));
   // grade de slots
