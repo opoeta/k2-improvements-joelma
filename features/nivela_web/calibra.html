@@ -295,6 +295,19 @@
   .fb-slot .barra > i { display:block; height:100%; background:var(--primary); }
   .fb-slot .acts { display:flex; gap:4px; margin-top:6px; }
   .fb-slot .acts button { padding:3px 8px; font-size:.68rem; min-width:0; }
+  /* ---------- Spoolman (configurador) ---------- */
+  #sp-found { margin-top:10px; display:flex; flex-direction:column; gap:6px; }
+  .sp-hit { display:flex; align-items:center; gap:9px; padding:9px 11px; border-radius:8px;
+            background:var(--card2); border:1.5px solid var(--line); cursor:pointer; transition:all .18s; }
+  .sp-hit:hover { border-color:var(--primary); transform:translateX(3px); background:var(--primary-soft); }
+  .sp-hit.sel { border-color:var(--primary); background:var(--primary-soft); }
+  .sp-hit .ic { color:var(--primary); }
+  .sp-hit .hit-url { font-family:'Roboto Mono',monospace; font-size:.82rem; font-weight:500; }
+  .sp-hit .hit-v { color:var(--mut); font-size:.7rem; margin-left:auto; }
+  .sp-vazio { color:var(--mut); font-size:.78rem; text-align:center; padding:10px; }
+  .escaneando { display:flex; align-items:center; justify-content:center; gap:8px; color:var(--mut); font-size:.8rem; padding:12px; }
+  .radar-dot { width:10px; height:10px; border-radius:50%; background:var(--primary); position:relative; }
+  .radar-dot::after { content:""; position:absolute; inset:0; border-radius:50%; background:var(--primary); animation:radar 1.4s ease-out infinite; }
   #papelnav [data-papel].ok { background:var(--ok); border-color:transparent; color:#fff; }
   #papelnav [data-papel].ok.on { box-shadow:0 0 0 2px var(--primary); }
   .mesh-ctl .rel { display:flex; align-items:center; gap:7px; flex:1; min-width:150px; }
@@ -434,8 +447,24 @@
   <span class="acc-tag" id="fb-clima">🌡 — · 💧 —</span>
   <span class="acc-tag" id="fb-path">bico: —</span>
   <span class="acc-tag" id="fb-refill">runout: —</span>
+  <button class="ghost" id="spcfg" title="Servidor Spoolman"><i data-ic="spool"></i> <span id="spst2">Spoolman</span></button>
   <button class="ghost" id="fb-reload" title="Atualizar agora" style="padding:4px 10px"><i data-ic="refresh"></i></button>
 </div>
+<dialog class="editor" id="spdlg">
+  <h3><i data-ic="spool"></i> Servidor Spoolman</h3>
+  <label>Endereço do servidor</label>
+  <input type="text" id="sp-url-in" placeholder="http://10.10.1.254:7912" autocomplete="off">
+  <label>Sincronia (segundos)</label>
+  <input type="number" id="sp-rate" min="1" max="60" value="5">
+  <div class="ed-btns">
+    <button id="sp-scan" class="ghost" style="flex:1"><i data-ic="search"></i> Buscar na rede</button>
+  </div>
+  <div id="sp-found"></div>
+  <div class="ed-btns">
+    <button class="salvar" id="sp-save" style="flex:1"><i data-ic="save"></i> Salvar e reiniciar</button>
+    <button id="sp-cancel" class="ghost">Cancelar</button>
+  </div>
+</dialog>
 <div class="fb-grid" id="fb-grid"><div class="det" style="grid-column:1/-1">lendo o CFS…</div></div>
 <div class="det" id="fb-runout" style="margin-top:4px"></div>
 <div id="fb-editor" style="display:none">
@@ -808,11 +837,19 @@ function setStatus(fazendo, detalhe, modo){
   if (detalhe !== null) $("detalhe").textContent = detalhe;
   $("dot").className = "dot " + (modo || "");
 }
+let perfAtivo = false;                          // wizard "Nivelamento Perfeito" em curso
+const PERF_EXT = ["ztilt","medir","frio","papel"];   // botoes que movem fusos/Z: travados durante o wizard
 function trava(v){
   ocupado = v;
   // desabilita tudo que dispara gcode; deixa a luz e o console livres
   document.querySelectorAll("details.acc button, .barra-global button")
-    .forEach(b => { if (!b.classList.contains("busy")) b.disabled = v; });
+    .forEach(b => {
+      if (b.classList.contains("busy")) return;
+      // durante o wizard, os botoes que mexem nos fusos/Z ficam SEMPRE travados
+      // (mover os fusos entre as duas medicoes corromperia o delta por parafuso)
+      if (!v && perfAtivo && PERF_EXT.includes(b.id)) { b.disabled = true; return; }
+      b.disabled = v;
+    });
 }
 
 // ---------- Transporte: 100% REST (HTTP polling, sem WebSocket) ----------
@@ -1128,30 +1165,44 @@ async function render(){
 // printhead, Spoolman (extra.tag = TNN) e edição ao vivo pela porta 9999
 // (joelma_cfs_edit). Encoder/buffer/clog não existem no stock — omitidos em
 // vez de exibir "--" falso.
-// Heurística de PRESENÇA (do HelixScreen): vender OU remain_len válidos —
-// nunca color/material, que são RFID "latcheados" e criam slots-fantasma.
-const FB_TIPO = {"000001":"PLA","002001":"PETG","003001":"ABS","004001":"TPU","005001":"ASA","006001":"PA","007001":"PC"};
-const FB_CAT5 = {"00001":"PLA","00002":"PLA Silk","00003":"PETG","00004":"ABS","00005":"TPU","00006":"PLA-CF",
-                 "00007":"ASA","00008":"PA","00009":"PA-CF","00012":"HIPS","00013":"PET-CF","00014":"PETG-CF",
-                 "00019":"PP","00020":"PET"};
+// FONTE PRIMÁRIA = box.same_material (o firmware da Joelma resolve material +
+// cor + NOME por TNN aqui; confirmado no dump jul/2026). Ex.:
+//   ["001601","0000000",["T1C"],"PLA"]  -> T1C = PLA, preto.
+// O material_type/color_value cru (codigo tipo "001601") e so fallback.
+// PRESENÇA: slot em same_material = presente; senao, vender != "none" e
+// material_type != "-1". (No dump: vender ["unknown","unknown","unknown",
+// "none"] -> A/B/C presentes, D vazio; "none" e o sentinela real de vazio.)
+const FB_TIPO = {"000001":"PLA","001601":"PLA","002001":"PETG","003001":"ABS",
+                 "004001":"TPU","005001":"ASA","006001":"PA","007001":"PC"};
 const FB_SLOTS = ["A","B","C","D"];
 let fbSpool = {};        // TNN -> {nome, resta, total} via Spoolman
 let fbUlt = null;        // ultimo snapshot do box (pro editor/load)
-function fbTipo(cod){
-  if (cod == null || cod === "" || cod === "-1") return null;
-  const c = String(cod);
-  return FB_TIPO[c] || FB_CAT5[c.slice(-5)] || ("cod " + c);
-}
 function fbCor(v){
   if (v == null || v === "" || v === "-1") return null;
   const h = String(v).replace(/^#/, "").replace(/^0/, "");
   return /^[0-9a-fA-F]{6}$/.test(h) ? "#" + h.toLowerCase() : null;
 }
-function fbPresente(t1, i){
-  const vd = (t1.vender || [])[i], rl = (t1.remain_len || [])[i];
-  const okV = vd != null && String(vd) !== "" && String(vd) !== "-1" && String(vd) !== "0";
-  const okR = rl != null && String(rl) !== "" && String(rl) !== "-1";
-  return okV || okR;
+function fbTipo(cod){
+  if (cod == null || cod === "" || cod === "-1") return null;
+  return FB_TIPO[String(cod)] || ("cod " + cod);
+}
+// mapa TNN -> {nome, cor} a partir do same_material (fonte do firmware)
+function fbSameMaterial(box){
+  const m = {};
+  const sm = box.same_material;
+  if (Array.isArray(sm)) for (const e of sm) {
+    if (!Array.isArray(e) || e.length < 4 || !Array.isArray(e[2])) continue;
+    const nome = String(e[3] || "").trim() || fbTipo(e[0]) || "?";
+    const cor = fbCor(e[1]);
+    for (const t of e[2]) m[String(t)] = {nome, cor};
+  }
+  return m;
+}
+function fbPresente(t1, i, sm, tnn){
+  if (sm && sm[tnn]) return true;                       // firmware agrupou = presente
+  if (String((t1.vender || [])[i]) === "none") return false;   // sentinela de vazio
+  const mt = (t1.material_type || [])[i];
+  return mt != null && String(mt) !== "-1" && String(mt) !== "";
 }
 async function fbSpoolman(){
   try {
@@ -1184,50 +1235,53 @@ async function fbAtualiza(){
   const t1 = box.T1;
   $("fb-status").textContent = "CFS: " + (t1.state || box.state || "?") + (t1.version ? " · fw " + t1.version : "");
   $("fb-clima").textContent = "🌡 " + (t1.temperature ?? "—") + "°C · 💧 " + (t1.dry_and_humidity ?? "—") + "%";
+  const sm = fbSameMaterial(box);
   const noBico = sensor ? !!sensor.filament_detected : null;
-  // box.filament = índice de SELEÇÃO (pode ficar "stale" — caveat HelixScreen);
-  // só rotulamos "carregado" quando o sensor do printhead confirma filamento
-  const sel = parseInt(box.filament, 10);
-  const selTnn = (!isNaN(sel) && sel >= 0 && sel < 4) ? "T1" + FB_SLOTS[sel] : null;
-  $("fb-path").textContent = "bico: " + (noBico === null ? "?" : noBico ? ("com filamento" + (selTnn ? " (" + selTnn + ")" : "")) : "vazio");
+  // slot ATIVO: change_color_num tem um indice != -1 no slot em uso (no dump,
+  // C = "0", resto -1). box.filament NAO aponta pro slot (era o bug do "T1B").
+  const cc = t1.change_color_num || [];
+  const ativoIdx = cc.findIndex(x => x !== -1 && String(x) !== "-1" && x !== "None");
+  const ativoTnn = (ativoIdx >= 0 && ativoIdx < 4) ? "T1" + FB_SLOTS[ativoIdx] : null;
+  $("fb-path").textContent = "bico: " + (noBico === null ? "?" : noBico ? "com filamento" : "vazio") + (ativoTnn ? " · slot " + ativoTnn : "");
   const runoutGate = String(box.filament_useup ?? "0") === "1";
   $("fb-refill").textContent = "runout: " + (runoutGate ? "SLOT ESGOTADO!" : (String(box.auto_refill ?? "0") === "1" ? "auto-troca ligada" : "pausa (auto off)"));
   // grade de slots
   let html = "";
-  const carregadoTnn = (noBico && selTnn) ? selTnn : null;
   for (let i = 0; i < 4; i++) {
     const tnn = "T1" + FB_SLOTS[i];
-    const pres = fbPresente(t1, i);
-    const cor = fbCor((t1.color_value || [])[i]);
-    const tipo = fbTipo((t1.material_type || [])[i]);
+    const pres = fbPresente(t1, i, sm, tnn);
+    const info = sm[tnn];
+    const cor = info ? info.cor : fbCor((t1.color_value || [])[i]);
+    const tipo = pres ? (info ? info.nome : fbTipo((t1.material_type || [])[i])) : null;
     const sp = fbSpool[tnn];
-    const carregado = tnn === carregadoTnn;
+    const ativo = pres && tnn === ativoTnn;
     const pct = sp && sp.total > 0 ? Math.max(0, Math.min(100, Math.round(100 * sp.resta / sp.total))) : null;
-    html += '<div class="fb-slot' + (carregado ? " on" : "") + (pres ? "" : " vazio") + '">' +
-      '<h4>' + tnn + '<span class="est">' + (carregado ? "Loaded" : pres ? "Ready" : "vazio") + '</span></h4>' +
+    html += '<div class="fb-slot' + (ativo ? " on" : "") + (pres ? "" : " vazio") + '">' +
+      '<h4>' + tnn + '<span class="est">' + (ativo ? "Carregado" : pres ? "Pronto" : "vazio") + '</span></h4>' +
       '<div class="mat"><span class="fb-swatch" style="background:' + (cor || "transparent") + '"></span>' + (tipo || "—") + '</div>' +
       (sp && sp.resta != null ? '<div class="peso">' + Math.round(sp.resta) + 'g/' + Math.round(sp.total) + 'g' + (sp.nome ? " · " + sp.nome : "") + '</div>' +
         (pct != null ? '<div class="barra"><i style="width:' + pct + '%"></i></div>' : "") : "") +
       '<div class="acts">' +
-        (pres && !carregado ? '<button class="ghost" data-fb-load="' + tnn + '">Load</button>' : "") +
-        (carregado ? '<button class="ghost" data-fb-unload="1">Unload</button>' : "") +
+        (pres && !ativo ? '<button class="ghost" data-fb-load="' + tnn + '">Load</button>' : "") +
+        (ativo ? '<button class="ghost" data-fb-unload="1">Unload</button>' : "") +
         '<button class="ghost" data-fb-edit="' + tnn + '">Editar</button>' +
         '<button class="ghost" data-fb-rfid="' + tnn + '" title="Reler a tag RFID deste slot">RFID</button>' +
       '</div></div>';
   }
   $("fb-grid").innerHTML = html;
-  // cadeia de runout calculada no cliente: reservas = mesmo tipo + mesma cor
+  // cadeia de runout calculada no cliente: reservas = mesmo material + mesma cor
   let cadeia = "";
-  if (carregadoTnn) {
-    const i0 = FB_SLOTS.indexOf(carregadoTnn[2]);
-    const t0 = fbTipo((t1.material_type || [])[i0]), c0 = fbCor((t1.color_value || [])[i0]);
+  if (ativoTnn) {
+    const info0 = sm[ativoTnn] || {nome: fbTipo((t1.material_type||[])[ativoIdx]), cor: fbCor((t1.color_value||[])[ativoIdx])};
     const reservas = [];
     for (let i = 0; i < 4; i++) {
-      if (i === i0 || !fbPresente(t1, i)) continue;
-      if (fbTipo((t1.material_type || [])[i]) === t0 && fbCor((t1.color_value || [])[i]) === c0) reservas.push("T1" + FB_SLOTS[i]);
+      const tnn = "T1" + FB_SLOTS[i];
+      if (i === ativoIdx || !fbPresente(t1, i, sm, tnn)) continue;
+      const inf = sm[tnn] || {nome: fbTipo((t1.material_type||[])[i]), cor: fbCor((t1.color_value||[])[i])};
+      if (inf.nome === info0.nome && inf.cor === info0.cor) reservas.push(tnn);
     }
     cadeia = reservas.length
-      ? "Se acabar: " + carregadoTnn + " → " + reservas.join(" → ") + (String(box.auto_refill ?? "0") === "1" ? " (troca automática do firmware)" : " (auto-troca DESLIGADA — vai pausar)")
+      ? "Se acabar: " + ativoTnn + " → " + reservas.join(" → ") + (String(box.auto_refill ?? "0") === "1" ? " (troca automática do firmware)" : " (auto-troca DESLIGADA — vai pausar)")
       : "Sem slot reserva do mesmo material+cor — runout vai pausar a impressão.";
   }
   $("fb-runout").textContent = cadeia;
@@ -1287,10 +1341,97 @@ $("fb-ed-ok").onclick = async () => {
     setTimeout(fbAtualiza, 1500);
   } catch(e){ logLinha("!! editar " + tnn + ": " + e.message); }
 };
-$("fb-reload").onclick = () => { if (!ocupado) { fbSpoolman().then(fbAtualiza); } };
+$("fb-reload").onclick = () => { if (!ocupado) { fbSpoolman().then(fbAtualiza); spRender(); } };
 fbSpoolman().then(fbAtualiza);
 setInterval(fbAtualiza, 20000);
 setInterval(fbSpoolman, 90000);
+
+// ---------- Configurador do Spoolman (componente spoolman_admin) ----------
+// Estado do servidor + scan da rede + gravar no Moonraker. O estado vira o
+// texto/cor do botao compacto "Spoolman" no header do Filament Box.
+let spEscolhido = null;
+async function spAdmin(metodo, caminho, corpo){
+  const opt = {method: metodo};
+  if (corpo) { opt.headers = {"Content-Type":"application/json"}; opt.body = JSON.stringify(corpo); }
+  const r = await fetch(base + "/server/spoolman_admin/" + caminho, opt);
+  if (!r.ok) { const j = await r.json().catch(()=>({})); throw new Error((j.error&&j.error.message)||("HTTP "+r.status)); }
+  const d = await r.json();
+  return d.result !== undefined ? d.result : d;
+}
+async function spRender(){
+  const st = $("spst2"), btn = $("spcfg");
+  if (!st || !btn) return;
+  try {
+    const cfg = await spAdmin("GET", "config");
+    let conectado = false;
+    try {
+      const r = await fetch(base + "/server/spoolman/status");
+      const d = await r.json();
+      conectado = !!(d.result && d.result.spoolman_connected);
+    } catch(e) {}
+    if (!cfg.server) { st.textContent = "Spoolman: configurar"; btn.title = "Nenhum servidor Spoolman configurado"; st.style.color = ""; }
+    else if (conectado) { st.textContent = "Spoolman ✓"; btn.title = cfg.server + " — conectado, sync a cada " + (cfg.sync_rate||5) + "s"; st.style.color = "var(--ok)"; }
+    else { st.textContent = "Spoolman ✗"; btn.title = cfg.server + " — sem resposta; o servidor esta ligado?"; st.style.color = "var(--bad)"; }
+  } catch(e) {
+    st.textContent = "Spoolman ?"; btn.title = "componente spoolman_admin ausente (rode: joelma update)"; st.style.color = "var(--bad)";
+  }
+}
+async function spScan(){
+  const btn = $("sp-scan"), lista = $("sp-found");
+  ocupaBotao(btn, true, "escaneando...");
+  lista.innerHTML = '<div class="escaneando"><span class="radar-dot"></span> varrendo a rede local...</div>';
+  try {
+    const r = await spAdmin("GET", "scan");
+    const achados = r.encontrados || [];
+    if (!achados.length) {
+      lista.innerHTML = '<div class="sp-vazio">nenhum servidor Spoolman encontrado em ' + (r.subnet||"?") + '.x<br>verifique se o container esta rodando</div>';
+      return;
+    }
+    lista.innerHTML = "";
+    achados.forEach(a => {
+      const el = document.createElement("div");
+      el.className = "sp-hit";
+      el.innerHTML = svgIc("server") + '<span class="hit-url">' + a.url + '</span><span class="hit-v">v' + (a.versao||"?") + '</span>';
+      el.onclick = () => {
+        lista.querySelectorAll(".sp-hit").forEach(x => x.classList.remove("sel"));
+        el.classList.add("sel"); $("sp-url-in").value = a.url; spEscolhido = a.url;
+      };
+      lista.appendChild(el);
+    });
+    if (achados.length === 1) lista.querySelector(".sp-hit").click();
+  } catch(e) { lista.innerHTML = '<div class="sp-vazio">falha no scan: ' + e.message + '</div>'; }
+  finally { ocupaBotao(btn, false); }
+}
+async function spSalvar(){
+  const btn = $("sp-save");
+  const url = $("sp-url-in").value.trim();
+  const rate = Math.max(1, Math.min(60, +$("sp-rate").value || 5));
+  if (!url) { logLinha("!! informe o endereco do servidor"); return; }
+  ocupaBotao(btn, true, "salvando...");
+  try {
+    const r = await spAdmin("POST", "config", {server: url, sync_rate: rate});
+    logLinha("[SPOOLMAN] servidor gravado: " + r.server + " (Moonraker reiniciando)");
+    $("spdlg").close();
+    setStatus("Moonraker reiniciando...", "aplicando o novo servidor Spoolman", "busy");
+    for (let i = 0; i < 20; i++) {
+      await new Promise(res => setTimeout(res, 1500));
+      try { const ok = await fetch(base + "/server/info"); if (ok.ok) break; } catch(e) {}
+    }
+    setStatus("Pronta", "Spoolman reconfigurado", "on");
+    spRender(); fbSpoolman().then(fbAtualiza);
+  } catch(e) { logLinha("!! falha ao salvar: " + e.message); setStatus("Falha ao salvar", e.message, "err"); }
+  finally { ocupaBotao(btn, false); }
+}
+$("spcfg").onclick = async () => {
+  $("sp-found").innerHTML = ""; spEscolhido = null;
+  try { const cfg = await spAdmin("GET", "config"); $("sp-url-in").value = cfg.server || ""; $("sp-rate").value = cfg.sync_rate || 5; }
+  catch(e) { $("sp-url-in").value = ""; }
+  $("spdlg").showModal();
+};
+$("sp-scan").onclick = spScan;
+$("sp-save").onclick = spSalvar;
+$("sp-cancel").onclick = () => $("spdlg").close();
+spRender();
 
 // ---------- Medição robusta (multi-passe) ----------
 // Por que multi-passe: o probe é a célula de carga do bico (ruído de centésimos)
