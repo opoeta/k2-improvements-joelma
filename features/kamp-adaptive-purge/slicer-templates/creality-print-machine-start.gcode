@@ -153,5 +153,9 @@ T[initial_no_support_extruder]
 M204 S2000
 M83
 M109 S[nozzle_temperature_initial_layer]
+; flush condicional: purga a cor velha SO se o slot carregado mudou (1 cor no
+; Creality Print nao roda o FLUSH multicolor acima). Compara por slot, entao
+; solido x galaxy (mesmo tipo/cor, slots diferentes) tambem dispara.
+_BOX_PURGE_ON_CHANGE
 LINE_PURGE
 {endif}
