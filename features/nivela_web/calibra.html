@@ -133,7 +133,17 @@
     font-size:.75rem; line-height:1.5; box-shadow:var(--elev); animation:floatIn .45s ease both;
   }
   #console div { animation:surge .25s ease both; }
-  #console .e { color:#ff8a80; } #console .i { color:#81d4fa; } #console .n { color:#c5e1a5; } #console .c { color:#e0e0e0; }
+  /* cor por TIPO de tarefa. Ruido de baixo nivel (.dbg) fica cinza-apagado de
+     proposito -> nao compete; erro/comando-do-usuario/calibracao pulam aos olhos. */
+  #console .e   { color:#ff8a80; }                  /* erro */
+  #console .cmd { color:#ffcc80; font-weight:600; } /* voce digitou ($) */
+  #console .g   { color:#80d8ff; }                  /* gcode executado */
+  #console .n   { color:#c5e1a5; }                  /* calibracao/nivelamento */
+  #console .sp  { color:#ce93d8; }                  /* filamento/CFS/Spoolman */
+  #console .fan { color:#80cbc4; }                  /* ventoinha/disturb_ctl */
+  #console .i   { color:#81d4fa; }                  /* info generico (//) */
+  #console .dbg { color:#6b6b6b; }                  /* ruido de baixo nivel (serial/motor/hex/debug) */
+  #console .c   { color:#e0e0e0; }                  /* neutro */
   #console::-webkit-scrollbar { width:6px; } #console::-webkit-scrollbar-thumb { background:rgba(255,255,255,.2); border-radius:3px; }
   .cmd-row { display:flex; gap:0; }
   .cmd-row input {
@@ -1003,15 +1013,28 @@ function desenha(){
 }
 
 // ---------- Console ao vivo ----------
+// cor por TIPO de tarefa. Prioridade: erro e comando-do-usuario primeiro (tem
+// que pular aos olhos); depois o RUIDO de baixo nivel (protocolo serial/motor,
+// blobs hex, debug interno do firmware) vai pro cinza pra nao competir; por fim
+// as tarefas (gcode, calibracao, CFS, ventoinha). Baseado nos tipos de linha
+// reais do console ao vivo da Joelma (dump jul/2026).
+function logClasse(msg){
+  if (msg.startsWith("!!")) return "e";                                        // erro
+  if (msg.startsWith("$"))  return "cmd";                                      // voce digitou
+  // ruido: handshake serial/motor, blobs hex, debug e escrita de param do firmware
+  if (/\[DEBUG\]|stall mode|\bsend:|\brecv|data_send|float_bytes|measuring_wheel|参数|写入|\\x[0-9a-fA-F]{2}/.test(msg)) return "dbg";
+  if (/\[GCODE\]/.test(msg) || /^\/\/\s*[GM]\d+\b/.test(msg)) return "g";      // gcode executado
+  if (/\[NIVELA\]|\[START_PRINT\]|\[CALIB\]|\bPID\b|z_tilt|screws_tilt|bed_mesh/i.test(msg)) return "n"; // calibracao/nivelamento
+  if (/\[SPOOLMAN\]|\bRFID\b|\bCFS\b|filament|\bslot\b/i.test(msg)) return "sp"; // filamento/CFS
+  if (/\[DIST\w*_CTL\]|SET_FANS|\bM106\b|\bfan/i.test(msg)) return "fan";       // ventoinha/disturb
+  if (msg.startsWith("//")) return "i";                                        // info generico
+  return "c";
+}
 function logLinha(msg){
   const c = $("console");
   const noFim = c.scrollTop + c.clientHeight >= c.scrollHeight - 30;
   const div = document.createElement("div");
-  let cls = "c";
-  if (msg.startsWith("!!")) cls = "e";
-  else if (msg.startsWith("//")) cls = "i";
-  else if (msg.indexOf("[NIVELA]") >= 0 || msg.indexOf("[START_PRINT]") >= 0 || msg.indexOf("PID") >= 0) cls = "n";
-  div.className = cls;
+  div.className = logClasse(msg);
   div.textContent = msg;
   c.appendChild(div);
   while (c.childNodes.length > 150) c.removeChild(c.firstChild);
