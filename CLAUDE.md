@@ -167,6 +167,16 @@ pesquisa do CFS no OrcaSlicer, receitas de curl. **Leia sob demanda.**
   **Se "não aparecer": Ctrl+F5** (cache). Obs.: o offset fica zerado (transitório; reseta no
   restart) — re-grave seu Z-offset e crie o mesh de novo depois. Implementado na web de
   propósito (o `bl_macros.cfg` do DnG some em firmware update → erro XS3002).
+- **Z-offset tem DOIS níveis (jul/2026 — causa do "offset zera quando reinicia").**
+  O ajuste fino da Central usa `SET_GCODE_OFFSET` (gcode offset): **transitório** —
+  zera em restart E o `START_PRINT` o **re-seta a cada print** (`offset_<material>
+  + offset_placa_<placa>`, todos 0 por padrão). Persistência: (a) **por
+  placa+material** (recomendado) — Central grava `zoff_<material>_<placa>` via
+  `SAVE_VARIABLE` (`[save_variables]` → `joelma_vars.cfg`, instalado pelo
+  start_print/install.sh com guarda anti-duplicata) e o `START_PRINT` dá
+  **prioridade** a esse valor sobre a soma legada; "Limpar" grava `None` (o if
+  ignora); ou (b) global — `Z_OFFSET_APPLY_PROBE` + `SAVE_CONFIG` (funde no
+  probe). **Nunca os dois pra mesma correção** (aplicaria em dobro).
 - **Parafusos — convenção FECHADA com fonte (pesquisa jul/2026).** Klipper
   `Config_Reference`, `screw_thread: CW-M4`: *"A clockwise rotation of the knob
   **decreases the gap** between the nozzle and the bed"* → **horário = mesa SOBE**,
