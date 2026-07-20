@@ -692,7 +692,15 @@
       <button data-pa="0.045">0.045</button>
       <button data-pa="0.060">0.060</button>
     </div>
-    <div class="botoes" style="margin-top:10px">
+    <div class="dica" style="margin-top:12px"><b>Teste de linha de PA (recomendado).</b> Imprime várias linhas, cada uma com um PA diferente e um trecho <b>rápido</b> no meio. A linha com largura mais <b>uniforme</b> — sem <b>bolha</b> no fim dos trechos lentos nem <b>falha/afinamento</b> no começo dos rápidos — é o seu PA. Conte da <b>frente</b> (PA inicial) somando o passo a cada linha, e Aplique.</div>
+    <div class="lin" style="gap:10px;flex-wrap:wrap">
+      <label style="min-width:auto">Início <input type="number" id="pal-ini" value="0" step="0.002" min="0" max="0.2" style="width:64px"></label>
+      <label style="min-width:auto">Passo <input type="number" id="pal-passo" value="0.002" step="0.001" min="0.001" max="0.02" style="width:64px"></label>
+      <label style="min-width:auto">Linhas <input type="number" id="pal-n" value="41" step="1" min="4" max="60" style="width:56px"></label>
+      <label style="min-width:auto">Bico °C <input type="number" id="pal-noz" value="210" step="5" min="0" max="300" style="width:60px"></label>
+    </div>
+    <div class="botoes" style="margin-top:8px">
+      <button id="palprint" class="principal"><i data-ic="gauge"></i> Imprimir teste de linha de PA</button>
       <button id="patower"><i data-ic="ruler"></i> Torre de PA (TUNING_TOWER)</button>
     </div>
   </div>
@@ -2651,6 +2659,74 @@ document.querySelectorAll("[data-pa]").forEach(b => b.onclick = () => {
 $("patower").onclick = () => roda(
   "TUNING_TOWER COMMAND=SET_PRESSURE_ADVANCE PARAMETER=ADVANCE START=0 FACTOR=.005",
   "Torre de PA armada (imprima o objeto de teste agora)", 3);
+// ---------- Teste de LINHA de PA (replica o padrao do Creality Print) ----------
+// Cada linha: retrai -> viaja rapido -> LENTO 20mm (F600) / RAPIDO 40mm (F6000)
+// / LENTO 20mm, com SET_PRESSURE_ADVANCE antes. Nas transicoes lento<->rapido o
+// PA errado aparece: baixo = bolha na desaceleracao + falha na aceleracao; alto =
+// o inverso. A linha mais uniforme e o PA certo. Parametros extraidos do gcode
+// de PA do Creality Print (E=0.05679/mm, X125..205, Y passo 3.5, F600/F6000).
+// Imprime o VALOR do PA (fonte 7-seg) a cada 5 linhas, como o teste da Creality.
+const PA_SEG = { a:[0,1,1,1], b:[1,1,1,.5], c:[1,.5,1,0], d:[0,0,1,0], e:[0,.5,0,0], f:[0,1,0,.5], g:[0,.5,1,.5] };
+const PA_GLIFO = { "0":"abcdef","1":"bc","2":"abged","3":"abgcd","4":"fgbc","5":"afgcd","6":"afgedc","7":"abc","8":"abcdefg","9":"abcdfg" };
+function paNumero(txt, nx, ny, EPM){
+  const GW = 2.0, GH = 3.0, GAP = 0.9, g = [];
+  let x = nx;
+  for (const ch of txt) {
+    if (ch === ".") {
+      g.push("G1 E-0.4 F2400", "G0 X" + x.toFixed(2) + " Y" + ny.toFixed(2) + " F12000", "G1 E0.4 F2400");
+      g.push("G1 X" + (x + 0.7).toFixed(2) + " Y" + ny.toFixed(2) + " E" + (0.7 * EPM).toFixed(4) + " F600");
+      x += 1.3 + GAP; continue;
+    }
+    for (const s of (PA_GLIFO[ch] || "")) {
+      const c = PA_SEG[s];
+      const x1 = x + c[0] * GW, y1 = ny + c[1] * GH, x2 = x + c[2] * GW, y2 = ny + c[3] * GH;
+      g.push("G1 E-0.4 F2400", "G0 X" + x1.toFixed(2) + " Y" + y1.toFixed(2) + " F12000", "G1 E0.4 F2400");
+      g.push("G1 X" + x2.toFixed(2) + " Y" + y2.toFixed(2) + " E" + (Math.hypot(x2 - x1, y2 - y1) * EPM).toFixed(4) + " F600");
+    }
+    x += GW + GAP;
+  }
+  return g;
+}
+function paLinhaGcode(o){
+  const EPM = 0.05679;   // = E1.13573/20mm do Creality (linha ~0.68 x 0.2mm)
+  const n = o.n, y0 = 85.75, dy = 3.5, z = o.z;
+  const xa = 125, xb = 145, xc = 185, xd = 205;   // lento 20 / rapido 40 / lento 20
+  const g = ["G90", "G21", "M83", "M106 S0"];
+  g.push("G1 Z" + z.toFixed(2) + " F600");
+  g.push("G1 X" + xa + " Y" + (y0 - 4).toFixed(2) + " F27000");                 // prime
+  g.push("G1 X" + xd + " Y" + (y0 - 4).toFixed(2) + " E" + ((xd - xa) * EPM).toFixed(4) + " F1000");
+  for (let i = 0; i < n; i++) {
+    const pa = o.ini + i * o.passo, y = +(y0 + i * dy).toFixed(2);
+    g.push("SET_PRESSURE_ADVANCE ADVANCE=" + pa.toFixed(4));
+    g.push("G1 E-1.2 F2400", "G1 X" + xa + " Y" + y + " F27000", "G1 E1.2 F2400");
+    g.push("G1 X" + xb + " Y" + y + " E" + ((xb - xa) * EPM).toFixed(4) + " F600");
+    g.push("G1 X" + xc + " Y" + y + " E" + ((xc - xb) * EPM).toFixed(4) + " F6000");
+    g.push("G1 X" + xd + " Y" + y + " E" + ((xd - xc) * EPM).toFixed(4) + " F600");
+    if (i % 5 === 0 || i === n - 1) g.push.apply(g, paNumero(pa.toFixed(3), xd + 4, y - 1.5, EPM));
+  }
+  g.push("G1 E-1.2 F2400", "G1 Z" + (z + 5).toFixed(2) + " F600");
+  return g.join("\n");
+}
+async function paLinha(){
+  const noz = Math.max(0, Math.min(300, Math.round(+$("pal-noz").value || 210)));
+  const ini = Math.max(0, Math.min(0.2, +$("pal-ini").value || 0));
+  const passo = Math.max(0.001, Math.min(0.02, +$("pal-passo").value || 0.002));
+  const n = Math.max(4, Math.min(60, Math.round(+$("pal-n").value || 41)));
+  const fim = (ini + (n - 1) * passo);
+  if (!confirm("Imprimir teste de LINHA de PA (padrao Creality)?\n\nPA de " + ini.toFixed(3) + " a " + fim.toFixed(3) + " · " + n + " linhas · passo " + passo.toFixed(3) + " · numeros impressos a cada 5.\n\nConfirme: FILAMENTO carregado + mesa nivelada com MESH. Bico vai a " + noz + "C.\n\nDepois: a linha mais UNIFORME e o seu PA (leia o numero impresso ao lado).")) return;
+  trava(true);
+  setStatus("Teste linha de PA", "aquecendo bico " + noz + "C e imprimindo " + n + " linhas + numeros...", "busy");
+  try {
+    await gcode("M104 S" + noz, 1);
+    if ((await perfHomedZ()).length < 3) await gcode("G28", 8);
+    await gcode("M109 S" + noz, 8);
+    await gcode(paLinhaGcode({z: 0.2, ini: ini, passo: passo, n: n}), 10);
+    await gcode("SET_PRESSURE_ADVANCE ADVANCE=" + (+$("painput").value || 0.038).toFixed(3), 1);  // restaura o PA do campo
+    setStatus("Teste de PA impresso", "ache a linha mais UNIFORME (sem bolha no fim lento / sem falha no comeco rapido) e leia o numero impresso ao lado. Digite no campo e Aplique.", "on");
+  } catch(e){ setStatus("FALHOU: teste de PA", e.message, "err"); logLinha("!! " + e.message); }
+  finally { trava(false); }
+}
+$("palprint").onclick = () => { if (!ocupado) paLinha(); };
 // extrusora
 $("ext100").onclick = () => roda(
   "M109 S220\nG91\nG1 E100 F60\nG90", "Extrudando 100mm a 220C (leva ~2 min)", 8);
