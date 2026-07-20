@@ -177,6 +177,15 @@ pesquisa do CFS no OrcaSlicer, receitas de curl. **Leia sob demanda.**
   **prioridade** a esse valor sobre a soma legada; "Limpar" grava `None` (o if
   ignora); ou (b) global — `Z_OFFSET_APPLY_PROBE` + `SAVE_CONFIG` (funde no
   probe). **Nunca os dois pra mesma correção** (aplicaria em dobro).
+- **Placas são auto-registradas (jul/2026).** `<placa>` agora é o **nome real**
+  da placa do slicer "slugado" (`Textured PEI Plate` → `textured_pei_plate`), não
+  mais o binário. Na 1ª impressão de cada placa o `START_PRINT` grava
+  `placa_<slug> = "<nome real>"` no `joelma_vars.cfg` (**grava-só-na-mudança**, pra
+  poupar flash) e a Central **monta o dropdown de placas sozinha** lendo os
+  `placa_*`. Cada placa física vira um offset próprio, sem hardcode. Mantém
+  `PLACA_BIN` (textured/smooth) **só** pra soma legada `offset_placa_*` e como
+  **fallback de compat** dos `zoff_*` binários salvos antes desta versão. O nome
+  é sanitizado no Jinja (só `[a-z0-9 -]`) — evita `;`/`#`/`*` que o parser corta.
 - **Parafusos — convenção FECHADA com fonte (pesquisa jul/2026).** Klipper
   `Config_Reference`, `screw_thread: CW-M4`: *"A clockwise rotation of the knob
   **decreases the gap** between the nozzle and the bed"* → **horário = mesa SOBE**,

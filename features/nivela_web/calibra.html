@@ -631,19 +631,15 @@
       <button id="zzero">Zerar offset</button>
       <button id="probeacc"><i data-ic="activity"></i> Testar repetibilidade (PROBE_ACCURACY)</button>
     </div>
-    <div class="dica" style="margin-top:14px"><b>Calibrar pela 1ª camada (profissional).</b> Imprime um quadrado de teste no centro pra você julgar o squish — o jeito mais confiável. Leitura: <b>com falhas / não gruda</b> = bico ALTO → mais <b>negativo</b>. <b>Áspera / bico arrastando / translúcida</b> = bico BAIXO → mais <b>positivo</b>. <b>Lisa, linhas unidas, leve brilho fosco</b> = perfeito. Ajuste, reimprima pra conferir, e <b>salve na combinação placa+material abaixo</b> (ou Grave no probe — um OU outro).</div>
-    <div class="lin" style="gap:14px;flex-wrap:wrap">
-      <label style="min-width:auto">Bico °C <input type="number" id="z1c-noz" value="220" step="5" min="0" max="300" style="width:60px"></label>
-      <label style="min-width:auto">Altura 1ª cam. <input type="number" id="z1c-z" value="0.2" step="0.02" min="0.08" max="0.4" style="width:60px"> mm</label>
-      <label style="min-width:auto">Tamanho <input type="number" id="z1c-size" value="40" step="5" min="15" max="100" style="width:56px"> mm</label>
-      <button id="z1cprint" class="principal"><i data-ic="grid"></i> Imprimir teste 1ª camada</button>
-    </div>
+    <div class="dica" style="margin-top:14px"><b>Calibre pela 1ª camada de uma impressão real.</b> Fatie a peça no slicer (que informa a placa e o material de verdade) e observe a 1ª camada: <b>com falhas / não gruda</b> = bico ALTO → mais <b>negativo</b>. <b>Áspera / bico arrastando / translúcida</b> = bico BAIXO → mais <b>positivo</b>. <b>Lisa, linhas unidas, leve brilho fosco</b> = perfeito. Ajuste ao vivo com os passos acima e, quando ficar bom, <b>salve na combinação abaixo</b> — a placa já vem <b>selecionada pela impressão atual</b> (ou Grave no probe — um OU outro).</div>
     <div class="dica" style="margin-top:14px"><b>Persistir por placa + material (recomendado).</b> O ajuste fino acima é <b>temporário</b>: zera no restart E o START_PRINT o re-seta a cada impressão. Aqui você grava o offset ATUAL pra combinação escolhida — o START_PRINT aplica <b>sozinho</b> em toda impressão dessa combinação, e o valor <b>sobrevive a restart</b>. Variações caem no material-base (PLA-CF usa o de PLA) e <b>default</b> vale como coringa pra qualquer material sem offset próprio. Não mexe no probe. <i>Não use junto com "Gravar offset no probe" pra mesma correção (somaria em dobro).</i></div>
     <div class="lin" style="gap:10px;flex-wrap:wrap">
       <label style="min-width:auto">Placa <select id="zc-placa"><option value="textured">Textured PEI</option><option value="smooth">Smooth PEI</option></select></label>
+      <button id="zc-atual" class="ghost" style="padding:4px 10px;font-size:.8rem"><i data-ic="refresh"></i> Usar placa da impressão</button>
       <label style="min-width:auto">Material <select id="zc-mat"></select></label>
       <button id="zcsave" class="salvar"><i data-ic="save"></i> Salvar offset atual p/ esta combinação</button>
     </div>
+    <div id="zc-atual-hint" class="dica" style="margin-top:4px;font-size:.78rem;opacity:.85"></div>
     <div id="zclist" class="dica" style="margin-top:6px">offsets salvos: lendo…</div>
   </div>
 </details>
@@ -2621,18 +2617,70 @@ const ZC_LS = "zoffset:placa";
 let zcVars = {};
 let zcDispo = false;   // [save_variables] confirmado na impressora? (guarda o Salvar)
 $("zc-mat").innerHTML = ZC_MATS.map(m => "<option>" + m + "</option>").join("");
-try { const p = localStorage.getItem(ZC_LS); if (p === "textured" || p === "smooth") $("zc-placa").value = p; } catch(e){}
-$("zc-placa").onchange = () => { try { localStorage.setItem(ZC_LS, $("zc-placa").value); } catch(e){} };
-// so as chaves que a propria UI/START_PRINT geram - tambem blinda o innerHTML
-// contra chave exotica vinda da impressora (nao interpola nada fora do padrao)
-const ZC_KEY_RE = /^zoff_[a-z0-9-]+_(textured|smooth)$/;
-function zcNome(k){   // zoff_pla_textured -> "PLA + textured"
-  const m = k.match(/^zoff_(.+)_(textured|smooth)$/);
-  return m ? m[1].toUpperCase() + " + " + m[2] : k;
+// dropdown de placas montado a partir do variables: o START_PRINT grava
+// placa_<slug>=<nome real> na 1a impressao de cada placa (ver start_print.cfg),
+// e aqui a lista cresce sozinha. Comeca com os dois defaults pra funcionar do
+// dia 1 (antes de qualquer print) e antes do Klipper responder.
+// slug da placa usa "_" (mesmo separador do START_PRINT) -> nome de variavel
+// [a-z0-9_], aceito por qualquer Klipper no SAVE_VARIABLE
+const PLACA_KEY_RE = /^placa_([a-z0-9_]+)$/;
+const PLACA_DEFAULTS = {textured:"Textured PEI", smooth:"Smooth PEI"};
+let placaLabels = Object.assign({}, PLACA_DEFAULTS);   // slug -> label amigavel
+function escHtml(s){ return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]); }
+function placaNome(slug){   // label do variables, senao prettifica o slug
+  return placaLabels[slug] || slug.replace(/_/g," ").replace(/\b\w/g, c => c.toUpperCase()).replace(/\bPei\b/g,"PEI");
 }
+function zcMontaPlacas(){
+  const sel = $("zc-placa");
+  let alvo = sel.value;   // preserva a selecao atual...
+  try { const p = localStorage.getItem(ZC_LS); if (p) alvo = p; } catch(e){}   // ...ou a ultima lembrada
+  const slugs = Object.keys(placaLabels);
+  // slug so tem [a-z0-9_] (vem do regex/START_PRINT) -> seguro no value; label escapado
+  sel.innerHTML = slugs.map(s => '<option value="' + s + '">' + escHtml(placaLabels[s]) + '</option>').join("");
+  if (slugs.indexOf(alvo) >= 0) sel.value = alvo;   // slug sumiu -> cai no primeiro
+}
+zcMontaPlacas();
+$("zc-placa").onchange = () => { try { localStorage.setItem(ZC_LS, $("zc-placa").value); } catch(e){} };
+// chave = zoff_<material>_<slug>. O material vem do ZC_MATS (token simples, sem
+// "_") e ancora o split: tudo depois do 1o "_" pos-material e o slug (que pode ter
+// "_"). Ancorar no material conhecido evita ambiguidade com slug multi-palavra.
+const ZC_MAT_ALT = ZC_MATS.map(m => m.toLowerCase()).join("|");
+const ZC_KEY_RE = new RegExp("^zoff_(" + ZC_MAT_ALT + ")_([a-z0-9_]+)$");
+function zcNome(k){   // zoff_pla_textured_pei_plate -> "PLA + Textured PEI Plate"
+  const m = k.match(ZC_KEY_RE);
+  return m ? m[1].toUpperCase() + " + " + placaNome(m[2]) : k;
+}
+// ---- placa da impressao ATUAL (pra nao errar ao salvar o offset) ----
+// O START_PRINT grava cur_placa=<slug> no variables com a placa que o SLICER
+// informou (CURR_BED_TYPE). A Central le e ja seleciona a combinacao certa.
+let zcPrimeiraLeitura = true;
+function zcPlacaAtualSlug(){
+  const s = zcVars.cur_placa;   // ponteiro gravado pelo START_PRINT (nao "placa_*")
+  return (typeof s === "string" && s.trim()) ? s.trim() : null;
+}
+function zcAtualizaPlacaAtual(auto, imprimindo){   // indicador + auto-selecao na 1a leitura
+  const slug = zcPlacaAtualSlug(), hint = $("zc-atual-hint");
+  if (!slug){ if (hint) hint.textContent = "placa da impressão: — (imprima uma vez pra registrar)"; return; }
+  if (!(slug in placaLabels)){ placaLabels[slug] = placaNome(slug); zcMontaPlacas(); }   // placa nova ainda nao no dropdown
+  if (auto){ $("zc-placa").value = slug; try { localStorage.setItem(ZC_LS, slug); } catch(e){} }
+  const sel = $("zc-placa").value === slug;
+  if (hint) hint.textContent = (imprimindo ? "placa da impressão atual: " : "placa da última impressão: ")
+    + placaNome(slug) + (sel ? " ✓ selecionada" : " — clique “Usar placa da impressão”");
+}
+function zcUsarPlacaAtual(){
+  const slug = zcPlacaAtualSlug();
+  if (!slug){ setStatus("Placa da impressão desconhecida", "imprima uma vez pra registrar (o START_PRINT grava)", "err"); return; }
+  if (!(slug in placaLabels)){ placaLabels[slug] = placaNome(slug); zcMontaPlacas(); }
+  $("zc-placa").value = slug;
+  try { localStorage.setItem(ZC_LS, slug); } catch(e){}
+  zcAtualizaPlacaAtual(false, false);
+  logLinha("placa da impressao selecionada: " + placaNome(slug));
+  setStatus("Placa selecionada", placaNome(slug), "ok");
+}
+$("zc-atual").onclick = () => { if (!ocupado) zcUsarPlacaAtual(); };
 async function zcLerSalvos(){
   try {
-    const q = await rpc("printer.objects.query", {objects:{save_variables:null}});
+    const q = await rpc("printer.objects.query", {objects:{save_variables:null, print_stats:["state"]}});
     // objeto ausente NAO da erro HTTP: o Moonraker simplesmente OMITE do status.
     // Checagem estrutural (nao por mensagem) - senao mostrariamos "nenhum ainda"
     // com a persistencia inexistente e o Salvar quebraria com erro criptico.
@@ -2643,6 +2691,20 @@ async function zcLerSalvos(){
     }
     zcDispo = true;
     zcVars = ((q.status.save_variables || {}).variables) || {};
+    // placas reais registradas pelo START_PRINT (placa_<slug>=label) -> alimenta
+    // o dropdown. Reconstroi do zero a cada leitura (defaults + descobertas).
+    placaLabels = Object.assign({}, PLACA_DEFAULTS);
+    for (const pk in zcVars){
+      const pm = pk.match(PLACA_KEY_RE);
+      if (pm && typeof zcVars[pk] === "string" && zcVars[pk].trim()) placaLabels[pm[1]] = zcVars[pk].trim();
+    }
+    zcMontaPlacas();
+    // placa da impressao ATUAL (placa_atual, gravada pelo START_PRINT) -> seleciona
+    // sozinha "pra nao errar". Auto-seleciona na 1a leitura; depois so via o botao,
+    // pra nao brigar com uma escolha manual do usuario no meio da sessao.
+    const imprimindo = (((q.status.print_stats || {}).state) || "") === "printing";
+    zcAtualizaPlacaAtual(zcPrimeiraLeitura, imprimindo);
+    zcPrimeiraLeitura = false;
     const ks = Object.keys(zcVars).filter(k => ZC_KEY_RE.test(k) && typeof zcVars[k] === "number" && isFinite(zcVars[k])).sort();
     $("zclist").innerHTML = ks.length
       ? "offsets salvos (o START_PRINT aplica sozinho): " + ks.map(k =>
@@ -2688,7 +2750,7 @@ async function zcSalvar(){
     v = +((((q.status.gcode_move || {}).homing_origin) || [0,0,0])[2]);
   } catch(e){ logLinha("!! salvar offset: " + e.message); setStatus("Falha ao ler o offset atual", e.message, "err"); return; }
   if (!isFinite(v)) { logLinha("!! salvar offset: leitura invalida"); return; }
-  if (!confirm("Salvar o offset ATUAL (" + v.toFixed(3) + " mm) para " + mat + " + placa " + placa + "?\n\nO START_PRINT vai aplicar esse valor sozinho em TODA impressao dessa combinacao (persiste apos restart). Nao mexe no probe.")) return;
+  if (!confirm("Salvar o offset ATUAL (" + v.toFixed(3) + " mm) para " + mat + " + placa " + placaNome(placa) + "?\n\nO START_PRINT vai aplicar esse valor sozinho em TODA impressao dessa combinacao (persiste apos restart). Nao mexe no probe.")) return;
   roda("SAVE_VARIABLE VARIABLE=" + k + " VALUE=" + v.toFixed(3), "Salvando offset " + v.toFixed(3) + "mm p/ " + zcNome(k), 2, () => zcLerSalvos());
 }
 $("zcsave").onclick = () => { if (!ocupado) zcSalvar(); };
@@ -2712,59 +2774,10 @@ $("zcsave").onclick = () => { if (!ocupado) zcSalvar(); };
     } catch(e){ if (tent >= 2) break; await new Promise(r => setTimeout(r, 6000)); }
   }
 })();
-// ---------- Calibração de Z-offset pela 1a camada (padrao de teste) ----------
-// Gera um quadrado preenchido no centro na altura da 1a camada. O usuario ajusta
-// o offset ao vivo (SET_GCODE_OFFSET) julgando o squish e reimprime ate ficar
-// liso; depois "Gravar offset no probe". E-por-mm sai da geometria da linha
-// (altura x largura / area do filamento 1.75) — aproximado, so pra julgar.
-// quadrado solido (perimetro + preenchimento serpentina) na altura da 1a camada,
-// no espirito do teste de Z-offset do Creality: linha 0.5, F1500. Iterativo:
-// imprime, olha o squish, ajusta o offset com os passos finos, reimprime.
-function zPatchGcode(o){
-  const z = o.z, s = o.size, EPM = (z * 0.5) / 2.405, F = 1500, e = 0.45;   // linha 0.5mm
-  const x0 = +(o.cx - s/2).toFixed(2), x1 = +(o.cx + s/2).toFixed(2);
-  const y0 = +(o.cy - s/2).toFixed(2), y1 = +(o.cy + s/2).toFixed(2);
-  const L = (a, b) => (Math.abs(b - a) * EPM).toFixed(4);
-  const g = ["G90", "G21", "M83", "M106 S0"];
-  g.push("G1 Z" + (z + 2).toFixed(2) + " F600");
-  g.push("G1 X" + x0 + " Y" + y0 + " F9000");
-  g.push("G1 Z" + z.toFixed(2) + " F300");
-  // perimetro (quadro)
-  g.push("G1 X" + x1 + " Y" + y0 + " E" + L(x0, x1) + " F" + F);
-  g.push("G1 X" + x1 + " Y" + y1 + " E" + L(y0, y1) + " F" + F);
-  g.push("G1 X" + x0 + " Y" + y1 + " E" + L(x0, x1) + " F" + F);
-  g.push("G1 X" + x0 + " Y" + y0 + " E" + L(y0, y1) + " F" + F);
-  // preenchimento serpentina (solido, continuo) dentro do perimetro
-  const ix0 = +(x0 + e).toFixed(2), ix1 = +(x1 - e).toFixed(2), Einf = L(ix0, ix1);
-  let y = +(y0 + e).toFixed(2), dir = 1;
-  g.push("G1 X" + ix0 + " Y" + y + " F9000");
-  while (y <= y1 - e) {
-    g.push("G1 X" + (dir > 0 ? ix1 : ix0) + " Y" + y.toFixed(2) + " E" + Einf + " F" + F);   // linha cheia
-    const ny = +(y + e).toFixed(2);
-    if (ny <= y1 - e) g.push("G1 Y" + ny.toFixed(2) + " E" + (e * EPM).toFixed(4) + " F" + F); // vira
-    y = ny; dir = -dir;
-  }
-  g.push("G1 E-1 F1800");
-  g.push("G1 Z" + (z + 5).toFixed(2) + " F600");
-  return g.join("\n");
-}
-async function zPrimeiraCamada(){
-  const noz = Math.max(0, Math.min(300, Math.round(+$("z1c-noz").value || 220)));
-  const z = Math.max(0.08, Math.min(0.4, +$("z1c-z").value || 0.2));
-  const size = Math.max(15, Math.min(100, Math.round(+$("z1c-size").value || 40)));
-  if (!confirm("Imprimir teste de 1a camada (quadrado " + size + "x" + size + "mm) no centro?\n\nConfirme: FILAMENTO carregado + mesa NIVELADA e com MESH ativo. Bico vai a " + noz + "C.\n\nIterativo: olhe o squish, ajuste o offset com os passos finos e reimprima. Descole o quadrado antes de repetir.")) return;
-  trava(true);
-  setStatus("Teste 1a camada", "aquecendo bico " + noz + "C e imprimindo o quadrado " + size + "mm...", "busy");
-  try {
-    await gcode("M104 S" + noz, 1);
-    if ((await perfHomedZ()).length < 3) await gcode("G28", 8);
-    await gcode("M109 S" + noz, 8);
-    await gcode(zPatchGcode({cx: 175, cy: 175, size: size, z: z}), 12);
-    setStatus("Teste impresso — julgue o squish", "falhas/nao gruda = mais NEGATIVO · aspera/arrasta/translucida = mais POSITIVO · lisa e unida com leve brilho = perfeito. Ajuste, reimprima e depois Gravar.", "on");
-  } catch(e){ setStatus("FALHOU: teste 1a camada", e.message, "err"); logLinha("!! " + e.message); }
-  finally { trava(false); }
-}
-$("z1cprint").onclick = () => { if (!ocupado) zPrimeiraCamada(); };
+// (removido) Teste sintetico de 1a camada: nao refletia a placa/material reais
+// (isso so vem do slicer). A calibracao de 1a camada agora e feita numa impressao
+// REAL - a Central le a placa da impressao atual (cur_placa) e ja seleciona a
+// combinacao certa pra salvar o offset.
 // PID
 $("pidmesa").onclick    = () => roda("PID_CALIBRATE HEATER=heater_bed TARGET=60", "PID da mesa @60C", 25, () => $("salvar").style.display = "");
 $("pidmesa100").onclick = () => roda("PID_CALIBRATE HEATER=heater_bed TARGET=100", "PID da mesa @100C", 30, () => $("salvar").style.display = "");
