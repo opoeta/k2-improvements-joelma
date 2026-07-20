@@ -1567,22 +1567,27 @@ function difsDoPasse(p){
 }
 async function medirRobusto(opts){
   const o = Object.assign({bed:60, noz:140, tilt1:1, rotulo:"Medição"}, opts || {});
+  // toques por ponto: 3 (mediana) na 1a medicao (referencia precisa) e 1 nas
+  // re-medicoes (o loop de ajuste que se repete) -> MUITO mais rapido no
+  // vai-e-volta. O multi-passe (2-3 rodadas com mediana das difs) ja garante a
+  // repetibilidade, entao 1 toque nas re-medicoes nao volta o "valores mudam".
+  const amostras = o.tilt1 ? 3 : 1;
   const anterior = medAgg;
   medAgg = null;
   const passes = [];
   trava(true);
   try {
     setStatus(o.rotulo + " — passe 1", "aquece bico " + o.noz + "°C" + (o.bed>0 ? " + mesa " + o.bed + "°C" : "") + (o.tilt1 ? ", alinha fusos" : "") + " e mede", "busy");
-    await gcode("NIVELA_PARAFUSOS BED_TEMP=" + o.bed + " NOZ_TEMP=" + o.noz + " TILT=" + (o.tilt1 ? 1 : 0), 18);
+    await gcode("NIVELA_PARAFUSOS BED_TEMP=" + o.bed + " NOZ_TEMP=" + o.noz + " TILT=" + (o.tilt1 ? 1 : 0) + " SAMPLES=" + amostras, 18);
     passes.push(await lerResults());
     setStatus(o.rotulo + " — passe 2", "re-medindo com a MESMA referência (sem z_tilt)", "busy");
-    await gcode("NIVELA_PARAFUSOS BED_TEMP=0 NOZ_TEMP=" + o.noz + " TILT=0", 8);
+    await gcode("NIVELA_PARAFUSOS BED_TEMP=0 NOZ_TEMP=" + o.noz + " TILT=0 SAMPLES=" + amostras, 8);
     passes.push(await lerResults());
     const validos = () => passes.map(difsDoPasse).filter(Boolean);
     const rangeDe = (vs, k) => { const ds = vs.map(v => v.difs[k]).filter(x => typeof x === "number"); return ds.length ? Math.max(...ds) - Math.min(...ds) : 0; };
     if (CANTOS.some(k => rangeDe(validos(), k) > 0.03)) {
       setStatus(o.rotulo + " — desempate (3º passe)", "passes divergiram >0,03mm — medindo de novo", "busy");
-      await gcode("NIVELA_PARAFUSOS BED_TEMP=0 NOZ_TEMP=" + o.noz + " TILT=0", 8);
+      await gcode("NIVELA_PARAFUSOS BED_TEMP=0 NOZ_TEMP=" + o.noz + " TILT=0 SAMPLES=" + amostras, 8);
       passes.push(await lerResults());
     }
     const vs = validos();
@@ -1607,8 +1612,8 @@ async function medirRobusto(opts){
 async function medirRapido(){
   trava(true);
   try {
-    setStatus("Re-medição rápida", "1 passe, sem z_tilt — mesma referência da anterior", "busy");
-    await gcode("NIVELA_PARAFUSOS BED_TEMP=0 NOZ_TEMP=140 TILT=0", 8);
+    setStatus("Re-medição rápida", "1 passe · 1 toque, sem z_tilt — mesma referência da anterior", "busy");
+    await gcode("NIVELA_PARAFUSOS BED_TEMP=0 NOZ_TEMP=140 TILT=0 SAMPLES=1", 8);
     medAgg = null;   // só invalida o agregado DEPOIS do sucesso
     setStatus("Re-medição concluída", "compare com a anterior", "on");
     await render();
@@ -1792,7 +1797,7 @@ function perfRender(){
       (ruim ? " <b style='color:var(--bad)'>" + ruim + " suspeito(s) de girar em falso</b> — resolva antes de nivelar." : " todos ok. Bora nivelar.");
     $("perf-prog").innerHTML = perfLinhasMMv();
     perfBtn('<i data-ic="ruler"></i> Nivelar agora (mede os cantos)', "principal proximo").onclick = () => perfMede("Nivelamento", true);
-    if (ruim) perfBtn("Re-testar fuga", "ghost").onclick = () => perfComeca(true);
+    if (ruim) perfBtn("Re-testar fuga", "ghost").onclick = () => perfComeca("fuga");
     perfBtn("Fechar", "ghost").onclick = () => perfFecha();
   }
   pintaIcones && pintaIcones();
