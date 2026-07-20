@@ -633,8 +633,9 @@
     </div>
     <div class="dica" style="margin-top:14px"><b>Calibrar pela 1ª camada (profissional).</b> Imprime um quadrado de teste no centro pra você julgar o squish — o jeito mais confiável. Leitura: <b>com falhas / não gruda</b> = bico ALTO → mais <b>negativo</b>. <b>Áspera / bico arrastando / translúcida</b> = bico BAIXO → mais <b>positivo</b>. <b>Lisa, linhas unidas, leve brilho fosco</b> = perfeito. Ajuste, reimprima pra conferir, e <b>Grave</b>.</div>
     <div class="lin" style="gap:14px;flex-wrap:wrap">
-      <label style="min-width:auto">Bico °C <input type="number" id="z1c-noz" value="210" step="5" min="0" max="300" style="width:60px"></label>
+      <label style="min-width:auto">Bico °C <input type="number" id="z1c-noz" value="220" step="5" min="0" max="300" style="width:60px"></label>
       <label style="min-width:auto">Altura 1ª cam. <input type="number" id="z1c-z" value="0.2" step="0.02" min="0.08" max="0.4" style="width:60px"> mm</label>
+      <label style="min-width:auto">Tamanho <input type="number" id="z1c-size" value="40" step="5" min="15" max="100" style="width:56px"> mm</label>
       <button id="z1cprint" class="principal"><i data-ic="grid"></i> Imprimir teste 1ª camada</button>
     </div>
   </div>
@@ -2597,39 +2598,50 @@ $("zread").onclick = () => zLeAtual();
 // o offset ao vivo (SET_GCODE_OFFSET) julgando o squish e reimprime ate ficar
 // liso; depois "Gravar offset no probe". E-por-mm sai da geometria da linha
 // (altura x largura / area do filamento 1.75) — aproximado, so pra julgar.
+// quadrado solido (perimetro + preenchimento serpentina) na altura da 1a camada,
+// no espirito do teste de Z-offset do Creality: linha 0.5, F1500. Iterativo:
+// imprime, olha o squish, ajusta o offset com os passos finos, reimprime.
 function zPatchGcode(o){
-  const cx = o.cx, cy = o.cy, s = o.size, e = o.espac, z = o.z;
-  const EPM = (z * 0.45) / 2.405;   // mm de filamento por mm de linha (~0.2x0.45)
-  const x0 = +(cx - s/2).toFixed(2), x1 = +(cx + s/2).toFixed(2), y0 = +(cy - s/2).toFixed(2);
-  const El = (s * EPM).toFixed(3);
+  const z = o.z, s = o.size, EPM = (z * 0.5) / 2.405, F = 1500, e = 0.45;   // linha 0.5mm
+  const x0 = +(o.cx - s/2).toFixed(2), x1 = +(o.cx + s/2).toFixed(2);
+  const y0 = +(o.cy - s/2).toFixed(2), y1 = +(o.cy + s/2).toFixed(2);
+  const L = (a, b) => (Math.abs(b - a) * EPM).toFixed(4);
   const g = ["G90", "G21", "M83", "M106 S0"];
-  g.push("G1 Z" + (z + 3).toFixed(2) + " F600");
-  g.push("G1 X" + x0 + " Y" + (y0 - 4).toFixed(2) + " F9000");   // frente do patch
+  g.push("G1 Z" + (z + 2).toFixed(2) + " F600");
+  g.push("G1 X" + x0 + " Y" + y0 + " F9000");
   g.push("G1 Z" + z.toFixed(2) + " F300");
-  g.push("G1 X" + x1 + " Y" + (y0 - 4).toFixed(2) + " E" + El + " F1000");   // prime
-  let y = y0, dir = 1;
-  const n = Math.max(6, Math.floor(s / e));
-  for (let i = 0; i < n; i++) {
-    g.push("G1 X" + (dir > 0 ? x0 : x1) + " Y" + y.toFixed(2) + " F9000");
-    g.push("G1 X" + (dir > 0 ? x1 : x0) + " Y" + y.toFixed(2) + " E" + El + " F1200");
-    y = +(y + e).toFixed(2); dir = -dir;
+  // perimetro (quadro)
+  g.push("G1 X" + x1 + " Y" + y0 + " E" + L(x0, x1) + " F" + F);
+  g.push("G1 X" + x1 + " Y" + y1 + " E" + L(y0, y1) + " F" + F);
+  g.push("G1 X" + x0 + " Y" + y1 + " E" + L(x0, x1) + " F" + F);
+  g.push("G1 X" + x0 + " Y" + y0 + " E" + L(y0, y1) + " F" + F);
+  // preenchimento serpentina (solido, continuo) dentro do perimetro
+  const ix0 = +(x0 + e).toFixed(2), ix1 = +(x1 - e).toFixed(2), Einf = L(ix0, ix1);
+  let y = +(y0 + e).toFixed(2), dir = 1;
+  g.push("G1 X" + ix0 + " Y" + y + " F9000");
+  while (y <= y1 - e) {
+    g.push("G1 X" + (dir > 0 ? ix1 : ix0) + " Y" + y.toFixed(2) + " E" + Einf + " F" + F);   // linha cheia
+    const ny = +(y + e).toFixed(2);
+    if (ny <= y1 - e) g.push("G1 Y" + ny.toFixed(2) + " E" + (e * EPM).toFixed(4) + " F" + F); // vira
+    y = ny; dir = -dir;
   }
   g.push("G1 E-1 F1800");
   g.push("G1 Z" + (z + 5).toFixed(2) + " F600");
   return g.join("\n");
 }
 async function zPrimeiraCamada(){
-  const noz = Math.max(0, Math.min(300, Math.round(+$("z1c-noz").value || 210)));
+  const noz = Math.max(0, Math.min(300, Math.round(+$("z1c-noz").value || 220)));
   const z = Math.max(0.08, Math.min(0.4, +$("z1c-z").value || 0.2));
-  if (!confirm("Imprimir teste de 1a camada no centro?\n\nConfirme: FILAMENTO carregado no bico + mesa NIVELADA e com MESH ativo. O bico vai a " + noz + "C.\n\nA cada teste, descole o quadrado anterior antes de repetir.")) return;
+  const size = Math.max(15, Math.min(100, Math.round(+$("z1c-size").value || 40)));
+  if (!confirm("Imprimir teste de 1a camada (quadrado " + size + "x" + size + "mm) no centro?\n\nConfirme: FILAMENTO carregado + mesa NIVELADA e com MESH ativo. Bico vai a " + noz + "C.\n\nIterativo: olhe o squish, ajuste o offset com os passos finos e reimprima. Descole o quadrado antes de repetir.")) return;
   trava(true);
-  setStatus("Teste 1a camada", "aquecendo bico " + noz + "C e imprimindo o quadrado...", "busy");
+  setStatus("Teste 1a camada", "aquecendo bico " + noz + "C e imprimindo o quadrado " + size + "mm...", "busy");
   try {
     await gcode("M104 S" + noz, 1);
     if ((await perfHomedZ()).length < 3) await gcode("G28", 8);
     await gcode("M109 S" + noz, 8);
-    await gcode(zPatchGcode({cx: 175, cy: 175, size: 22, espac: 0.45, z: z}), 6);
-    setStatus("Teste impresso — julgue o squish", "falhas/nao gruda = mais NEGATIVO · aspera/arrasta = mais POSITIVO · lisa e unida = perfeito. Ajuste, reimprima e depois Gravar.", "on");
+    await gcode(zPatchGcode({cx: 175, cy: 175, size: size, z: z}), 12);
+    setStatus("Teste impresso — julgue o squish", "falhas/nao gruda = mais NEGATIVO · aspera/arrasta/translucida = mais POSITIVO · lisa e unida com leve brilho = perfeito. Ajuste, reimprima e depois Gravar.", "on");
   } catch(e){ setStatus("FALHOU: teste 1a camada", e.message, "err"); logLinha("!! " + e.message); }
   finally { trava(false); }
 }
