@@ -626,6 +626,7 @@
       <button id="zp1"><i data-ic="plus"></i> 0.1</button>
     </div>
     <div class="botoes" style="margin-top:10px">
+      <button id="zread"><i data-ic="refresh"></i> Ler valor atual</button>
       <button id="zapply" class="salvar"><i data-ic="save"></i> Gravar offset no probe</button>
       <button id="zzero">Zerar offset</button>
       <button id="probeacc"><i data-ic="activity"></i> Testar repetibilidade (PROBE_ACCURACY)</button>
@@ -2561,6 +2562,28 @@ $("zp1").onclick  = () => zAjusta(0.1);
 $("zzero").onclick = () => roda("SET_GCODE_OFFSET Z=0 MOVE=1", "Zerando o offset Z", 2, () => leCalib());
 $("zapply").onclick = () => roda("Z_OFFSET_APPLY_PROBE", "Gravando o offset no probe", 3, () => { leCalib(); $("salvar").style.display = ""; });
 $("probeacc").onclick = () => roda("PROBE_ACCURACY", "Testando repetibilidade do probe", 8);
+// le AGORA o offset aplicado (gcode_move.homing_origin) + o z_offset salvo no
+// probe (configfile) - sem esperar o poll de 8s. Mostra os dois pra nao confundir
+// "offset ao vivo" com "gravado no probe".
+async function zLeAtual(){
+  setStatus("Lendo offset Z...", null, "busy");
+  try {
+    const q = await rpc("printer.objects.query", {objects:{gcode_move:null, configfile:["settings"]}});
+    const s = q.status || {};
+    const zo = (s.gcode_move && s.gcode_move.homing_origin) ? s.gcode_move.homing_origin[2] : 0;
+    $("zoffval").textContent = zo.toFixed(3) + " mm";
+    tag("tag-zoff", zo.toFixed(3), Math.abs(zo) > 0.0005);
+    const cfg = (s.configfile && s.configfile.settings) || {};
+    let salvo = null, sec = null;
+    for (const k of ["prtouch_v3", "prtouch", "probe", "bltouch"]) {
+      if (cfg[k] && cfg[k].z_offset !== undefined && cfg[k].z_offset !== null) { salvo = Number(cfg[k].z_offset); sec = k; break; }
+    }
+    const msg = "aplicado agora " + zo.toFixed(3) + " mm" + (salvo !== null ? " · salvo no probe (" + sec + ") " + salvo.toFixed(3) + " mm" : "");
+    logLinha("// Offset Z: " + msg);
+    setStatus("Offset Z lido", msg, "on");
+  } catch(e){ logLinha("!! ler offset: " + e.message); setStatus("Falha ao ler offset Z", e.message, "err"); }
+}
+$("zread").onclick = () => zLeAtual();
 // ---------- Calibração de Z-offset pela 1a camada (padrao de teste) ----------
 // Gera um quadrado preenchido no centro na altura da 1a camada. O usuario ajusta
 // o offset ao vivo (SET_GCODE_OFFSET) julgando o squish e reimprime ate ficar
