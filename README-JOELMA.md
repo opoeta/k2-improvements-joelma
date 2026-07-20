@@ -62,7 +62,7 @@ Trocar o gcode inicial da máquina por (Creality Print / OrcaSlicer):
 START_PRINT EXTRUDER_TEMP=[nozzle_temperature_initial_layer] BED_TEMP=[bed_temperature_initial_layer_single] CHAMBER_TEMP=[overall_chamber_temperature] MATERIAL={filament_type[initial_tool]} CURR_BED_TYPE="{curr_bed_type}" ADAPTIVE=1
 ```
 
-- `MATERIAL=` ativa o Z-offset por material; `CURR_BED_TYPE=` seleciona o offset da placa (textured/smooth); `ADAPTIVE=1` faz o mesh só da área da peça (KAMP).
+- `MATERIAL=` ativa o Z-offset por material; `CURR_BED_TYPE=` seleciona o offset **por placa** — cada placa do slicer (Textured PEI Plate, Smooth PEI Plate, etc.) vira um offset próprio, **auto-registrado** na 1ª impressão e listado sozinho na Central; `ADAPTIVE=1` faz o mesh só da área da peça (KAMP).
 - **Ligue "Etiquetar objetos" (Label objects)** no slicer — sem ele o KAMP não acha os objetos e cai pra mesa inteira.
 - Templates prontos em `features/kamp-adaptive-purge/slicer-templates/` (Creality Print e Orca) já incluem o `LINE_PURGE` (purga adaptativa) e um flush de limpeza de bico ao carregar o filamento.
 
