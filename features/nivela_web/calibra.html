@@ -612,19 +612,29 @@
 <details class="acc">
   <summary><i data-ic="target"></i> Probe &amp; Z-offset <span class="acc-tag vazio" id="tag-zoff">—</span></summary>
   <div class="acc-body">
-    <div class="dica">Ajuste fino da primeira camada. <b>Negativo</b> = bico mais perto da mesa. Ajuste durante a impressão e depois grave.</div>
-    <div class="lin">
-      <label>Offset Z</label>
+    <div class="dica">Ajuste fino da 1ª camada. <b>Negativo</b> = bico mais perto da mesa. Ajuste ao vivo e depois <b>grave</b>.</div>
+    <div class="lin" style="flex-wrap:wrap;gap:6px">
+      <label style="min-width:auto">Offset Z</label>
+      <button id="zm1"><i data-ic="minus"></i> 0.1</button>
       <button id="zm05"><i data-ic="minus"></i> 0.05</button>
       <button id="zm01"><i data-ic="minus"></i> 0.01</button>
+      <button id="zm005"><i data-ic="minus"></i> 0.005</button>
       <span class="val" id="zoffval">0.000 mm</span>
+      <button id="zp005"><i data-ic="plus"></i> 0.005</button>
       <button id="zp01"><i data-ic="plus"></i> 0.01</button>
       <button id="zp05"><i data-ic="plus"></i> 0.05</button>
+      <button id="zp1"><i data-ic="plus"></i> 0.1</button>
     </div>
     <div class="botoes" style="margin-top:10px">
       <button id="zapply" class="salvar"><i data-ic="save"></i> Gravar offset no probe</button>
       <button id="zzero">Zerar offset</button>
       <button id="probeacc"><i data-ic="activity"></i> Testar repetibilidade (PROBE_ACCURACY)</button>
+    </div>
+    <div class="dica" style="margin-top:14px"><b>Calibrar pela 1ª camada (profissional).</b> Imprime um quadrado de teste no centro pra você julgar o squish — o jeito mais confiável. Leitura: <b>com falhas / não gruda</b> = bico ALTO → mais <b>negativo</b>. <b>Áspera / bico arrastando / translúcida</b> = bico BAIXO → mais <b>positivo</b>. <b>Lisa, linhas unidas, leve brilho fosco</b> = perfeito. Ajuste, reimprima pra conferir, e <b>Grave</b>.</div>
+    <div class="lin" style="gap:14px;flex-wrap:wrap">
+      <label style="min-width:auto">Bico °C <input type="number" id="z1c-noz" value="210" step="5" min="0" max="300" style="width:60px"></label>
+      <label style="min-width:auto">Altura 1ª cam. <input type="number" id="z1c-z" value="0.2" step="0.02" min="0.08" max="0.4" style="width:60px"> mm</label>
+      <button id="z1cprint" class="principal"><i data-ic="grid"></i> Imprimir teste 1ª camada</button>
     </div>
   </div>
 </details>
@@ -2540,13 +2550,59 @@ $("meshout").onclick  = () => roda("BED_MESH_OUTPUT", "Lendo valores do mesh", 2
 $("meshclear").onclick= () => roda("BED_MESH_CLEAR", "Limpando o mesh ativo", 2, () => leCalib());
 // probe / z-offset
 function zAjusta(d){ roda("SET_GCODE_OFFSET Z_ADJUST=" + d + " MOVE=1", "Ajustando offset Z em " + d + "mm", 2, () => leCalib()); }
+$("zm1").onclick  = () => zAjusta(-0.1);
 $("zm05").onclick = () => zAjusta(-0.05);
 $("zm01").onclick = () => zAjusta(-0.01);
+$("zm005").onclick= () => zAjusta(-0.005);
+$("zp005").onclick= () => zAjusta(0.005);
 $("zp01").onclick = () => zAjusta(0.01);
 $("zp05").onclick = () => zAjusta(0.05);
+$("zp1").onclick  = () => zAjusta(0.1);
 $("zzero").onclick = () => roda("SET_GCODE_OFFSET Z=0 MOVE=1", "Zerando o offset Z", 2, () => leCalib());
 $("zapply").onclick = () => roda("Z_OFFSET_APPLY_PROBE", "Gravando o offset no probe", 3, () => { leCalib(); $("salvar").style.display = ""; });
 $("probeacc").onclick = () => roda("PROBE_ACCURACY", "Testando repetibilidade do probe", 8);
+// ---------- Calibração de Z-offset pela 1a camada (padrao de teste) ----------
+// Gera um quadrado preenchido no centro na altura da 1a camada. O usuario ajusta
+// o offset ao vivo (SET_GCODE_OFFSET) julgando o squish e reimprime ate ficar
+// liso; depois "Gravar offset no probe". E-por-mm sai da geometria da linha
+// (altura x largura / area do filamento 1.75) — aproximado, so pra julgar.
+function zPatchGcode(o){
+  const cx = o.cx, cy = o.cy, s = o.size, e = o.espac, z = o.z;
+  const EPM = (z * 0.45) / 2.405;   // mm de filamento por mm de linha (~0.2x0.45)
+  const x0 = +(cx - s/2).toFixed(2), x1 = +(cx + s/2).toFixed(2), y0 = +(cy - s/2).toFixed(2);
+  const El = (s * EPM).toFixed(3);
+  const g = ["G90", "G21", "M83", "M106 S0"];
+  g.push("G1 Z" + (z + 3).toFixed(2) + " F600");
+  g.push("G1 X" + x0 + " Y" + (y0 - 4).toFixed(2) + " F9000");   // frente do patch
+  g.push("G1 Z" + z.toFixed(2) + " F300");
+  g.push("G1 X" + x1 + " Y" + (y0 - 4).toFixed(2) + " E" + El + " F1000");   // prime
+  let y = y0, dir = 1;
+  const n = Math.max(6, Math.floor(s / e));
+  for (let i = 0; i < n; i++) {
+    g.push("G1 X" + (dir > 0 ? x0 : x1) + " Y" + y.toFixed(2) + " F9000");
+    g.push("G1 X" + (dir > 0 ? x1 : x0) + " Y" + y.toFixed(2) + " E" + El + " F1200");
+    y = +(y + e).toFixed(2); dir = -dir;
+  }
+  g.push("G1 E-1 F1800");
+  g.push("G1 Z" + (z + 5).toFixed(2) + " F600");
+  return g.join("\n");
+}
+async function zPrimeiraCamada(){
+  const noz = Math.max(0, Math.min(300, Math.round(+$("z1c-noz").value || 210)));
+  const z = Math.max(0.08, Math.min(0.4, +$("z1c-z").value || 0.2));
+  if (!confirm("Imprimir teste de 1a camada no centro?\n\nConfirme: FILAMENTO carregado no bico + mesa NIVELADA e com MESH ativo. O bico vai a " + noz + "C.\n\nA cada teste, descole o quadrado anterior antes de repetir.")) return;
+  trava(true);
+  setStatus("Teste 1a camada", "aquecendo bico " + noz + "C e imprimindo o quadrado...", "busy");
+  try {
+    await gcode("M104 S" + noz, 1);
+    if ((await perfHomedZ()).length < 3) await gcode("G28", 8);
+    await gcode("M109 S" + noz, 8);
+    await gcode(zPatchGcode({cx: 175, cy: 175, size: 22, espac: 0.45, z: z}), 6);
+    setStatus("Teste impresso — julgue o squish", "falhas/nao gruda = mais NEGATIVO · aspera/arrasta = mais POSITIVO · lisa e unida = perfeito. Ajuste, reimprima e depois Gravar.", "on");
+  } catch(e){ setStatus("FALHOU: teste 1a camada", e.message, "err"); logLinha("!! " + e.message); }
+  finally { trava(false); }
+}
+$("z1cprint").onclick = () => { if (!ocupado) zPrimeiraCamada(); };
 // PID
 $("pidmesa").onclick    = () => roda("PID_CALIBRATE HEATER=heater_bed TARGET=60", "PID da mesa @60C", 25, () => $("salvar").style.display = "");
 $("pidmesa100").onclick = () => roda("PID_CALIBRATE HEATER=heater_bed TARGET=100", "PID da mesa @100C", 30, () => $("salvar").style.display = "");
