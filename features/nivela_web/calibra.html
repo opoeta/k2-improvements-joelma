@@ -523,7 +523,6 @@
     <div id="perfbox" style="display:none">
       <div class="dica" id="perf-dica" style="margin:10px 0 8px"></div>
       <div class="lin" id="perf-cfg" style="gap:14px;margin:0 0 6px">
-        <label style="min-width:auto">Soltar (voltas) <input type="number" id="perf-n" value="4" step="1" min="2" max="8" style="width:52px"></label>
         <label style="min-width:auto">Mesa °C <input type="number" id="perf-bed" value="60" step="5" min="0" max="110" style="width:56px"></label>
         <label style="min-width:auto">Bico °C <input type="number" id="perf-noz" value="140" step="5" min="0" max="260" style="width:56px"></label>
       </div>
@@ -1635,8 +1634,9 @@ let perfBase = null;        // {screwK: z} referência na posição de trabalho
 let perfMMv = {};           // {screwK: mm/volta medido}
 let perfSlipIdx = 0;
 let perfSlipFase = "aperta"; // aperta | solta
+let perfVoltas = 4;          // voltas a soltar (escolhido no passo "soltar")
 function perfNum(){
-  const n = Math.round(+$("perf-n").value), bed = +$("perf-bed").value, noz = +$("perf-noz").value;
+  const n = Math.round(perfVoltas), bed = +$("perf-bed").value, noz = +$("perf-noz").value;
   // teto além do piso: um valor absurdo digitado (ex. 900) só faria o firmware
   // rejeitar por max_temp e o wizard abortar com mensagem confusa
   return {n: n>=2 && n<=8 ? n : 4, bed: Math.min(bed>=0 ? bed : 60, 120), noz: Math.min(noz>=0 ? noz : 140, 260)};
@@ -1746,8 +1746,13 @@ function perfRender(){
     perfChecklist("<b>Fuga da porca — passo 1: apertar tudo.</b> Aperte cada parafuso ate o fim, <b>firme mas SEM forçar</b> (encostou, parou). Marque cada um.",
       '<i data-ic="check"></i> Apertei os 4 → soltar', () => { perfEstado = "loosen"; perfMarcado = new Set(); perfRender(); });
   } else if (perfEstado === "loosen") {
-    perfChecklist("<b>Passo 2 — soltar " + cfg.n + " voltas.</b> Solte cada parafuso <b>exatamente " + cfg.n + " voltas</b> (anti-horario). Marque cada um.",
-      '<i data-ic="ruler"></i> Soltei ' + cfg.n + ' → medir referencia', () => perfRef());
+    const n = cfg.n;
+    perfChecklist("<div class=\"lin\" style=\"gap:8px;margin-bottom:6px\"><b>Passo 2 — soltar</b> <select id=\"perf-nl\" style=\"width:58px\">" +
+        [2,3,4].map(v => '<option value="' + v + '"' + (v === n ? ' selected' : '') + '>' + v + '</option>').join("") +
+        "</select> <b>voltas</b> (anti-horario)</div>Solte cada parafuso <b>exatamente " + n + " voltas</b>. Isso te leva ao meio do curso. Marque cada um.",
+      '<i data-ic="ruler"></i> Soltei ' + n + ' → medir referencia', () => perfRef());
+    const selEl = $("perf-nl");
+    if (selEl) selEl.onchange = () => { perfVoltas = +selEl.value; perfRender(); };
   } else if (perfEstado === "slip") {
     const k = PERF_ORDEM[perfSlipIdx], nome = PERF_NOMES[k];
     if (perfSlipFase === "aperta") {
