@@ -516,7 +516,7 @@
       <div class="canto" id="screw2"><h3>FRENTE DIREITO</h3><div class="acao">—</div></div>
     </div>
     <div class="botoes" style="margin-top:10px">
-      <button id="perf" class="principal"><i data-ic="wrench"></i> Nivelamento Perfeito (do zero)</button>
+      <button id="perf" class="principal"><i data-ic="wrench"></i> Nivelamento Perfeito (wizard)</button>
       <button id="ztilt"><i data-ic="target"></i> Z_TILT_ADJUST (alinhar os fusos Z)</button>
       <button id="papel"><i data-ic="ruler"></i> Calibração pela folha</button>
     </div>
@@ -1671,36 +1671,96 @@ function perfLinhasMMv(){
       (v < 0 ? " <b style='color:var(--bad)'>(desceu — soltou em vez de apertar?)</b>" : slip ? " <b style='color:var(--bad)'>(gira em falso?)</b>" : "") + "</div>"; } });
   return s;
 }
+// avalia o estado dos 4 cantos a partir do agregado (medAgg) — MESMA matematica
+// dos cards do render(): OK quando o ajuste <= 3 clock-min (~18°, ~0,035mm).
+// Retorna {todosOk, cantos:[{k,nome,ok,base,sobe,txt,delta}]} ou null sem medicao.
+function perfAvalia(){
+  if (!medAgg) return null;
+  const cantos = [];
+  let todosOk = true;
+  for (const k of PERF_ORDEM){
+    const a = medAgg[k];
+    if (!a){ todosOk = false; cantos.push({k, nome:PERF_NOMES[k], ok:false, txt:"(sem leitura)"}); continue; }
+    if (k === medAgg.base){ cantos.push({k, nome:PERF_NOMES[k], ok:true, base:true, txt:"BASE (referencia — nao mexer)"}); continue; }
+    const diff = Math.abs(a.diff);
+    const adj = diff < 0.001 ? 0 : diff / 0.7;
+    let volt = Math.trunc(adj), min = Math.round((adj - volt) * 60);
+    if (min === 60){ volt++; min = 0; }
+    const tot = volt * 60 + min;
+    const ok = tot <= 3;
+    const sobe = a.diff >= 0;   // diff = z_base - z_canto: >0 = canto abaixo = SUBIR
+    const g = graus(String(volt).padStart(2,"0") + ":" + String(min).padStart(2,"0"));
+    const txt = ok ? "✓ OK (desvio " + diff.toFixed(3) + "mm)"
+                   : (sobe ? "SUBIR" : "DESCER") + " " + g + " · gire " + (sobe ? "horario" : "anti-horario");
+    if (!ok) todosOk = false;
+    cantos.push({k, nome:PERF_NOMES[k], ok, sobe, txt, delta:diff});
+  }
+  return {todosOk, cantos};
+}
+function perfResumoHTML(av){
+  if (!av) return "";
+  return av.cantos.map(c => '<div>' + (c.base ? "🔵" : c.ok ? "✓" : (c.sobe ? "⬆️" : "⬇️")) +
+    ' <b>' + c.nome + '</b>: ' + c.txt + '</div>').join("");
+}
+// mede os 4 cantos (1a com TILT=1 alinha os fusos; re-medicoes com TILT=0 mantem
+// a referencia), desenha os cards (render) e avalia. Reusa o medirRobusto.
+async function perfMede(rotulo, tilt1){
+  const cfg = perfNum();
+  perfEstado = "medir"; perfRender();
+  await medirRobusto({bed: tilt1 ? cfg.bed : 0, noz: cfg.noz, tilt1: tilt1 ? 1 : 0, rotulo});
+  perfEstado = "ajusta"; perfRender();
+}
 function perfRender(){
   const cfg = perfNum();
   $("perf-cfg").style.display = (perfEstado === "intro") ? "" : "none";
   $("perf-prog").innerHTML = "";
+  $("perf-acoes").innerHTML = "";
   if (perfEstado === "intro") {
-    $("perf-dica").innerHTML = "<b>Nivelamento do zero.</b> Ponto de partida mecânico conhecido: aperta os 4 até o fim, solta <b>" + cfg.n + " voltas iguais</b> (posição de trabalho), eu meço a referência e testo <b>cada parafuso</b> apertando 1 volta pra medir o curso real e pegar porca girando em falso. Tudo medido só na <b>subida</b> (seguro pro Z). <b>Aquece bico " + cfg.noz + "°C</b> (é o probe). <i>Chave/allen à mão.</i>";
-    $("perf-acoes").innerHTML = "";
-    perfBtn('<i data-ic="flame"></i> Começar (aquece + home quente)', "principal").onclick = () => perfComeca();
+    $("perf-dica").innerHTML = "<b>Nivelamento assistido pelo probe.</b> Aquece o bico (" + cfg.noz + "°C — ele E o sensor)" + (cfg.bed>0 ? " + mesa " + cfg.bed + "°C" : "") + ", alinha os fusos e mede os 4 cantos. Depois te diz <b>quanto girar cada knob</b> (voltas + sentido); voce gira, re-mede, e repete ate a mesa ficar plana. <i>Chave/allen a mao.</i>";
+    perfBtn('<i data-ic="flame"></i> Comecar (aquece + mede)', "principal").onclick = () => perfComeca(false);
+    perfBtn('<i data-ic="wrench"></i> Testar fuga da porca (avancado)', "ghost").onclick = () => perfComeca(true);
     perfBtn("Fechar", "ghost").onclick = () => perfFecha();
+  } else if (perfEstado === "medir") {
+    $("perf-dica").innerHTML = "<b>Medindo os 4 cantos…</b> acompanhe no status/console. <b>Nao mexa nos parafusos</b> agora.";
+  } else if (perfEstado === "ajusta") {
+    const av = perfAvalia();
+    if (!av) {
+      $("perf-dica").innerHTML = "<b>A medicao nao completou.</b> Veja o erro no console e meça de novo.";
+      perfBtn('<i data-ic="ruler"></i> Medir de novo', "principal").onclick = () => perfMede("Nivelamento", true);
+      perfBtn("Fechar", "ghost").onclick = () => perfFecha();
+    } else if (av.todosOk) {
+      $("perf-dica").innerHTML = "<b>✓ Mesa nivelada!</b> Os 4 cantos dentro da tolerancia (≤ 18°). Opcional: confira no papel pra o toque fino.";
+      $("perf-prog").innerHTML = perfResumoHTML(av);
+      perfBtn('<i data-ic="check"></i> Concluir', "principal").onclick = () => { perfEstado = "feito"; perfRender(); };
+      perfBtn('<i data-ic="ruler"></i> Medir de novo', "ghost").onclick = () => perfMede("Confirmacao", false);
+    } else {
+      $("perf-dica").innerHTML = "<b>Gire os knobs conforme abaixo</b> (os cards logo abaixo do wizard mostram o mostrador), depois <b>re-meça</b>. Repita ate todos ✓. <i>Se um canto piorar depois de girar, inverta o sentido.</i>";
+      $("perf-prog").innerHTML = perfResumoHTML(av);
+      perfBtn('<i data-ic="ruler"></i> Ja girei → re-medir', "principal").onclick = () => perfMede("Re-medicao", false);
+      perfBtn("Fechar", "ghost").onclick = () => perfFecha();
+    }
+  } else if (perfEstado === "feito") {
+    $("perf-dica").innerHTML = "<b>Nivelamento concluido ✓</b> Mesa plana pelo probe. Pra o ajuste fino com folha termica, use o painel <b>Calibracao pela folha</b> abaixo. Bons prints!";
+    perfBtn('<i data-ic="check"></i> Fechar', "principal").onclick = () => perfFecha();
   } else if (perfEstado === "bottom") {
-    perfChecklist("<b>Passo 1 — apertar tudo (zero).</b> Aperte cada parafuso até o fim, <b>firme mas SEM forçar</b> (encostou, parou). Marque cada um.",
+    perfChecklist("<b>Fuga da porca — passo 1: apertar tudo.</b> Aperte cada parafuso ate o fim, <b>firme mas SEM forçar</b> (encostou, parou). Marque cada um.",
       '<i data-ic="check"></i> Apertei os 4 → soltar', () => { perfEstado = "loosen"; perfMarcado = new Set(); perfRender(); });
   } else if (perfEstado === "loosen") {
-    perfChecklist("<b>Passo 2 — soltar " + cfg.n + " voltas.</b> Solte cada parafuso <b>exatamente " + cfg.n + " voltas</b> (anti-horário). Isso te leva ao meio do curso. Marque cada um.",
-      '<i data-ic="ruler"></i> Soltei ' + cfg.n + ' → medir referência', () => perfRef());
+    perfChecklist("<b>Passo 2 — soltar " + cfg.n + " voltas.</b> Solte cada parafuso <b>exatamente " + cfg.n + " voltas</b> (anti-horario). Marque cada um.",
+      '<i data-ic="ruler"></i> Soltei ' + cfg.n + ' → medir referencia', () => perfRef());
   } else if (perfEstado === "slip") {
     const k = PERF_ORDEM[perfSlipIdx], nome = PERF_NOMES[k];
     if (perfSlipFase === "aperta") {
-      $("perf-dica").innerHTML = "<b>Teste " + (perfSlipIdx+1) + "/4 — " + nome + ".</b> Aperte <b>SÓ o " + nome + "</b> exatamente <b>1 volta</b> (horário). Não toque nos outros.";
-      $("perf-acoes").innerHTML = "";
+      $("perf-dica").innerHTML = "<b>Teste " + (perfSlipIdx+1) + "/4 — " + nome + ".</b> Aperte <b>SÓ o " + nome + "</b> exatamente <b>1 volta</b> (horario). Nao toque nos outros.";
       perfBtn('<i data-ic="ruler"></i> Apertei 1 volta → medir', "principal").onclick = () => perfSlipMede();
     } else {
       const v = perfMMv[k], slip = v < 0.45;
       $("perf-dica").innerHTML = (slip ? "⚠️ " : "✓ ") + "<b>" + nome + ": " + v.toFixed(2) + " mm/volta</b>" +
         (v < 0 ? " — <b style='color:var(--bad)'>o canto DESCEU</b> (soltou em vez de apertar? refaça este)." :
          slip ? " — <b style='color:var(--bad)'>parece girar em falso</b> (segure a cabeça por cima com a chave e reaperte)." : ". ") +
-        " Agora <b>SOLTE o " + nome + " 1 volta de volta</b> pra posição de trabalho.";
-      $("perf-acoes").innerHTML = "";
+        " Agora <b>SOLTE o " + nome + " 1 volta de volta</b> pra posicao de trabalho.";
       const ultimo = perfSlipIdx >= 3;
-      perfBtn(ultimo ? '<i data-ic="check"></i> Soltei → ver resultado' : '<i data-ic="check"></i> Soltei → próximo', "principal").onclick = () => {
+      perfBtn(ultimo ? '<i data-ic="check"></i> Soltei → ver resultado' : '<i data-ic="check"></i> Soltei → proximo', "principal").onclick = () => {
         if (ultimo) perfEstado = "calib"; else { perfSlipIdx++; perfSlipFase = "aperta"; }
         perfRender();
       };
@@ -1712,30 +1772,34 @@ function perfRender(){
     $("perf-dica").innerHTML = "<b>Curso por parafuso</b> (esperado ~" + MM_VOLTA_M4 + " mm/volta):" +
       (ruim ? " <b style='color:var(--bad)'>" + ruim + " suspeito(s) de girar em falso</b> — resolva antes de nivelar." : " todos ok. Bora nivelar.");
     $("perf-prog").innerHTML = perfLinhasMMv();
-    $("perf-acoes").innerHTML = "";
-    perfBtn('<i data-ic="ruler"></i> Ajuste: MEDIR e seguir os cards', "principal").onclick = () => {
-      perfAtivo = false; trava(false); $("perfbox").style.display = "none";
-      medirRobusto({bed: cfg.bed, noz: cfg.noz, tilt1: 1, rotulo: "Ajuste primário"});
-      logLinha("// Nivelamento: siga os cards (voltas exatas) -> Calibração pela folha (3 rounds) -> Validar com o probe.");
-    };
-    if (ruim) perfBtn("Re-testar", "ghost").onclick = () => perfComeca();
+    perfBtn('<i data-ic="ruler"></i> Nivelar agora (mede os cantos)', "principal").onclick = () => perfMede("Nivelamento", true);
+    if (ruim) perfBtn("Re-testar fuga", "ghost").onclick = () => perfComeca(true);
     perfBtn("Fechar", "ghost").onclick = () => perfFecha();
   }
   pintaIcones && pintaIcones();
 }
-async function perfComeca(){
+async function perfComeca(comSlip){
   const cfg = perfNum();
   perfBase = null; perfMMv = {}; perfSlipIdx = 0; perfSlipFase = "aperta"; perfMarcado = new Set();
   perfAtivo = true; trava(true);
-  setStatus("Nivelamento do zero", "aquecendo bico " + cfg.noz + "°C" + (cfg.bed>0 ? " + mesa "+cfg.bed+"°C" : "") + "...", "busy");
+  setStatus("Nivelamento", "aquecendo bico " + cfg.noz + "°C" + (cfg.bed>0 ? " + mesa "+cfg.bed+"°C" : "") + "...", "busy");
   try {
     if (cfg.bed > 0) await gcode("M140 S" + cfg.bed, 1);
     await gcode("M104 S" + cfg.noz, 1);
     await gcode("M109 S" + cfg.noz, 10);
     if ((await perfHomedZ()).length < 3) await gcode("G28", 8);
-    perfEstado = "bottom"; perfMarcado = new Set();
-    setStatus("Nivelamento do zero", "aperte os 4 até o fim", "on");
-    perfRender();
+    if (comSlip) {
+      // caminho avancado: aperta tudo -> solta N -> testa fuga da porca, e so
+      // DEPOIS cai no nivelamento (nao fecha o wizard nem manda pra outro painel)
+      perfEstado = "bottom"; perfMarcado = new Set();
+      setStatus("Fuga da porca", "aperte os 4 ate o fim", "on");
+      perfRender();
+    } else {
+      // caminho normal: ja aquecido -> mede os cantos direto (medirRobusto gere
+      // o proprio lock, entao libera o trava antes)
+      trava(false);
+      await perfMede("Nivelamento", true);
+    }
   } catch(e){ setStatus("FALHOU: nivelamento", e.message, "err"); logLinha("!! " + e.message); }
   finally { trava(false); }
 }
