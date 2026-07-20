@@ -1,20 +1,27 @@
 #!/usr/bin/env python3
-# Acelera a calibracao pre-impressao SEM mexer nos pontos de leitura: sobe o
-# 'speed' (viagem entre os pontos) de [bed_mesh] e [z_tilt] no printer.cfg.
-# Na Joelma vinha bed_mesh=100 e z_tilt=300 numa maquina de max_velocity=800.
+# Acelera a calibracao pre-impressao SEM mexer nos pontos de leitura:
+#  1) sobe o 'speed' (viagem entre os pontos) de [bed_mesh] e [z_tilt];
+#  2) baixa o 'horizontal_move_z' de [bed_mesh] (o quanto a mesa desce entre os
+#     pontos) - menos curso vertical por ponto x 25 pontos = mesh bem mais
+#     rapido, estilo Bambu. Na Joelma vinha bed_mesh speed=100/hmz=5.
 #
-# So mexe na linha 'speed:' DENTRO dessas secoes (nunca em probe_count/pontos).
-# Idempotente (nao reescreve se ja esta >= alvo), faz backup 1x, e so grava se
-# a edicao foi limpa (mesma contagem de linhas/secoes). Se o firmware update
-# resetar o printer.cfg, o proximo 'joelma update' re-aplica.
+# So mexe nas linhas 'speed:' e 'horizontal_move_z:' DENTRO dessas secoes
+# (nunca em probe_count/pontos). Idempotente (nao reescreve se ja esta no alvo),
+# faz backup 1x, e so grava se a edicao foi limpa (mesma contagem de linhas). Se
+# o firmware update resetar o printer.cfg, o proximo 'joelma update' re-aplica.
 import os
 import re
 import shutil
 import sys
 
-# alvos conservadores (bem abaixo do max_velocity=800, e a viagem entre pontos
-# nao sonda -> qualquer ringing assenta antes da descida do probe)
+# speed: SOBE ate o alvo (viagem entre pontos nao sonda -> ringing assenta antes
+# da descida do probe). Bem abaixo do max_velocity=800.
 ALVOS = {"bed_mesh": 600, "z_tilt": 600}
+# horizontal_move_z: BAIXA ate o alvo (a mesa desce menos entre os pontos). 3mm
+# ainda folga de sobra numa mesa nivelada; se ela estiver muito torta ou com
+# residuo, suba de volta. So mexemos no [bed_mesh] (o z_tilt mexe na gantry, onde
+# a variacao pode ser maior - fica no valor de fabrica).
+HMZ_ALVOS = {"bed_mesh": 3}
 
 
 def main() -> int:
@@ -28,16 +35,19 @@ def main() -> int:
         linhas = fh.read().split("\n")
 
     sec = None
-    ja_mexi = set()
+    ja_speed = set()
+    ja_hmz = set()
     saida = []
     mudou = False
     sec_re = re.compile(r"^\[([a-zA-Z0-9_]+)")
     spd_re = re.compile(r"^(\s*speed\s*:\s*)([0-9.]+)(.*)$")
+    hmz_re = re.compile(r"^(\s*horizontal_move_z\s*:\s*)([0-9.]+)(.*)$")
     for ln in linhas:
         m = sec_re.match(ln)
         if m:
             sec = m.group(1)
-        if sec in ALVOS and sec not in ja_mexi:
+        # speed: SOBE ate o alvo (so a 1a linha 'speed' de cada secao)
+        if sec in ALVOS and sec not in ja_speed:
             sm = spd_re.match(ln)
             if sm:
                 alvo = ALVOS[sec]
@@ -48,11 +58,24 @@ def main() -> int:
                 if atual is not None and atual < alvo:
                     ln = "%s%s%s" % (sm.group(1), alvo, sm.group(3))
                     mudou = True
-                ja_mexi.add(sec)  # so a 1a linha 'speed' de cada secao
+                ja_speed.add(sec)
+        # horizontal_move_z: BAIXA ate o alvo (so a 1a de cada secao)
+        elif sec in HMZ_ALVOS and sec not in ja_hmz:
+            hm = hmz_re.match(ln)
+            if hm:
+                alvo = HMZ_ALVOS[sec]
+                try:
+                    atual = float(hm.group(2))
+                except ValueError:
+                    atual = None
+                if atual is not None and atual > alvo:
+                    ln = "%s%s%s" % (hm.group(1), alvo, hm.group(3))
+                    mudou = True
+                ja_hmz.add(sec)
         saida.append(ln)
 
     if not mudou:
-        print("I: bed_mesh/z_tilt speed ja estao no alvo - nada a fazer")
+        print("I: bed_mesh/z_tilt ja estao no alvo (speed + horizontal_move_z) - nada a fazer")
         return 0
 
     # sanity: nao pode ter mudado a estrutura (so o valor de umas linhas)
@@ -66,8 +89,8 @@ def main() -> int:
         print("I: backup em %s" % bak)
     with open(cfg, "w", encoding="utf-8", errors="surrogateescape") as fh:
         fh.write("\n".join(saida))
-    print("I: bed_mesh/z_tilt speed -> %s (viagem entre os pontos mais rapida)"
-          % ", ".join("%s=%d" % (k, v) for k, v in ALVOS.items()))
+    print("I: bed_mesh/z_tilt speed -> 600 e bed_mesh horizontal_move_z -> 3 "
+          "(viagem mais rapida + mesa desce menos entre os pontos)")
     return 10  # 10 = mudou (o install.sh reinicia o Klipper so nesse caso)
 
 
