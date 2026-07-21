@@ -186,6 +186,14 @@ pesquisa do CFS no OrcaSlicer, receitas de curl. **Leia sob demanda.**
   `PLACA_BIN` (textured/smooth) **só** pra soma legada `offset_placa_*` e como
   **fallback de compat** dos `zoff_*` binários salvos antes desta versão. O nome
   é sanitizado no Jinja (só `[a-z0-9 -]`) — evita `;`/`#`/`*` que o parser corta.
+- **Pressure Advance persistente por material (jul/2026).** Mesma mecânica do
+  Z-offset: a Central grava `pa_<material>` no `joelma_vars.cfg` e o `START_PRINT`
+  reaplica `SET_PRESSURE_ADVANCE` a cada print (é transitório, zera no restart).
+  Cadeia: material exato → material-BASE (PLA-CF cai em `pa_pla`) → `pa_default`.
+  Só aplica se houver valor salvo; senão deixa o default do slicer. **Auto-PA por
+  célula de carga (prtouch/CS1237, `READ_PRES` ~1280 Hz)** é experimental: a Central
+  mede a contrapressão por vazão (SNR/vazão-máx); derivar o K a partir da força
+  ainda é P&D (depende do sinal real da cabeça).
 - **Parafusos — convenção FECHADA com fonte (pesquisa jul/2026).** Klipper
   `Config_Reference`, `screw_thread: CW-M4`: *"A clockwise rotation of the knob
   **decreases the gap** between the nozzle and the bed"* → **horário = mesa SOBE**,

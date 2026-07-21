@@ -707,6 +707,22 @@
       <button id="palprint" class="principal"><i data-ic="gauge"></i> Imprimir teste de linha de PA</button>
       <button id="patower"><i data-ic="ruler"></i> Torre de PA (TUNING_TOWER)</button>
     </div>
+
+    <div class="dica" style="margin-top:14px"><b>Salvar PA por material (o START_PRINT aplica sozinho).</b> O <b>Aplicar</b> lá em cima é <b>temporário</b> (zera no restart). Aqui você grava o PA do material — o START_PRINT chama <b>SET_PRESSURE_ADVANCE sozinho</b> em toda impressão desse material e o valor <b>sobrevive a restart</b>. Variações caem no material-base (PLA-CF usa o de PLA) e <b>default</b> vale como coringa.</div>
+    <div class="lin" style="gap:10px;flex-wrap:wrap">
+      <label style="min-width:auto">Material <select id="pa-mat"></select></label>
+      <label style="min-width:auto">PA <input type="number" id="pa-val" step="0.001" min="0" max="1" value="0.038" style="width:72px"></label>
+      <button id="pasave" class="salvar"><i data-ic="save"></i> Salvar PA p/ este material</button>
+    </div>
+    <div id="palist" class="dica" style="margin-top:6px">PA salvos: lendo…</div>
+
+    <div class="dica" style="margin-top:14px"><b>Auto-PA por célula de carga (experimental).</b> Usa o sensor de força do bico (prtouch/CS1237, ~1280&nbsp;Hz) pra medir a <b>contrapressão</b> do filamento em várias vazões — <b>sem imprimir</b>. Primeiro confirma se o sinal sai do ruído (SNR); com sinal bom, dá pra derivar o PA e a <b>vazão volumétrica máx</b>. Solta um cordão curto no ar sobre o centro.</div>
+    <div class="lin" style="gap:10px;flex-wrap:wrap">
+      <label style="min-width:auto">Bico °C <input type="number" id="paf-temp" value="220" step="5" min="170" max="300" style="width:64px"></label>
+      <label style="min-width:auto">Vazões (mm³/s) <input type="text" id="paf-flows" value="3,5,8,11,14,18" style="width:150px"></label>
+      <button id="pafgo" class="principal"><i data-ic="activity"></i> Medir contrapressão</button>
+    </div>
+    <div id="pafout" class="dica" style="margin-top:6px;white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.78rem"></div>
   </div>
 </details>
 
@@ -939,6 +955,7 @@ async function pollEstado(){
         $("recuperar").style.display = "none";
         render().catch(()=>{}); leCalib();
         zcLerSalvos();   // re-le os offsets salvos toda vez que o Klipper fica ready
+        paLerSalvos();   // idem pros PA salvos por material
       } else {
         klipperOk = false;
         setStatus("Klipper " + st, st === "shutdown" ? "use Recuperar (FIRMWARE_RESTART)" : "aguardando ficar pronto...", st === "shutdown" || st === "error" ? "err" : "busy");
@@ -2871,6 +2888,115 @@ async function paLinha(){
   finally { trava(false); }
 }
 $("palprint").onclick = () => { if (!ocupado) paLinha(); };
+
+// ---------- PA salvo por material (START_PRINT aplica SET_PRESSURE_ADVANCE sozinho) ----------
+// Espelha a persistencia do Z-offset: grava pa_<material> no joelma_vars.cfg e o
+// START_PRINT reaplica a cada print (SET_PRESSURE_ADVANCE zera no restart). Cadeia
+// no macro: material exato -> material-BASE -> default. "Limpar" grava None.
+const PA_MATS = ["PLA","PETG","ABS","ASA","TPU","PC","PA","default"];
+$("pa-mat").innerHTML = PA_MATS.map(m => "<option>" + m + "</option>").join("");
+const PA_KEY_RE = /^pa_([a-z0-9-]+)$/;
+let paVars = {}, paDispo = false;
+function paMatNome(k){ const m = k.match(PA_KEY_RE); return m ? m[1].toUpperCase() : k; }
+async function paLerSalvos(){
+  try {
+    const q = await rpc("printer.objects.query", {objects:{save_variables:null}});
+    if (!q || !q.status || !("save_variables" in q.status)) {
+      paDispo = false;
+      $("palist").textContent = "persistência indisponível — rode o update da Joelma ([save_variables]) e reinicie o Klipper";
+      return;
+    }
+    paDispo = true;
+    paVars = ((q.status.save_variables || {}).variables) || {};
+    const ks = Object.keys(paVars).filter(k => PA_KEY_RE.test(k) && typeof paVars[k] === "number" && isFinite(paVars[k])).sort();
+    $("palist").innerHTML = ks.length
+      ? "PA salvos (o START_PRINT aplica sozinho): " + ks.map(k =>
+          '<div style="margin-top:3px">' + paMatNome(k) + ': <b>' + (+paVars[k]).toFixed(4) + '</b> ' +
+          '<button class="ghost" data-pa-ap="' + k + '" style="padding:2px 8px;font-size:.7rem">Aplicar agora</button> ' +
+          '<button class="ghost" data-pa-rm="' + k + '" style="padding:2px 8px;font-size:.7rem">Limpar</button></div>').join("")
+      : "PA salvos: nenhum ainda — ache o PA (linha ou tuner) e Salve pro material.";
+  } catch(e){ $("palist").textContent = "PA salvos: sem leitura (" + e.message + ")"; }
+}
+$("palist").addEventListener("click", ev => {
+  const b = ev.target.closest("button");
+  if (!b || ocupado) return;
+  if (b.dataset.paAp) {
+    const v = +paVars[b.dataset.paAp];
+    if (!isFinite(v)) return;
+    roda("SET_PRESSURE_ADVANCE ADVANCE=" + v.toFixed(4), "Aplicando PA salvo " + v.toFixed(4), 2, () => leCalib());
+  } else if (b.dataset.paRm) {
+    const k = b.dataset.paRm;
+    if (!PA_KEY_RE.test(k)) return;
+    if (!confirm("Limpar o PA salvo de " + paMatNome(k) + "? O START_PRINT volta pro default do slicer/firmware.")) return;
+    roda("SAVE_VARIABLE VARIABLE=" + k + " VALUE=None", "Limpando PA de " + paMatNome(k), 2, () => paLerSalvos());
+  }
+});
+async function paSalvar(){
+  if (!paDispo) { setStatus("Persistência indisponível", "rode o update da Joelma e recarregue", "err"); paLerSalvos(); return; }
+  const mat = $("pa-mat").value, v = +$("pa-val").value;
+  if (!isFinite(v) || v < 0 || v > 1) { setStatus("PA inválido", "informe um valor entre 0 e 1", "err"); return; }
+  const k = "pa_" + mat.toLowerCase();
+  if (!confirm("Salvar PA " + v.toFixed(4) + " para " + mat + "?\n\nO START_PRINT vai aplicar (SET_PRESSURE_ADVANCE) sozinho em TODA impressao desse material (persiste apos restart).")) return;
+  roda("SAVE_VARIABLE VARIABLE=" + k + " VALUE=" + v.toFixed(4), "Salvando PA " + v.toFixed(4) + "mm p/ " + mat, 2, () => paLerSalvos());
+}
+$("pasave").onclick = () => { if (!ocupado) paSalvar(); };
+
+// ---------- Auto-PA por celula de carga (experimental): varredura READ_PRES ----------
+// Le a forca (prtouch/CS1237) via READ_PRES pela API do Moonraker (gcode_store),
+// mede a contrapressao em varias vazoes e diz se o sinal sai do ruido (SNR). Nao
+// seta PA: e MEDICAO. Mesma logica do pa_tuner.py, agora no navegador.
+const PAF_INFO_RE = /\[PRES_DATA_CH0_INFO\]\[CFG=\S+\s+MIN=(-?\d+)\s+MAX=(-?\d+)\s+DIF=(\d+)\s+AVG=(-?\d+)\]/;
+async function pafReadPres(){
+  await gcode("READ_PRES", 1);
+  await new Promise(r => setTimeout(r, 450));
+  const d = await rpc("server.gcode_store", {count: 80});
+  const msgs = (d.gcode_store || []).map(m => m.message);
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    const m = msgs[i].match(PAF_INFO_RE);
+    if (m) return { min:+m[1], max:+m[2], dif:+m[3], avg:+m[4] };
+  }
+  throw new Error("READ_PRES não retornou [PRES_DATA_CH0_INFO] (comando existe nesta cabeça?)");
+}
+async function pafMedir(){
+  const temp = Math.max(170, Math.min(300, +$("paf-temp").value || 220));
+  const flows = ($("paf-flows").value || "").split(",").map(s => parseFloat(s.trim())).filter(x => isFinite(x) && x > 0);
+  if (!flows.length) { setStatus("Vazões inválidas", "ex.: 3,5,8,11,14,18", "err"); return; }
+  if (!confirm("Medir contrapressão em " + flows.length + " vazões?\n\nConfirme: FILAMENTO carregado. Bico vai a " + temp + "C e solta um cordão curto no ar sobre o centro (X175 Y175, Z30).")) return;
+  const AREA = Math.PI * Math.pow(1.75 / 2, 2), DUR = 4.0;   // ~4s de extrusao por vazao
+  trava(true); setStatus("Auto-PA: medindo contrapressão", "aquecendo e varrendo vazões — acompanhe abaixo", "busy");
+  const out = $("pafout"); out.textContent = "";
+  const log = s => { out.textContent += s + "\n"; };
+  try {
+    await gcode("G90", 1);
+    await gcode("G1 Z30 F1200", 2);
+    await gcode("G1 X175 Y175 F6000", 2);
+    log("aquecendo bico " + temp + "C...");
+    await gcode("M104 S" + temp, 1);
+    await gcode("M109 S" + temp, 6);
+    await gcode("M83", 1);
+    const rows = [];
+    for (const q of flows) {
+      const v = q / AREA, feed = v * 60, length = Math.max(2, v * DUR);
+      const base = await pafReadPres();
+      await gcode("G1 E" + length.toFixed(2) + " F" + feed.toFixed(1), 5);
+      const load = await pafReadPres();
+      await gcode("G1 E-2 F1800", 1);
+      await new Promise(r => setTimeout(r, 1200));
+      const sig = load.avg - base.avg;
+      rows.push({ q, feed, sig, dif: load.dif });
+      log("q=" + q.toFixed(1) + " mm3/s  feed=" + feed.toFixed(0) + "  sinal=" + (sig >= 0 ? "+" : "") + sig + " counts  (ruído=" + load.dif + ")");
+    }
+    await gcode("M104 S0", 1);
+    const noise = Math.max.apply(null, rows.map(r => r.dif));
+    const big = Math.max.apply(null, rows.map(r => Math.abs(r.sig)));
+    log("\nruído(DIF máx)=" + noise + "  maior sinal=" + big + "  razão~" + (noise ? (big / noise).toFixed(1) : "?") + "x");
+    if (big > 3 * noise) { log("VEREDITO: SNR ÓTIMO → auto-PA destravado. Manda esta saída pro Claude derivar o K."); setStatus("Auto-PA: SNR ótimo", "sinal bem acima do ruído", "on"); }
+    else if (big > noise) { log("VEREDITO: SNR marginal → dá com média/repetição. Manda pro Claude."); setStatus("Auto-PA: SNR marginal", "dá, com cuidado", "on"); }
+    else { log("VEREDITO: sinal PERDIDO no ruído → load-cell não compensa nesta cabeça. Use o teste de linha."); setStatus("Auto-PA: sem sinal", "use o teste de linha", "err"); }
+  } catch(e){ log("\nFALHOU: " + e.message); setStatus("FALHOU: auto-PA", e.message, "err"); logLinha("!! " + e.message); try { await gcode("M104 S0", 1); } catch(_){} }
+  finally { trava(false); }
+}
+$("pafgo").onclick = () => { if (!ocupado) pafMedir(); };
 // extrusora
 $("ext100").onclick = () => roda(
   "M109 S220\nG91\nG1 E100 F60\nG90", "Extrudando 100mm a 220C (leva ~2 min)", 8);
