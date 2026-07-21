@@ -2974,6 +2974,8 @@ async function pafMedir(){
     await gcode("M104 S" + temp, 1);
     await gcode("M109 S" + temp, 6);
     await gcode("M83", 1);
+    const idle = await pafReadPres();   // ruído REAL de repouso (bico parado) = piso p/ o SNR
+    log("ruído de repouso (DIF) = " + idle.dif + " counts");
     const rows = [];
     for (const q of flows) {
       const v = q / AREA, feed = v * 60, length = Math.max(2, v * DUR);
@@ -2987,9 +2989,11 @@ async function pafMedir(){
       log("q=" + q.toFixed(1) + " mm3/s  feed=" + feed.toFixed(0) + "  sinal=" + (sig >= 0 ? "+" : "") + sig + " counts  (ruído=" + load.dif + ")");
     }
     await gcode("M104 S0", 1);
-    const noise = Math.max.apply(null, rows.map(r => r.dif));
+    // piso de ruído = DIF de REPOUSO (nao o DIF durante extrusao, que e a propria
+    // pressao variando). Sinal = |load - base| por vazao.
+    const noise = Math.max(idle.dif, 1);
     const big = Math.max.apply(null, rows.map(r => Math.abs(r.sig)));
-    log("\nruído(DIF máx)=" + noise + "  maior sinal=" + big + "  razão~" + (noise ? (big / noise).toFixed(1) : "?") + "x");
+    log("\nsinal máx=" + big + "  ruído repouso=" + noise + "  SNR~" + (big / noise).toFixed(0) + "x");
     if (big > 3 * noise) { log("VEREDITO: SNR ÓTIMO → auto-PA destravado. Manda esta saída pro Claude derivar o K."); setStatus("Auto-PA: SNR ótimo", "sinal bem acima do ruído", "on"); }
     else if (big > noise) { log("VEREDITO: SNR marginal → dá com média/repetição. Manda pro Claude."); setStatus("Auto-PA: SNR marginal", "dá, com cuidado", "on"); }
     else { log("VEREDITO: sinal PERDIDO no ruído → load-cell não compensa nesta cabeça. Use o teste de linha."); setStatus("Auto-PA: sem sinal", "use o teste de linha", "err"); }
