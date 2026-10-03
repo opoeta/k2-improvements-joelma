@@ -1817,8 +1817,8 @@ $("parar-homing").onclick = async () => {
 async function beltLer(){
   if (ocupado) return;
   try {
-    await gcode("BELT_MDL_INFO MDL_NAME=X", 1);
-    await gcode("BELT_MDL_INFO MDL_NAME=Y", 1);
+    await gcode("BELT_MDL_INFO MDL_NAME=mdlx", 1);
+    await gcode("BELT_MDL_INFO MDL_NAME=mdly", 1);
     const d = await rpc("server.gcode_store", {count: 30});
     const linhas = (d.gcode_store || []).map(x => x.message)
       .filter(m => /belt|mdl|tens|correia|force|\bN\b/i.test(m));
@@ -1832,13 +1832,13 @@ $("belt-set").onclick = async () => {
   if (!(await fbNaoImprimindo())) { logLinha("!! impressão em andamento — abortado"); return; }
   const x = String($("belt-x").value).trim(), y = String($("belt-y").value).trim();
   const cmds = [];
-  if (/^\d+(\.\d+)?$/.test(x)) cmds.push(["X", x]);
-  if (/^\d+(\.\d+)?$/.test(y)) cmds.push(["Y", y]);
+  if (/^\d+(\.\d+)?$/.test(x)) cmds.push(["mdlx", "X", x]);
+  if (/^\d+(\.\d+)?$/.test(y)) cmds.push(["mdly", "Y", y]);
   if (!cmds.length) { logLinha("!! informe a tensão de X e/ou Y"); return; }
-  if (!confirm("Aplicar tensão " + cmds.map(c => c[0] + "=" + c[1] + "N").join(" ") + "? Re-tensiona a correia (mecânico). Faça um G28 depois.")) return;
+  if (!confirm("Aplicar tensão " + cmds.map(c => c[1] + "=" + c[2] + "N").join(" ") + "? Re-tensiona a correia (mecânico). Faça um G28 depois.")) return;
   trava(true);
   try {
-    for (const [ax, v] of cmds) { await gcode("BELT_MDL_SET MDL_NAME=" + ax + " MDL_N=" + v, 2); logLinha("// BELT_MDL_SET " + ax + "=" + v + "N"); }
+    for (const [mdl, ax, v] of cmds) { await gcode("BELT_MDL_SET MDL_NAME=" + mdl + " MDL_N=" + v, 2); logLinha("// BELT_MDL_SET " + ax + " (" + mdl + ")=" + v + "N"); }
     setStatus("Tensão aplicada", "faça um G28 (re-home)", "on");
     setTimeout(beltLer, 1500);
   } catch(e){ logLinha("!! belt set: " + e.message); setStatus("Falha na tensão", e.message, "err"); }
