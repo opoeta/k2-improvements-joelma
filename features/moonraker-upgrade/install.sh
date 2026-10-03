@@ -166,6 +166,20 @@ JINFO
     MUDOU=1
     echo "I: [joelma_info] ativado (versao do firmware da impressora)"
 fi
+# joelma_dxc2: ativa/desativa o perfil DXC2 no [box] do box.cfg (stock<->DXC2,
+# com backup) e edita chaves de calibracao. Gerencia o include do dxc2.cfg.
+if [ -f "${FEAT_DIR}/joelma_dxc2.py" ]; then
+    cp "${FEAT_DIR}/joelma_dxc2.py" /usr/share/moonraker/components/joelma_dxc2.py
+    echo "I: componente joelma_dxc2.py copiado"
+fi
+if ! grep -q '^\[joelma_dxc2\]' ${CONF}; then
+    cat >> ${CONF} <<'JDXC2'
+
+[joelma_dxc2]
+JDXC2
+    MUDOU=1
+    echo "I: [joelma_dxc2] ativado (toggle do perfil DXC2 no box.cfg)"
+fi
 if ! grep -q '^\[spoolman_admin\]' ${CONF}; then
     cat >> ${CONF} <<'SPADM'
 

@@ -76,6 +76,8 @@ run_step fast_stop          features/start_print_fast_stop/install.sh
 run_step vsd_guard          features/virtual-sdcard-guard/install.sh
 # scanner de footprint da 1a camada (alimenta mesh adaptativo + KAMP) - antes do kamp
 run_step prime_tower        features/prime_tower/install.sh
+# DXC2: disponibiliza o dxc2.cfg INERTE (ativado/desativado pelo painel DXC2)
+run_step dxc2               features/dxc2/install.sh
 
 # ---------- OPCIONAIS (descomente para instalar) ----------
 # Purga adaptativa KAMP (LINE_PURGE) - exige Label objects no slicer
