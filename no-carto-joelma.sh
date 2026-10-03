@@ -72,6 +72,8 @@ run_step camera_fix         features/camera-fix/install.sh
 run_step prtouch_safe_xy    features/prtouch_safe_xy/install.sh
 # START_PRINT cancelavel (so ativa se o firmware expor a API de cancel >=1.1.5.5)
 run_step fast_stop          features/start_print_fast_stop/install.sh
+# backend do "Parar Homing" (patch fail-open no webhooks.py; nao-fatal)
+run_step abort_homing       features/abort_homing/install.sh
 # fix do "Unknown command" apos o print (patch fail-open no virtual_sdcard.py)
 run_step vsd_guard          features/virtual-sdcard-guard/install.sh
 # scanner de footprint da 1a camada (alimenta mesh adaptativo + KAMP) - antes do kamp

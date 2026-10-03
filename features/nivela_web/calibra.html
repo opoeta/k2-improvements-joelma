@@ -591,6 +591,16 @@
   </div>
 </div>
 
+<h2><i data-ic="settings"></i> Tensão das correias (X/Y)</h2>
+<div class="dica">Tensor de correia motorizado do K2 (<code>BELT_MDL_*</code>). Stock ≈ <b>140 N</b> — a comunidade costuma baixar (ex. ~35 N). <b style="color:var(--warn)">Mudança mecânica:</b> valor errado = passo perdido ou correia frouxa. Leia antes, mude com cautela e <b>re-home depois</b>.</div>
+<div class="lin" style="gap:8px;align-items:flex-end;flex-wrap:wrap">
+  <button id="belt-read" class="ghost"><i data-ic="refresh"></i> Ler X e Y</button>
+  <label style="min-width:auto;font-size:.7rem;color:var(--mut)">Tensão X (N)<br><input type="number" id="belt-x" step="5" style="width:80px"></label>
+  <label style="min-width:auto;font-size:.7rem;color:var(--mut)">Tensão Y (N)<br><input type="number" id="belt-y" step="5" style="width:80px"></label>
+  <button id="belt-set" class="salvar"><i data-ic="check"></i> Aplicar</button>
+</div>
+<div class="dica" id="belt-out" style="margin-top:4px"></div>
+
 <h2><i data-ic="settings"></i> CALIBRAÇÕES</h2>
 
 <details class="acc" open>
@@ -601,6 +611,7 @@
       <button id="medir" class="principal"><i data-ic="ruler"></i> MEDIR robusto (2–3 passes)</button>
       <button id="frio"><i data-ic="target"></i> Re-medir (1 passe)</button>
       <button id="reler"><i data-ic="refresh"></i> Reler</button>
+      <button id="parar-homing" title="Aborta um homing errado sem e-stop total" style="border-color:var(--bad);color:var(--bad)"><i data-ic="stop"></i> Parar Homing</button>
     </div>
     <div class="mesa-wrap">
       <div class="canto" id="screw4"><h3>TRASEIRO ESQUERDO</h3><div class="acao">—</div></div>
@@ -1790,6 +1801,49 @@ $("dxc-tools").addEventListener("click", async ev => {
 });
 dxcAtualiza();
 setInterval(dxcAtualiza, 30000);
+
+// ---------- Parar Homing (feature abort_homing via joelma_abort) ----------
+// SEM guarda de ocupado: o proposito e justamente interromper um homing em curso.
+$("parar-homing").onclick = async () => {
+  try {
+    const r = await fetch(base + "/server/joelma/abort_homing", {method:"POST"});
+    const j = await r.json().catch(() => ({}));
+    if (r.ok) { logLinha("// Parar Homing: enviado"); setStatus("Homing abortado", "motores desligados", "on"); }
+    else logLinha("!! Parar Homing: " + ((j.error && j.error.message) || ("HTTP " + r.status)) + " (feature abort_homing instalada?)");
+  } catch(e){ logLinha("!! Parar Homing: " + e.message); }
+};
+
+// ---------- Tensão das correias (BELT_MDL_*) ----------
+async function beltLer(){
+  if (ocupado) return;
+  try {
+    await gcode("BELT_MDL_INFO MDL_NAME=X", 1);
+    await gcode("BELT_MDL_INFO MDL_NAME=Y", 1);
+    const d = await rpc("server.gcode_store", {count: 30});
+    const linhas = (d.gcode_store || []).map(x => x.message)
+      .filter(m => /belt|mdl|tens|correia|force|\bN\b/i.test(m));
+    $("belt-out").textContent = linhas.slice(-6).join("  |  ") || "(sem linhas de belt no console — confira o terminal)";
+    logLinha("// BELT_MDL_INFO X/Y lido");
+  } catch(e){ logLinha("!! belt: " + e.message); }
+}
+$("belt-read").onclick = beltLer;
+$("belt-set").onclick = async () => {
+  if (ocupado) return;
+  if (!(await fbNaoImprimindo())) { logLinha("!! impressão em andamento — abortado"); return; }
+  const x = String($("belt-x").value).trim(), y = String($("belt-y").value).trim();
+  const cmds = [];
+  if (/^\d+(\.\d+)?$/.test(x)) cmds.push(["X", x]);
+  if (/^\d+(\.\d+)?$/.test(y)) cmds.push(["Y", y]);
+  if (!cmds.length) { logLinha("!! informe a tensão de X e/ou Y"); return; }
+  if (!confirm("Aplicar tensão " + cmds.map(c => c[0] + "=" + c[1] + "N").join(" ") + "? Re-tensiona a correia (mecânico). Faça um G28 depois.")) return;
+  trava(true);
+  try {
+    for (const [ax, v] of cmds) { await gcode("BELT_MDL_SET MDL_NAME=" + ax + " MDL_N=" + v, 2); logLinha("// BELT_MDL_SET " + ax + "=" + v + "N"); }
+    setStatus("Tensão aplicada", "faça um G28 (re-home)", "on");
+    setTimeout(beltLer, 1500);
+  } catch(e){ logLinha("!! belt set: " + e.message); setStatus("Falha na tensão", e.message, "err"); }
+  finally { trava(false); }
+};
 
 // ---------- Configurador do Spoolman (componente spoolman_admin) ----------
 // Estado do servidor + scan da rede + gravar no Moonraker. O estado vira o
