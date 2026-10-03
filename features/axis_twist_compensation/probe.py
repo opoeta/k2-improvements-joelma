@@ -112,6 +112,36 @@ class PrinterProbe:
         if gcmd is not None:
             return gcmd.get_float("LIFT_SPEED", self.lift_speed, above=0.)
         return self.lift_speed
+    def get_probe_params(self, gcmd=None):
+        # Compatibility with newer Klipper consumers such as the bundled
+        # Axis Twist module.  Creality's legacy PrinterProbe keeps these
+        # values directly on the object instead of exposing this accessor.
+        if gcmd is None:
+            return {
+                'probe_speed': self.speed,
+                'lift_speed': self.lift_speed,
+                'samples': self.sample_count,
+                'sample_retract_dist': self.sample_retract_dist,
+                'samples_tolerance': self.samples_tolerance,
+                'samples_tolerance_retries': self.samples_retries,
+                'samples_result': self.samples_result,
+            }
+        return {
+            'probe_speed': gcmd.get_float(
+                "PROBE_SPEED", self.speed, above=0.),
+            'lift_speed': self.get_lift_speed(gcmd),
+            'samples': gcmd.get_int(
+                "SAMPLES", self.sample_count, minval=1),
+            'sample_retract_dist': gcmd.get_float(
+                "SAMPLE_RETRACT_DIST", self.sample_retract_dist, above=0.),
+            'samples_tolerance': gcmd.get_float(
+                "SAMPLES_TOLERANCE", self.samples_tolerance, minval=0.),
+            'samples_tolerance_retries': gcmd.get_int(
+                "SAMPLES_TOLERANCE_RETRIES", self.samples_retries,
+                minval=0),
+            'samples_result': gcmd.get(
+                "SAMPLES_RESULT", self.samples_result),
+        }
     def get_offsets(self):
         return self.x_offset, self.y_offset, self.z_offset
     def _probe(self, speed):
@@ -131,10 +161,6 @@ class PrinterProbe:
             raise self.printer.command_error(reason)
         # Allow axis_twist_compensation to update results
         self.printer.send_event("probe:update_results", epos)
-        # add z compensation to probe position
-        self.gcode.respond_info("probe at %.3f,%.3f is z=%.6f z_compensation=%.6f"
-                                % (epos[0], epos[1], epos[2],z_compensation))
-        epos[2] += z_compensation
         self.gcode.respond_info("probe at %.3f,%.3f is z=%.6f"
                                 % (epos[0], epos[1], epos[2]))
         return epos[:3]
@@ -310,11 +336,7 @@ class PrinterProbe:
         except Exception as err:
             logging.error("record_gcode_offset_when_printing error: %s" % err)
 def run_single_probe(probe, gcmd):
-    probe_session = probe.start_probe_session(gcmd)
-    probe_session.run_probe(gcmd)
-    pos = probe_session.pull_probed_results()[0]
-    probe_session.end_probe_session()
-    return pos
+    return probe.run_probe(gcmd)
 # Endstop wrapper that enables probe specific features
 class ProbeEndstopWrapper:
     def __init__(self, config):
@@ -382,20 +404,6 @@ class ProbeEndstopWrapper:
             self.raise_probe()
     def get_position_endstop(self):
         return self.position_endstop
-    def start_probe_session(self, gcmd):
-        if self.multi_probe_pending:
-            self._probe_state_error()
-        self.mcu_probe.multi_probe_begin()
-        self.multi_probe_pending = True
-        self.results = []
-        return self
-    def end_probe_session(self):
-        if not self.multi_probe_pending:
-            self._probe_state_error()
-        self.results = []
-        self.multi_probe_pending = False
-        self.mcu_probe.multi_probe_end()
-        
 # Helper code that can probe a series of points and report the
 # position at each point.
 class ProbePointsHelper:
@@ -411,7 +419,10 @@ class ProbePointsHelper:
                                                 parser=float, count=2)
         self.horizontal_move_z = config.getfloat('horizontal_move_z', 5.)
         self.speed = config.getfloat('speed', 50., above=0.)
-        self.use_offsets = False
+        # K2 Cartographer mounts rely on the probe XY offset during Z_TILT.
+        # Keep this enabled in the shipped replacement so a later Axis Twist
+        # install cannot silently undo Cartographer's probe-offset patch.
+        self.use_offsets = True
         # Internal probing state
         self.lift_speed = self.speed
         self.probe_offsets = (0., 0., 0.)
