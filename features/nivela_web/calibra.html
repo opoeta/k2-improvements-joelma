@@ -298,22 +298,61 @@
   .mesh-ctl button { padding:6px 12px; min-height:28px; font-size:.7rem; border-radius:16px; box-shadow:none; border:1px solid var(--line); background:transparent; }
   .mesh-ctl button.on { background:var(--primary); border-color:transparent; color:#fff; }
   #papelbox button.on { background:var(--primary); border-color:transparent; color:#fff; }
-  /* ---------- Filament Box (CFS) ---------- */
-  .fb-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px; margin-top:8px; }
-  .fb-slot { background:var(--card); border-radius:10px; padding:8px 10px; box-shadow:var(--elev);
-             border:1.5px solid transparent; animation:floatIn .3s ease both; }
-  .fb-slot.on { border-color:var(--warn); }
-  .fb-slot.vazio { opacity:.55; }
-  .fb-slot h4 { font-size:.82rem; display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
-  .fb-slot h4 .est { font-size:.66rem; font-weight:500; padding:1px 7px; border-radius:9px; border:1px solid var(--line); }
-  .fb-slot.on h4 .est { color:var(--warn); border-color:var(--warn); }
-  .fb-slot .mat { display:flex; align-items:center; gap:7px; font-weight:700; font-size:.95rem; }
-  .fb-swatch { width:17px; height:17px; border-radius:50%; border:2px solid var(--line); flex:none; }
-  .fb-slot .peso { font-size:.7rem; color:var(--mut); margin-top:2px; }
-  .fb-slot .barra { height:4px; border-radius:2px; background:var(--card2); margin-top:3px; overflow:hidden; }
-  .fb-slot .barra > i { display:block; height:100%; background:var(--primary); }
-  .fb-slot .acts { display:flex; gap:4px; margin-top:6px; }
-  .fb-slot .acts button { padding:3px 8px; font-size:.68rem; min-width:0; }
+  /* ---------- Filament Box (CFS) — cards v4 com gauge ---------- */
+  .fb-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(186px,1fr)); gap:11px; margin-top:8px; }
+  .fb-slot { position:relative; border-radius:16px; padding:12px 13px 11px; border:1px solid var(--line);
+             background:var(--card); box-shadow:var(--elev); overflow:hidden; animation:floatIn .3s ease both;
+             transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease; }
+  .fb-slot:hover { transform:translateY(-3px); box-shadow:var(--elev2); }
+  .fb-slot.cheio { background:radial-gradient(120% 90% at 85% 0%, color-mix(in srgb, var(--fc) 20%, transparent), transparent 60%), var(--card);
+                   border-color:color-mix(in srgb, var(--fc) 40%, var(--line)); }
+  .fb-slot.on { border-color:var(--warn); box-shadow:0 0 0 1px var(--warn), 0 0 22px -5px color-mix(in srgb, var(--warn) 75%, transparent); }
+  .fb-slot.vazio { border-style:dashed; border-color:color-mix(in srgb, var(--line) 160%, transparent); background:transparent; box-shadow:none; }
+  .fb-slot.vazio:hover { opacity:1; transform:none; box-shadow:none; border-color:var(--primary); }
+  .fb-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:9px; }
+  .fb-tnn { font:700 .72rem ui-monospace,Menlo,monospace; color:var(--mut); background:color-mix(in srgb, var(--txt) 8%, transparent); padding:2px 8px; border-radius:7px; }
+  .fb-state { font-size:.6rem; font-weight:800; text-transform:uppercase; letter-spacing:.06em; padding:3px 9px; border-radius:999px; display:inline-flex; align-items:center; gap:5px; }
+  .fb-state.carregado { color:#1a1205; background:var(--warn); }
+  .fb-state.carregado .p { width:6px; height:6px; border-radius:50%; background:#1a1205; animation:pz 1.3s ease-in-out infinite; }
+  @keyframes pz { 0%,100%{opacity:.35} 50%{opacity:1} }
+  .fb-state.pronto { color:var(--ok); background:color-mix(in srgb, var(--ok) 15%, transparent); }
+  .fb-state.vazio { color:var(--dim); background:color-mix(in srgb, var(--dim) 13%, transparent); }
+  .fb-id { display:flex; align-items:center; gap:12px; min-height:62px; }
+  .fb-gauge { flex:none; }
+  .fb-mat { font-weight:800; font-size:1.16rem; line-height:1.02; }
+  .fb-name { font-size:.75rem; color:var(--mut); margin-top:2px; }
+  .fb-meta { font-size:.66rem; color:var(--dim); margin-top:9px; display:flex; gap:6px; flex-wrap:wrap; }
+  .fb-meta span { background:color-mix(in srgb, var(--txt) 6%, transparent); padding:2px 7px; border-radius:6px; }
+  .fb-slot .acts { display:flex; gap:5px; margin-top:11px; }
+  .fb-slot .acts button { flex:1; padding:4px 8px; font-size:.68rem; min-width:0; }
+  .fb-vz { display:flex; flex-direction:column; align-items:center; gap:6px; padding:4px 0 2px; color:var(--dim); min-height:62px; justify-content:center; font-size:.72rem; }
+  /* cabecalho por caixa (grid full-width) */
+  .fb-boxhdr { grid-column:1/-1; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;
+               margin-top:4px; padding-bottom:6px; border-bottom:1px solid var(--line); }
+  .fb-boxhdr .fb-box-nome { font-weight:800; font-size:1rem; display:flex; align-items:center; gap:7px; }
+  .fb-boxhdr .fb-box-nome small { color:var(--dim); font-weight:600; font-size:.72rem; }
+  .fb-boxhdr .bdot { width:8px; height:8px; border-radius:50%; background:var(--ok); box-shadow:0 0 0 3px color-mix(in srgb, var(--ok) 22%, transparent); }
+  .fb-boxhdr .env { display:flex; gap:6px; flex-wrap:wrap; }
+  .fb-boxhdr .env span { background:var(--card); border:1px solid var(--line); border-radius:999px; padding:3px 9px; font-size:.7rem; color:var(--mut); }
+  .fb-boxhdr .env .hum-ok { color:var(--ok); } .fb-boxhdr .env .hum-warn { color:var(--warn); } .fb-boxhdr .env .hum-bad { color:var(--bad); }
+  /* ferramentas do CFS */
+  .fb-tools { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+  .fb-tool { display:flex; align-items:center; gap:9px; background:var(--card); border:1px solid var(--line); border-radius:12px;
+             padding:9px 13px; cursor:pointer; transition:.13s; font-size:.8rem; color:var(--txt); text-align:left; }
+  .fb-tool:hover { border-color:var(--primary); transform:translateY(-2px); box-shadow:var(--elev); }
+  .fb-tool:disabled { opacity:.5; cursor:not-allowed; transform:none; box-shadow:none; }
+  .fb-tool .ic { font-size:1.1rem; }
+  .fb-tool b { font-weight:700; display:block; }
+  .fb-tool small { color:var(--dim); font-size:.66rem; }
+  .fb-tool .wb { font-size:.56rem; color:var(--warn); border:1px solid color-mix(in srgb, var(--warn) 45%, var(--line)); border-radius:6px; padding:1px 5px; margin-left:4px; }
+  /* card Auto-PA (APAX) */
+  .fb-apax { display:flex; gap:14px; align-items:flex-start; margin-top:12px; padding:14px 16px; border-radius:16px;
+             background:linear-gradient(135deg, color-mix(in srgb, var(--primary) 16%, var(--card)), var(--card) 70%);
+             border:1px solid color-mix(in srgb, var(--primary) 40%, var(--line)); }
+  .fb-apax .big { font-size:1.6rem; line-height:1; }
+  .fb-apax .ti { font-weight:800; font-size:.98rem; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .fb-apax .new { font-size:.56rem; font-weight:800; letter-spacing:.06em; background:var(--ok); color:#06220a; padding:2px 7px; border-radius:999px; }
+  .fb-apax p { margin:5px 0 9px; font-size:.76rem; color:var(--mut); line-height:1.4; }
   /* ---------- Spoolman (configurador) ---------- */
   #sp-found { margin-top:10px; display:flex; flex-direction:column; gap:6px; }
   .sp-hit { display:flex; align-items:center; gap:9px; padding:9px 11px; border-radius:8px;
@@ -486,6 +525,19 @@
 </dialog>
 <div class="fb-grid" id="fb-grid"><div class="det" style="grid-column:1/-1">lendo o CFS…</div></div>
 <div class="det" id="fb-runout" style="margin-top:4px"></div>
+<div class="fb-tools" id="fb-tools" style="display:none">
+  <button class="fb-tool" id="fb-rfid-all"><span class="ic">🔄</span><span><b>Reler RFID (todos)</b><small>atualiza material/cor de todos os slots</small></span></button>
+  <button class="fb-tool" id="fb-cut"><span class="ic">✂️</span><span><b>Calibrar corte</b><small>CALIBRATE_CUT_POS <span class="wb">move o hardware</span></small></span></button>
+  <button class="fb-tool" id="fb-nozzle"><span class="ic">🧹</span><span><b>Limpar bico</b><small>CX_NOZZLE_CLEAR <span class="wb">aquece + move</span></small></span></button>
+</div>
+<div class="fb-apax" id="fb-apax" style="display:none">
+  <span class="big">⚡</span>
+  <div style="flex:1">
+    <div class="ti">Auto-PA dinâmico (APAX)</div>
+    <p>O firmware tem detecção de Pressure Advance pela célula de carga (<code>AUTO_APAX</code>) — ajusta o PA sem calibrar no fatiador. Não aparece no changelog oficial, então começamos só com o teste de diagnóstico seguro (não altera a impressão). A integração no START_PRINT vem depois de validar.</p>
+    <button class="ghost" id="fb-apax-test">Testar Auto-PA (diagnóstico)</button>
+  </div>
+</div>
 <div id="fb-editor" style="display:none">
   <div class="lin" style="gap:8px;flex-wrap:wrap;align-items:end;margin-top:8px">
     <b id="fb-ed-tnn" style="min-width:38px">—</b>
@@ -506,6 +558,57 @@
   <div class="dica" style="margin-top:4px">Grava no CFS e sincroniza <b>ao vivo</b> pela porta 9999 (tela + Orca, sem restart). Slot com tag RFID: a tag manda — use RFID pra reler.</div>
 </div>
 
+<h2><i data-ic="wrench"></i> DXC2 — Extrusor duplo + corte</h2>
+<div class="dica" id="dxc-intro">Perfil do <code>box.cfg</code> para o kit <b>DXC2</b> (extrusor dual-drive + guilhotina). <b>Ativar</b> troca os valores do <code>[box]</code> (com backup) e reinicia o firmware; <b>Desativar</b> volta ao stock. Só ligue depois de instalar o hardware do DXC2.</div>
+<div class="lin" style="gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
+  <button class="principal" id="dxc-toggle">Ativar DXC2</button>
+  <span class="acc-tag" id="dxc-status">—</span>
+  <button class="ghost" id="dxc-reload" title="Atualizar" style="padding:4px 10px"><i data-ic="refresh"></i></button>
+</div>
+<div id="dxc-painel" style="display:none">
+  <div class="dica" style="margin-top:6px"><b>Calibração do corte</b> — roda <code>CALIBRATE_CUT_POS</code> (grava <code>cut_pos_x</code>). <b style="color:var(--warn)">Assista a faca.</b> Nunca copie <code>cut_pos_x</code> de outra máquina.</div>
+  <div class="lin" style="gap:8px;align-items:flex-end;flex-wrap:wrap">
+    <button class="principal" id="dxc-cut"><i data-ic="target"></i> Calibrar corte</button>
+    <label style="min-width:auto;font-size:.7rem;color:var(--mut)">check_x_min<br><input type="number" id="dxc-cmin" step="0.5" style="width:78px"></label>
+    <label style="min-width:auto;font-size:.7rem;color:var(--mut)">check_x_max<br><input type="number" id="dxc-cmax" step="0.5" style="width:78px"></label>
+    <button class="salvar" id="dxc-save-cut"><i data-ic="save"></i> Salvar janela</button>
+  </div>
+  <div class="dica" style="margin-top:10px"><b>Handoff CFS→DXC2 e retração</b> — ajuste de 1–2 mm assistindo o load (no 1.1.6.x+, menor = avança mais).</div>
+  <div class="lin" style="gap:8px;align-items:flex-end;flex-wrap:wrap">
+    <label style="min-width:auto;font-size:.7rem;color:var(--mut)">buffer_empty_len<br><input type="number" id="dxc-buf" step="0.25" style="width:88px"></label>
+    <label style="min-width:auto;font-size:.7rem;color:var(--mut)">Tn_retrude<br><input type="number" id="dxc-ret" step="1" style="width:78px"></label>
+    <label style="min-width:auto;font-size:.7rem;color:var(--mut)">Tn_extrude_temp<br><input type="number" id="dxc-temp" step="5" style="width:88px"></label>
+    <button class="salvar" id="dxc-save-handoff"><i data-ic="save"></i> Salvar handoff</button>
+  </div>
+  <div class="dica" style="margin-top:10px"><b>Troca e unload</b> — cada ação move o hardware (confirmação + só com a impressora parada).</div>
+  <div class="botoes" id="dxc-tools" style="flex-wrap:wrap">
+    <button data-dxc-tool="T0">T0</button><button data-dxc-tool="T1">T1</button>
+    <button data-dxc-tool="T2">T2</button><button data-dxc-tool="T3">T3</button>
+    <button data-dxc-tool="T4">T4</button><button data-dxc-tool="T5">T5</button>
+    <button data-dxc-tool="T6">T6</button><button data-dxc-tool="T7">T7</button>
+    <button data-dxc-tool="BOX_CUT_MATERIAL">Cortar</button>
+    <button data-dxc-tool="DXC2_END_UNLOAD">Unload (DXC2)</button>
+  </div>
+</div>
+
+<h2><i data-ic="sliders"></i> Recursos avançados</h2>
+<div class="dica" id="feat-intro">Liga/desliga recursos que <b>trocam arquivos do Klipper</b> (com backup automático). Cada troca <b>reinicia o Klipper sozinho</b> — espere ~30 s e a tela voltar. Tudo por aqui: <b>nenhum SSH</b>. O estado abaixo é lido ao vivo da impressora.</div>
+<div class="lin" style="gap:10px;align-items:center;margin-bottom:6px">
+  <span class="acc-tag" id="feat-status">—</span>
+  <button class="ghost" id="feat-reload" title="Atualizar" style="padding:4px 10px"><i data-ic="refresh"></i></button>
+</div>
+<div id="feat-lista"></div>
+
+<h2><i data-ic="settings"></i> Tensão das correias (X/Y)</h2>
+<div class="dica">Tensor de correia motorizado do K2 (<code>BELT_MDL_*</code>). Stock ≈ <b>140 N</b> — a comunidade costuma baixar (ex. ~35 N). <b style="color:var(--warn)">Mudança mecânica:</b> valor errado = passo perdido ou correia frouxa. Leia antes, mude com cautela e <b>re-home depois</b>.</div>
+<div class="lin" style="gap:8px;align-items:flex-end;flex-wrap:wrap">
+  <button id="belt-read" class="ghost"><i data-ic="refresh"></i> Ler X e Y</button>
+  <label style="min-width:auto;font-size:.7rem;color:var(--mut)">Tensão X (N)<br><input type="number" id="belt-x" step="5" style="width:80px"></label>
+  <label style="min-width:auto;font-size:.7rem;color:var(--mut)">Tensão Y (N)<br><input type="number" id="belt-y" step="5" style="width:80px"></label>
+  <button id="belt-set" class="salvar"><i data-ic="check"></i> Aplicar</button>
+</div>
+<div class="dica" id="belt-out" style="margin-top:4px"></div>
+
 <h2><i data-ic="settings"></i> CALIBRAÇÕES</h2>
 
 <details class="acc" open>
@@ -516,6 +619,7 @@
       <button id="medir" class="principal"><i data-ic="ruler"></i> MEDIR robusto (2–3 passes)</button>
       <button id="frio"><i data-ic="target"></i> Re-medir (1 passe)</button>
       <button id="reler"><i data-ic="refresh"></i> Reler</button>
+      <button id="parar-homing" title="Aborta um homing errado sem e-stop total" style="border-color:var(--bad);color:var(--bad)"><i data-ic="stop"></i> Parar Homing</button>
     </div>
     <div class="mesa-wrap">
       <div class="canto" id="screw4"><h3>TRASEIRO ESQUERDO</h3><div class="acao">—</div></div>
@@ -1250,7 +1354,8 @@ const FB_TIPO = {"000001":"PLA","001601":"PLA","002001":"PETG","003001":"ABS",
                  "004001":"TPU","005001":"ASA","006001":"PA","007001":"PC"};
 const FB_SLOTS = ["A","B","C","D"];
 let fbSpool = {};        // TNN -> {nome, resta, total} via Spoolman
-let fbUlt = null;        // ultimo snapshot do box (pro editor/load)
+let fbUlt = null;        // ultimo snapshot normalizado (debug)
+let fbSlots = {};        // TNN -> slot normalizado (pro editor)
 function fbCor(v){
   if (v == null || v === "" || v === "-1") return null;
   const h = String(v).replace(/^#/, "").replace(/^0/, "");
@@ -1343,84 +1448,177 @@ async function fbSyncSpoolman(tnn, o){
     extra: {tag: JSON.stringify(tnn)}});
   return {acao:"criado", spool: novo.id};
 }
+// MULTI-CFS. Fonte PRIMARIA: GET /server/joelma/cfs/edit -> material_box_info.json,
+// cujo box.Material.info[] e um ARRAY de caixas (T1..T4) com temperature/umidade/
+// state/version por unidade e materialType+color+pressure+remainLen por slot. E o
+// estado em disco que a tela da impressora usa -> autoritativo e multi-CFS de
+// verdade (confirmado no dump out/2026: 2 CFS = T1 + T2, slot cheio traz name/
+// color "#0RRGGBB"/pressure). FALLBACK: se o plugin joelma (moonraker-upgrade) nao
+// existir, cai no objeto `box` do Klipper, que so expoe T1/same_material.
 async function fbAtualiza(){
-  let box = null, sensor = null, rack = null;
+  let norm = null;
   try {
-    const q = await rpc("printer.objects.query", {objects:{box:null, filament_rack:null, "filament_switch_sensor filament_sensor":null}});
-    box = q.status.box || null;
-    sensor = q.status["filament_switch_sensor filament_sensor"] || null;
-    rack = q.status.filament_rack || null;
-  } catch(e){ $("fb-status").textContent = "CFS: sem leitura"; return; }
-  if (!box || !box.T1 || box.T1 === "None" || typeof box.T1 !== "object") {
+    const r = await fetch(base + "/server/joelma/cfs/edit");
+    if (r.ok) {
+      const j = await r.json();
+      const bx = (j.result || j).box;
+      if (bx && bx.Material && Array.isArray(bx.Material.info)) norm = fbNormEndpoint(bx);
+    }
+  } catch(e){}
+  if (!norm) {
+    try {
+      const q = await rpc("printer.objects.query", {objects:{box:null}});
+      norm = fbNormKlipper(q.status.box || null);
+    } catch(e){ $("fb-status").textContent = "CFS: sem leitura"; return; }
+  }
+  fbUlt = norm;
+  fbRender(norm.boxes, norm.meta);
+}
+// --- normaliza o endpoint /edit (multi-CFS real, ate 4 caixas) ---
+function fbNormEndpoint(bx){
+  const M = bx.Material || {};
+  const conectadas = (M.info || []).filter(function(b){ return b && b.state === "connect"; });
+  const boxes = conectadas.map(function(b){
+    const al = (b.filament && b.filament !== "None") ? String(b.filament) : null; // letra ativa da caixa
+    const slots = FB_SLOTS.map(function(L, i){
+      const s = (b.list || []).find(function(x){ return x.materialId === L; }) || (b.list || [])[i] || {};
+      const tipo = String(s.materialType || "").trim();
+      const pres = !!tipo || !!String(s.filamentId || "").trim();
+      const rl = parseInt(s.remainLen, 10);
+      return {
+        tnn: b.boxID + L, letra: L, present: pres,
+        type: tipo || null, name: String(s.name || "").trim() || null,
+        brand: String(s.brand || "").trim() || null, cor: fbCor(s.color),
+        pa: String(s.pressure || "").trim() || null,
+        tmin: parseInt(s.minTemp, 10) || null, tmax: parseInt(s.maxTemp, 10) || null,
+        remain: (!isNaN(rl) && rl >= 0 && rl <= 100) ? rl : null, active: al === L
+      };
+    });
+    return { id: b.boxID, label: "CFS " + b.boxID.slice(1), state: b.state,
+             temp: b.temperature, hum: b.dry_and_humidity, version: b.version, slots: slots };
+  });
+  let ativoTnn = null;
+  for (const b of boxes) { const a = b.slots.find(function(s){ return s.active && s.present; }); if (a) { ativoTnn = a.tnn; break; } }
+  return { boxes: boxes, meta: { autoRefill: String(M.auto_refill ?? "0") === "1",
+           runoutGate: false, ativoTnn: ativoTnn, fonte: "edit" } };
+}
+// --- normaliza o objeto `box` do Klipper (fallback: T1/T2 keys, same_material top-level) ---
+function fbNormKlipper(box){
+  if (!box) return { boxes: [], meta: { autoRefill:false, runoutGate:false, ativoTnn:null, fonte:"klipper" } };
+  const keys = Object.keys(box).filter(function(k){
+    return /^T[1-9]\d*$/.test(k) && box[k] && box[k] !== "None" && typeof box[k] === "object";
+  }).sort(function(a, b){ return parseInt(a.slice(1), 10) - parseInt(b.slice(1), 10); });
+  const sm = fbSameMaterial(box);
+  let ativoTnn = null;
+  const boxes = keys.map(function(k, n){
+    const bx = box[k];
+    let aIdx = -1;
+    const letra = bx.filament;
+    if (typeof letra === "string" && FB_SLOTS.indexOf(letra) >= 0) aIdx = FB_SLOTS.indexOf(letra);
+    else if (n === 0) { const bf = parseInt(box.filament, 10); if (!isNaN(bf) && bf >= 0 && bf < 4) aIdx = bf; }
+    const slots = FB_SLOTS.map(function(L, i){
+      const tnn = k + L, info = sm[tnn], pres = fbPresente(bx, i, sm, tnn);
+      const ativo = (aIdx === i && pres);
+      if (ativo && !ativoTnn) ativoTnn = tnn;
+      return { tnn: tnn, letra: L, present: pres,
+               type: pres ? (info ? info.nome : fbTipo((bx.material_type||[])[i])) : null,
+               name: info ? info.nome : null, brand: null,
+               cor: info ? info.cor : fbCor((bx.color_value||[])[i]),
+               pa: null, tmin: null, tmax: null, remain: null, active: ativo };
+    });
+    return { id: k, label: "CFS " + k.slice(1), state: bx.state || "connect",
+             temp: bx.temperature, hum: bx.dry_and_humidity, version: bx.version, slots: slots };
+  });
+  return { boxes: boxes, meta: { autoRefill: String(box.auto_refill ?? "0") === "1",
+           runoutGate: String(box.filament_useup ?? "0") === "1", ativoTnn: ativoTnn, fonte: "klipper" } };
+}
+// --- renderizador unico (interface inspirada no ACEPROK1Max/HimAndRobot) ---
+// gauge circular: carretel colorido + anel de % restante. cor=null -> slot vazio.
+function fbGauge(cor, pct){
+  const R = 26, C = 2 * Math.PI * R;
+  const show = cor && pct != null;
+  const off = show ? C * (1 - Math.max(0, Math.min(100, pct)) / 100) : C;
+  const col = cor || "var(--dim)";
+  let ring;
+  if (show) {
+    ring = '<circle cx="31" cy="31" r="' + R + '" fill="none" stroke="color-mix(in srgb,var(--txt) 10%,transparent)" stroke-width="4"/>'
+      + '<circle cx="31" cy="31" r="' + R + '" fill="none" stroke="' + col + '" stroke-width="4" stroke-linecap="round" stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="' + off.toFixed(1) + '" transform="rotate(-90 31 31)"/>';
+  } else {
+    ring = '<circle cx="31" cy="31" r="' + R + '" fill="none" stroke="color-mix(in srgb,var(--dim) 55%,transparent)" stroke-width="3" stroke-dasharray="3 4"/>';
+  }
+  const coil = cor
+    ? '<circle cx="31" cy="31" r="17" fill="' + cor + '"/><circle cx="31" cy="31" r="17" fill="none" stroke="rgba(0,0,0,.3)" stroke-width="1.3"/><circle cx="31" cy="31" r="13" fill="none" stroke="rgba(0,0,0,.16)" stroke-width="1.1"/><circle cx="31" cy="31" r="10" fill="none" stroke="rgba(0,0,0,.16)" stroke-width="1.1"/><circle cx="31" cy="31" r="6" fill="var(--card)"/><circle cx="31" cy="31" r="6" fill="none" stroke="rgba(0,0,0,.25)" stroke-width="1.1"/>'
+    : '<circle cx="31" cy="31" r="15" fill="none" stroke="var(--dim)" stroke-width="1.4" opacity=".5"/>';
+  return '<svg class="fb-gauge" viewBox="0 0 62 62" width="60" height="60">' + ring + coil + '</svg>';
+}
+// cor de alerta da umidade do CFS (secagem): <45 ok, 45-60 atencao, >60 ruim
+function fbHumClass(h){ const v = parseFloat(h); if (isNaN(v)) return ""; return v < 45 ? "hum-ok" : v <= 60 ? "hum-warn" : "hum-bad"; }
+function fbRender(boxes, meta){
+  fbSlots = {};
+  const tools = $("fb-tools"), apax = $("fb-apax");
+  if (!boxes || !boxes.length) {
     $("fb-status").textContent = "CFS: desconectado";
-    $("fb-grid").innerHTML = '<div class="det" style="grid-column:1/-1">objeto box indisponível</div>';
+    $("fb-clima").textContent = "🌡 — · 💧 —"; $("fb-path").textContent = "bico: —"; $("fb-runout").textContent = "";
+    $("fb-grid").innerHTML = '<div class="det" style="grid-column:1/-1">nenhuma CFS conectada</div>';
+    if (tools) tools.style.display = "none";
+    if (apax) apax.style.display = "none";
     return;
   }
-  fbUlt = box;
-  const t1 = box.T1;
-  $("fb-status").textContent = "CFS: " + (t1.state || box.state || "?") + (t1.version ? " · fw " + t1.version : "");
-  $("fb-clima").textContent = "🌡 " + (t1.temperature ?? "—") + "°C · 💧 " + (t1.dry_and_humidity ?? "—") + "%";
-  const sm = fbSameMaterial(box);
-  // slot CARREGADO: box.T1.filament e a LETRA do slot ativo, dada DIRETO pelo
-  // firmware (ex "B" = T1B). Autoritativa por unidade -> NAO casamos material+cor
-  // (ambiguo com 2 slots do mesmo PLA) nem lemos o filament_rack, que fica
-  // DEFASADO: no dump jul/2026, imprimindo no T1B, o rack ainda dizia
-  // remain_material_type="001601" (=T1C, ULTIMO carregado) enquanto o ativo real
-  // ja era "B". Fallback: box.filament (indice 0-based no T1) se a letra vier suja.
-  let ativoIdx = -1;
-  const letra = t1.filament;
-  if (typeof letra === "string" && FB_SLOTS.indexOf(letra) >= 0) {
-    ativoIdx = FB_SLOTS.indexOf(letra);
-  } else {
-    const bf = parseInt(box.filament, 10);
-    if (!isNaN(bf) && bf >= 0 && bf < 4) ativoIdx = bf;
-  }
-  const ativoTnn = ativoIdx >= 0 ? "T1" + FB_SLOTS[ativoIdx] : null;
-  // sensor do bico esta enabled:false na Joelma (inutil) -> "tem filamento no
-  // caminho" = ha um slot ativo apontado pelo firmware (t1.filament/box.filament).
-  const sensorOn = sensor && sensor.enabled;
-  const noBico = sensorOn ? !!sensor.filament_detected : (ativoIdx >= 0);
-  $("fb-path").textContent = "bico: " + (noBico ? "com filamento" : "vazio") + (ativoTnn ? " · slot " + ativoTnn : "");
-  const runoutGate = String(box.filament_useup ?? "0") === "1";
-  $("fb-refill").textContent = "runout: " + (runoutGate ? "SLOT ESGOTADO!" : (String(box.auto_refill ?? "0") === "1" ? "auto-troca ligada" : "pausa (auto off)"));
-  // grade de slots
+  if (tools) tools.style.display = "";
+  if (apax) apax.style.display = "";
+  const multi = boxes.length > 1;
+  $("fb-status").textContent = (multi ? boxes.length + " CFS conectadas" : "CFS conectada");
+  $("fb-clima").textContent = boxes.map(function(b){ return (multi ? b.id + " " : "") + "🌡 " + (b.temp ?? "—") + "°C · 💧 " + (b.hum ?? "—") + "%"; }).join(" · ");
+  $("fb-path").textContent = "bico: " + (meta.ativoTnn ? "carregado " + meta.ativoTnn : "vazio");
+  $("fb-refill").textContent = "runout: " + (meta.runoutGate ? "SLOT ESGOTADO!" : (meta.autoRefill ? "auto-troca ligada" : "pausa (auto off)"));
   let html = "";
-  for (let i = 0; i < 4; i++) {
-    const tnn = "T1" + FB_SLOTS[i];
-    const pres = fbPresente(t1, i, sm, tnn);
-    const info = sm[tnn];
-    const cor = info ? info.cor : fbCor((t1.color_value || [])[i]);
-    const tipo = pres ? (info ? info.nome : fbTipo((t1.material_type || [])[i])) : null;
-    const sp = fbSpool[tnn];
-    const ativo = pres && tnn === ativoTnn;
-    const pct = sp && sp.total > 0 ? Math.max(0, Math.min(100, Math.round(100 * sp.resta / sp.total))) : null;
-    html += '<div class="fb-slot' + (ativo ? " on" : "") + (pres ? "" : " vazio") + '">' +
-      '<h4>' + tnn + '<span class="est">' + (ativo ? "Carregado" : pres ? "Pronto" : "vazio") + '</span></h4>' +
-      '<div class="mat"><span class="fb-swatch" style="background:' + (cor || "transparent") + '"></span>' + (tipo || "—") + '</div>' +
-      (sp && sp.resta != null ? '<div class="peso">' + Math.round(sp.resta) + 'g/' + Math.round(sp.total) + 'g' + (sp.nome ? " · " + sp.nome : "") + '</div>' +
-        (pct != null ? '<div class="barra"><i style="width:' + pct + '%"></i></div>' : "") : "") +
-      '<div class="acts">' +
-        (pres && !ativo ? '<button class="ghost" data-fb-load="' + tnn + '">Load</button>' : "") +
-        (ativo ? '<button class="ghost" data-fb-unload="1">Unload</button>' : "") +
-        '<button class="ghost" data-fb-edit="' + tnn + '">Editar</button>' +
-        '<button class="ghost" data-fb-rfid="' + tnn + '" title="Reler a tag RFID deste slot">RFID</button>' +
-      '</div></div>';
-  }
+  boxes.forEach(function(b){
+    const hc = fbHumClass(b.hum);
+    html += '<div class="fb-boxhdr"><span class="fb-box-nome"><span class="bdot"></span>' + b.label + ' <small>' + b.id + '</small></span>'
+      + '<span class="env"><span>🌡 ' + (b.temp ?? "—") + '°C</span><span class="' + hc + '">💧 ' + (b.hum ?? "—") + '%</span>'
+      + '<span>fw ' + (b.version || "—") + '</span></span></div>';
+    b.slots.forEach(function(s){
+      fbSlots[s.tnn] = s;
+      const sp = fbSpool[s.tnn];
+      const pct = sp && sp.total > 0 ? Math.max(0, Math.min(100, Math.round(100 * sp.resta / sp.total))) : (s.remain != null ? s.remain : null);
+      if (!s.present) {
+        html += '<div class="fb-slot vazio" style="--fc:var(--dim)">'
+          + '<div class="fb-top"><span class="fb-tnn">' + s.tnn + '</span><span class="fb-state vazio">vazio</span></div>'
+          + '<div class="fb-vz">' + fbGauge(null, null) + '<span>sem filamento</span></div>'
+          + '<div class="acts"><button class="ghost" data-fb-edit="' + s.tnn + '">Atribuir</button>'
+          + '<button class="ghost" data-fb-rfid="' + s.tnn + '" title="Reler a tag RFID deste slot">RFID</button></div></div>';
+        return;
+      }
+      const est = s.active ? '<span class="fb-state carregado"><span class="p"></span>carregado</span>' : '<span class="fb-state pronto">pronto</span>';
+      const m = [];
+      if (s.tmin || s.tmax) m.push((s.tmin || "?") + "–" + (s.tmax || "?") + "°C");
+      if (s.pa) m.push("PA " + s.pa);
+      if (sp && sp.resta != null) m.push(Math.round(sp.resta) + "g");
+      html += '<div class="fb-slot cheio' + (s.active ? " on" : "") + '" style="--fc:' + (s.cor || "#888") + '">'
+        + '<div class="fb-top"><span class="fb-tnn">' + s.tnn + '</span>' + est + '</div>'
+        + '<div class="fb-id">' + fbGauge(s.cor, pct) + '<div><div class="fb-mat">' + (s.type || "—") + '</div>'
+        + (s.name && s.name !== s.type ? '<div class="fb-name">' + s.name + '</div>' : '') + '</div></div>'
+        + (m.length ? '<div class="fb-meta">' + m.map(function(x){ return '<span>' + x + '</span>'; }).join("") + '</div>' : "")
+        + '<div class="acts">'
+        + (s.active ? '<button class="ghost" data-fb-unload="1">Unload</button>' : '<button class="ghost" data-fb-load="' + s.tnn + '">Load</button>')
+        + '<button class="ghost" data-fb-edit="' + s.tnn + '">Editar</button>'
+        + '<button class="ghost" data-fb-rfid="' + s.tnn + '" title="Reler a tag RFID deste slot">RFID</button>'
+        + '</div></div>';
+    });
+  });
   $("fb-grid").innerHTML = html;
-  // cadeia de runout calculada no cliente: reservas = mesmo material + mesma cor
+  // cadeia de runout: reservas = mesmo material+cor na MESMA caixa da ativa
+  // (a auto-troca do firmware e por unidade).
   let cadeia = "";
-  if (ativoTnn) {
-    const info0 = sm[ativoTnn] || {nome: fbTipo((t1.material_type||[])[ativoIdx]), cor: fbCor((t1.color_value||[])[ativoIdx])};
-    const reservas = [];
-    for (let i = 0; i < 4; i++) {
-      const tnn = "T1" + FB_SLOTS[i];
-      if (i === ativoIdx || !fbPresente(t1, i, sm, tnn)) continue;
-      const inf = sm[tnn] || {nome: fbTipo((t1.material_type||[])[i]), cor: fbCor((t1.color_value||[])[i])};
-      if (inf.nome === info0.nome && inf.cor === info0.cor) reservas.push(tnn);
+  if (meta.ativoTnn) {
+    const ativa = boxes.find(function(b){ return b.slots.some(function(s){ return s.tnn === meta.ativoTnn; }); });
+    const a = ativa ? ativa.slots.find(function(s){ return s.tnn === meta.ativoTnn; }) : null;
+    if (a) {
+      const reservas = ativa.slots.filter(function(s){ return s.tnn !== a.tnn && s.present && s.type === a.type && s.cor === a.cor; }).map(function(s){ return s.tnn; });
+      cadeia = reservas.length
+        ? "Se acabar: " + a.tnn + " → " + reservas.join(" → ") + (meta.autoRefill ? " (troca automática do firmware)" : " (auto-troca DESLIGADA — vai pausar)")
+        : "Sem slot reserva do mesmo material+cor — runout vai pausar a impressão.";
     }
-    cadeia = reservas.length
-      ? "Se acabar: " + ativoTnn + " → " + reservas.join(" → ") + (String(box.auto_refill ?? "0") === "1" ? " (troca automática do firmware)" : " (auto-troca DESLIGADA — vai pausar)")
-      : "Sem slot reserva do mesmo material+cor — runout vai pausar a impressão.";
   }
   $("fb-runout").textContent = cadeia;
 }
@@ -1446,13 +1644,17 @@ $("fb-grid").addEventListener("click", async ev => {
       setTimeout(fbAtualiza, 3000);
     } catch(e){ logLinha("!! RFID " + tnn + ": " + e.message); }
   } else if (b.dataset.fbEdit) {
-    const tnn = b.dataset.fbEdit, i = FB_SLOTS.indexOf(tnn[2]);
-    const t1 = (fbUlt || {}).T1 || {};
+    const tnn = b.dataset.fbEdit, s = fbSlots[tnn] || {};
     $("fb-ed-tnn").textContent = tnn;
-    const tipo = fbTipo((t1.material_type || [])[i]);
-    if (tipo) { const sel = $("fb-ed-mat"); for (const o of sel.options) if (o.value === tipo) sel.value = tipo; }
-    const cor = fbCor((t1.color_value || [])[i]);
-    if (cor) $("fb-ed-cor").value = cor;
+    // prefill a partir do slot normalizado (endpoint /edit traz material, nome,
+    // marca, temps e PA; fallback Klipper preenche so o que tiver)
+    if (s.type) { const sel = $("fb-ed-mat"); for (const o of sel.options) if (o.value === s.type) sel.value = s.type; }
+    if (s.cor) $("fb-ed-cor").value = s.cor;
+    if ($("fb-ed-nome")) $("fb-ed-nome").value = s.name || "";
+    if ($("fb-ed-marca")) $("fb-ed-marca").value = s.brand || "";
+    if (s.tmin && $("fb-ed-tmin")) $("fb-ed-tmin").value = s.tmin;
+    if (s.tmax && $("fb-ed-tmax")) $("fb-ed-tmax").value = s.tmax;
+    if (s.pa && $("fb-ed-pa")) $("fb-ed-pa").value = s.pa;
     $("fb-editor").style.display = "";
     $("fb-editor").scrollIntoView({behavior:"smooth", block:"nearest"});
   }
@@ -1487,9 +1689,231 @@ $("fb-ed-ok").onclick = async () => {
   } catch(e){ logLinha("!! editar " + tnn + ": " + e.message); }
 };
 $("fb-reload").onclick = () => { if (!ocupado) { fbSpoolman().then(fbAtualiza); spRender(); } };
+// ---------- Ferramentas do CFS ----------
+// guarda: nenhuma acao que mexe no hardware roda durante impressao
+async function fbNaoImprimindo(){
+  try { const q = await rpc("printer.objects.query", {objects:{print_stats:["state"]}});
+    return (((q.status.print_stats || {}).state) || "") !== "printing"; } catch(e){ return true; }
+}
+// Reler RFID de TODOS os slots presentes (via 9999, seguro — nao move hardware)
+$("fb-rfid-all").onclick = async () => {
+  if (ocupado) return;
+  const tnns = Object.keys(fbSlots).filter(function(t){ return fbSlots[t] && fbSlots[t].present; });
+  if (!tnns.length) { logLinha("// RFID: nenhum slot com filamento pra reler"); return; }
+  logLinha("// RFID: relendo " + tnns.length + " slot(s) pela porta 9999...");
+  for (const tnn of tnns) {
+    try { await fetch(base + "/server/joelma/cfs/rfid", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({tnn})}); }
+    catch(e){ logLinha("!! RFID " + tnn + ": " + e.message); }
+  }
+  setTimeout(function(){ fbSpoolman().then(fbAtualiza); }, 3000);
+};
+// Calibrar corte (guilhotina do CFS) — CALIBRATE_CUT_POS move o hardware
+$("fb-cut").onclick = async () => {
+  if (ocupado) return;
+  if (!(await fbNaoImprimindo())) { logLinha("!! Calibrar corte: impressão em andamento — abortado"); return; }
+  if (!confirm("Calibrar a posição de corte da guilhotina? A máquina vai MOVER o hardware. Confirme que não há impressão em andamento.")) return;
+  roda("CALIBRATE_CUT_POS", "Calibrando corte do CFS", 5, function(){ fbAtualiza(); });
+};
+// Limpar bico — CX_NOZZLE_CLEAR aquece e move a cabeca
+$("fb-nozzle").onclick = async () => {
+  if (ocupado) return;
+  if (!(await fbNaoImprimindo())) { logLinha("!! Limpar bico: impressão em andamento — abortado"); return; }
+  if (!confirm("Limpar o bico? Vai AQUECER e mover a cabeça até a mesa.")) return;
+  roda("CX_NOZZLE_CLEAR", "Limpando o bico", 6, function(){ fbAtualiza(); });
+};
+// Auto-PA (APAX) — SO o diagnostico seguro por enquanto (TEST_APAX). A
+// integracao do AUTO_APAX RUN_TYPE no START_PRINT fica para depois de validar.
+$("fb-apax-test").onclick = async () => {
+  if (ocupado) return;
+  if (!(await fbNaoImprimindo())) { logLinha("!! Auto-PA: impressão em andamento — abortado"); return; }
+  if (!confirm("Rodar o teste de Auto-PA (APAX)? Vai aquecer o bico e extrudar um pouco pra medir a contrapressão pela célula de carga. NÃO altera a impressão.")) return;
+  roda("TEST_APAX", "Testando Auto-PA (APAX)", 8, null);
+};
 fbSpoolman().then(fbAtualiza);
 setInterval(fbAtualiza, 20000);
 setInterval(fbSpoolman, 90000);
+
+// ---------- DXC2 (perfil do box.cfg via plugin joelma_dxc2) ----------
+async function dxcAtualiza(){
+  try {
+    const r = await fetch(base + "/server/joelma/dxc2");
+    if (!r.ok) { $("dxc-status").textContent = "DXC2: plugin ausente"; $("dxc-painel").style.display = "none"; return; }
+    const d = (await r.json()).result || {};
+    const on = !!d.active, v = d.values || {};
+    $("dxc-status").textContent = "DXC2: " + (on ? "ATIVADO" : "desativado")
+      + (v.Tn_retrude !== undefined ? " · Tn_retrude " + v.Tn_retrude + " · buffer " + v.buffer_empty_len : "");
+    $("dxc-toggle").textContent = on ? "Desativar DXC2" : "Ativar DXC2";
+    $("dxc-painel").style.display = on ? "" : "none";
+    if (v.check_cut_pos_x_min !== undefined) $("dxc-cmin").value = v.check_cut_pos_x_min;
+    if (v.check_cut_pos_x_max !== undefined) $("dxc-cmax").value = v.check_cut_pos_x_max;
+    if (v.buffer_empty_len !== undefined) $("dxc-buf").value = v.buffer_empty_len;
+    if (v.Tn_retrude !== undefined) $("dxc-ret").value = v.Tn_retrude;
+    if (v.Tn_extrude_temp !== undefined) $("dxc-temp").value = v.Tn_extrude_temp;
+  } catch(e){ $("dxc-status").textContent = "DXC2: sem leitura"; }
+}
+async function dxcPost(body){
+  const r = await fetch(base + "/server/joelma/dxc2", {method:"POST",
+    headers:{"Content-Type":"application/json"}, body: JSON.stringify(body)});
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error((j.error && j.error.message) || ("HTTP " + r.status));
+  return j.result || j;
+}
+async function dxcRestart(msg){
+  setStatus(msg, "reiniciando o firmware (box.cfg alterado)...", "busy");
+  try { await fetch(base + "/printer/firmware_restart", {method:"POST"}); } catch(e){}
+  if (await esperaReady(90000)) { setStatus("Pronta", "DXC2 aplicado", "on"); }
+  else setStatus("Firmware reiniciando...", "aguarde e atualize", "busy");
+  dxcAtualiza();
+}
+$("dxc-reload").onclick = () => { if (!ocupado) dxcAtualiza(); };
+$("dxc-toggle").onclick = async () => {
+  if (ocupado) return;
+  const ativando = $("dxc-toggle").textContent.indexOf("Ativar") >= 0;
+  if (!(await fbNaoImprimindo())) { logLinha("!! DXC2: impressão em andamento — abortado"); return; }
+  if (!confirm((ativando ? "ATIVAR" : "DESATIVAR") + " o perfil DXC2? Vai editar o box.cfg (com backup) e REINICIAR o firmware.")) return;
+  trava(true);
+  try {
+    const res = await dxcPost({action: ativando ? "enable" : "disable"});
+    logLinha("// DXC2 " + (ativando ? "ativado" : "desativado") + (res.backup ? " (backup " + res.backup + ")" : ""));
+    await dxcRestart("DXC2 " + (ativando ? "ativando" : "desativando"));
+  } catch(e){ logLinha("!! DXC2: " + e.message); setStatus("Falha DXC2", e.message, "err"); }
+  finally { trava(false); }
+};
+$("dxc-cut").onclick = async () => {
+  if (ocupado) return;
+  if (!(await fbNaoImprimindo())) { logLinha("!! impressão em andamento — abortado"); return; }
+  if (!confirm("Calibrar o corte (CALIBRATE_CUT_POS)? ASSISTA a faca. Garanta que não há impressão em andamento.")) return;
+  roda("CALIBRATE_CUT_POS", "Calibrando corte (DXC2)", 5, () => dxcAtualiza());
+};
+async function dxcSalvar(pares, msg){
+  if (ocupado) return;
+  for (const [k, el] of pares) {
+    if (!/^-?\d+(\.\d+)?$/.test(String(el.value).trim())) { logLinha("!! valor inválido em " + k); return; }
+  }
+  if (!confirm("Salvar no box.cfg (com backup) e REINICIAR o firmware?")) return;
+  trava(true);
+  try {
+    for (const [k, el] of pares) { await dxcPost({action:"set", key:k, value:String(el.value).trim()}); logLinha("// " + k + "=" + el.value); }
+    await dxcRestart(msg);
+  } catch(e){ logLinha("!! " + e.message); setStatus("Falha ao salvar", e.message, "err"); }
+  finally { trava(false); }
+}
+$("dxc-save-cut").onclick = () => dxcSalvar([["check_cut_pos_x_min", $("dxc-cmin")], ["check_cut_pos_x_max", $("dxc-cmax")]], "Salvando janela do corte");
+$("dxc-save-handoff").onclick = () => dxcSalvar([["buffer_empty_len", $("dxc-buf")], ["Tn_retrude", $("dxc-ret")], ["Tn_extrude_temp", $("dxc-temp")]], "Salvando handoff");
+$("dxc-tools").addEventListener("click", async ev => {
+  const b = ev.target.closest("button"); if (!b || ocupado) return;
+  const cmd = b.dataset.dxcTool; if (!cmd) return;
+  if (!(await fbNaoImprimindo())) { logLinha("!! impressão em andamento — abortado"); return; }
+  if (!confirm("Rodar " + cmd + "? Move o hardware do DXC2/CFS.")) return;
+  roda(cmd, "DXC2: " + cmd, 12, () => dxcAtualiza());
+});
+dxcAtualiza();
+setInterval(dxcAtualiza, 30000);
+
+// ---------- Recursos avançados (toggle de arquivos do Klipper via joelma_features) ----------
+// Liga/desliga, com backup, recursos que trocam .py do Klipper. O componente faz
+// o restart do Klipper em background; aqui so esperamos a impressora voltar.
+function featBadge(on){
+  return '<span class="acc-tag" style="background:' + (on ? 'var(--ok,#1a7f37)' : 'var(--mut,#57606a)')
+    + ';color:#fff">' + (on ? 'ATIVO' : 'inativo') + '</span>';
+}
+async function featAtualiza(){
+  try {
+    const r = await fetch(base + "/server/joelma/features");
+    if (!r.ok) { $("feat-status").textContent = "plugin ausente"; $("feat-lista").innerHTML = ""; return; }
+    const d = (await r.json()).result || {};
+    const fs = d.features || {};
+    const chaves = Object.keys(fs);
+    $("feat-status").textContent = chaves.length + " recurso(s)";
+    let html = "";
+    for (const k of chaves) {
+      const f = fs[k], on = !!f.active;
+      html += '<div class="lin" style="gap:10px;align-items:flex-start;flex-wrap:wrap;padding:8px 0;border-top:1px solid var(--bd,#30363d)">'
+        + '<div style="flex:1;min-width:200px"><b>' + f.label + '</b> ' + featBadge(on)
+        + '<div class="dica" style="margin-top:2px">' + f.desc + '</div></div>'
+        + '<button class="' + (on ? 'ghost' : 'principal') + '" data-feat="' + k + '" data-on="' + (on ? 1 : 0)
+        + '" data-label="' + f.label.replace(/"/g, "&quot;") + '">'
+        + (on ? 'Desativar' : 'Ativar') + '</button></div>';
+    }
+    $("feat-lista").innerHTML = html;
+  } catch(e){ $("feat-status").textContent = "sem leitura"; }
+}
+$("feat-reload").onclick = () => { if (!ocupado) featAtualiza(); };
+$("feat-lista").addEventListener("click", async ev => {
+  const b = ev.target.closest("button[data-feat]"); if (!b || ocupado) return;
+  const key = b.dataset.feat, ativando = b.dataset.on === "0";
+  if (!(await fbNaoImprimindo())) { logLinha("!! recurso: impressão em andamento — abortado"); return; }
+  if (!confirm((ativando ? "ATIVAR" : "DESATIVAR") + " \"" + (b.dataset.label || key) + "\"?\n\nVai trocar arquivo(s) do Klipper (com backup) e REINICIAR o Klipper. Leva ~30 s.")) return;
+  trava(true);
+  setStatus((ativando ? "Ativando" : "Desativando") + " recurso", "reiniciando o Klipper...", "busy");
+  try {
+    const r = await fetch(base + "/server/joelma/features", {method:"POST",
+      headers:{"Content-Type":"application/json"}, body: JSON.stringify({feature:key, action: ativando ? "enable" : "disable"})});
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error((j.error && j.error.message) || ("HTTP " + r.status));
+    logLinha("// recurso " + key + " " + (ativando ? "ativado" : "desativado") + " — Klipper reiniciando");
+    await new Promise(res => setTimeout(res, 4000)); // deixa o restart derrubar o klippy antes de sondar
+    if (await esperaReady(120000)) setStatus("Pronta", "recurso aplicado", "on");
+    else setStatus("Klipper reiniciando...", "aguarde e atualize", "busy");
+  } catch(e){ logLinha("!! recurso " + key + ": " + e.message); setStatus("Falha no recurso", e.message, "err"); }
+  finally { trava(false); featAtualiza(); }
+});
+featAtualiza();
+setInterval(() => { if (!ocupado) featAtualiza(); }, 30000);
+
+// ---------- Parar Homing (feature abort_homing via joelma_abort) ----------
+// SEM guarda de ocupado: o proposito e justamente interromper um homing em curso.
+$("parar-homing").onclick = async () => {
+  try {
+    const r = await fetch(base + "/server/joelma/abort_homing", {method:"POST"});
+    const j = await r.json().catch(() => ({}));
+    if (r.ok) { logLinha("// Parar Homing: enviado"); setStatus("Homing abortado", "motores desligados", "on"); }
+    else logLinha("!! Parar Homing: " + ((j.error && j.error.message) || ("HTTP " + r.status)) + " (feature abort_homing instalada?)");
+  } catch(e){ logLinha("!! Parar Homing: " + e.message); }
+};
+
+// ---------- Tensão das correias (BELT_MDL_*) ----------
+async function beltLer(){
+  if (ocupado) return;
+  try {
+    await gcode("BELT_MDL_INFO MDL_NAME=mdlx", 1);
+    await gcode("BELT_MDL_INFO MDL_NAME=mdly", 1);
+    const d = await rpc("server.gcode_store", {count: 60});
+    const msgs = (d.gcode_store || []).map(x => x.message);
+    // a tensao atual e o pull_num; cada bloco termina em "MDL_NAME: mdlx|mdly"
+    let pull = null; const res = {};
+    for (const m of msgs) {
+      const pm = m.match(/pull_num:\s*(-?\d+(?:\.\d+)?)/i);
+      if (pm) pull = parseFloat(pm[1]);
+      const nm = m.match(/MDL_NAME:\s*(mdlx|mdly)/i);
+      if (nm && pull != null) { res[nm[1].toLowerCase()] = pull; pull = null; }
+    }
+    const fx = res.mdlx != null ? Math.round(res.mdlx) : null;
+    const fy = res.mdly != null ? Math.round(res.mdly) : null;
+    $("belt-out").textContent = "Tensão atual (pull_num) — X: " + (fx != null ? fx + " N" : "?") + " · Y: " + (fy != null ? fy + " N" : "?");
+    if (fx != null && !String($("belt-x").value).trim()) $("belt-x").value = fx;
+    if (fy != null && !String($("belt-y").value).trim()) $("belt-y").value = fy;
+    logLinha("// correias — X: " + fx + " N · Y: " + fy + " N");
+  } catch(e){ logLinha("!! belt: " + e.message); }
+}
+$("belt-read").onclick = beltLer;
+$("belt-set").onclick = async () => {
+  if (ocupado) return;
+  if (!(await fbNaoImprimindo())) { logLinha("!! impressão em andamento — abortado"); return; }
+  const x = String($("belt-x").value).trim(), y = String($("belt-y").value).trim();
+  const cmds = [];
+  if (/^\d+(\.\d+)?$/.test(x)) cmds.push(["mdlx", "X", x]);
+  if (/^\d+(\.\d+)?$/.test(y)) cmds.push(["mdly", "Y", y]);
+  if (!cmds.length) { logLinha("!! informe a tensão de X e/ou Y"); return; }
+  if (!confirm("Aplicar tensão " + cmds.map(c => c[1] + "=" + c[2] + "N").join(" ") + "? Re-tensiona a correia (mecânico). Faça um G28 depois.")) return;
+  trava(true);
+  try {
+    for (const [mdl, ax, v] of cmds) { await gcode("BELT_MDL_SET MDL_NAME=" + mdl + " MDL_N=" + v, 2); logLinha("// BELT_MDL_SET " + ax + " (" + mdl + ")=" + v + "N"); }
+    setStatus("Tensão aplicada", "faça um G28 (re-home)", "on");
+    setTimeout(beltLer, 1500);
+  } catch(e){ logLinha("!! belt set: " + e.message); setStatus("Falha na tensão", e.message, "err"); }
+  finally { trava(false); }
+};
 
 // ---------- Configurador do Spoolman (componente spoolman_admin) ----------
 // Estado do servidor + scan da rede + gravar no Moonraker. O estado vira o

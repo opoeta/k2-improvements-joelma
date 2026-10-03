@@ -166,6 +166,34 @@ JINFO
     MUDOU=1
     echo "I: [joelma_info] ativado (versao do firmware da impressora)"
 fi
+# joelma_dxc2: ativa/desativa o perfil DXC2 no [box] do box.cfg (stock<->DXC2,
+# com backup) e edita chaves de calibracao. Gerencia o include do dxc2.cfg.
+if [ -f "${FEAT_DIR}/joelma_dxc2.py" ]; then
+    cp "${FEAT_DIR}/joelma_dxc2.py" /usr/share/moonraker/components/joelma_dxc2.py
+    echo "I: componente joelma_dxc2.py copiado"
+fi
+if ! grep -q '^\[joelma_dxc2\]' ${CONF}; then
+    cat >> ${CONF} <<'JDXC2'
+
+[joelma_dxc2]
+JDXC2
+    MUDOU=1
+    echo "I: [joelma_dxc2] ativado (toggle do perfil DXC2 no box.cfg)"
+fi
+# joelma_abort: expoe o endpoint force_stop_homing (feature abort_homing) via
+# REST, pra a Central disparar o "Parar Homing".
+if [ -f "${FEAT_DIR}/joelma_abort.py" ]; then
+    cp "${FEAT_DIR}/joelma_abort.py" /usr/share/moonraker/components/joelma_abort.py
+    echo "I: componente joelma_abort.py copiado"
+fi
+if ! grep -q '^\[joelma_abort\]' ${CONF}; then
+    cat >> ${CONF} <<'JABRT'
+
+[joelma_abort]
+JABRT
+    MUDOU=1
+    echo "I: [joelma_abort] ativado (Parar Homing via REST)"
+fi
 if ! grep -q '^\[spoolman_admin\]' ${CONF}; then
     cat >> ${CONF} <<'SPADM'
 
@@ -173,6 +201,45 @@ if ! grep -q '^\[spoolman_admin\]' ${CONF}; then
 SPADM
     MUDOU=1
     echo "I: [spoolman_admin] ativado (config + scan de rede pela interface)"
+fi
+# joelma_features: liga/desliga pela Central os recursos avancados que TROCAM
+# arquivo do Klipper (axis_twist, save-config-restart) - com backup, status e
+# restart automatico. Zero SSH. Precisa saber a raiz do repo p/ achar os .py
+# fonte: FEAT_DIR e features/moonraker-upgrade -> repo = dois niveis acima.
+if [ -f "${FEAT_DIR}/joelma_features.py" ]; then
+    DST=/usr/share/moonraker/components/joelma_features.py
+    if ! cmp -s "${FEAT_DIR}/joelma_features.py" "$DST" 2>/dev/null; then
+        cp "${FEAT_DIR}/joelma_features.py" "$DST"
+        MUDOU=1
+        echo "I: componente joelma_features.py copiado/atualizado"
+    fi
+fi
+REPO_ROOT=$(readlink -f "${FEAT_DIR}/../..")
+if ! grep -q '^\[joelma_features\]' ${CONF}; then
+    cat >> ${CONF} <<JFEAT
+
+[joelma_features]
+repo: ${REPO_ROOT}
+JFEAT
+    MUDOU=1
+    echo "I: [joelma_features] ativado (toggle de recursos avancados pela Central, repo=${REPO_ROOT})"
+else
+    # mantem o repo: em dia caso o caminho do clone tenha mudado
+    python3 - "$CONF" "$REPO_ROOT" <<'PYEOF'
+import re, sys
+p, repo = sys.argv[1], sys.argv[2]
+s = open(p).read(); orig = s
+def sub_repo(m):
+    body = m.group(0)
+    if re.search(r'(?m)^repo:', body):
+        body = re.sub(r'(?m)^repo:.*$', 'repo: ' + repo, body, count=1)
+    else:
+        body = body.rstrip('\n') + '\nrepo: ' + repo + '\n'
+    return body
+s = re.sub(r'(?ms)^\[joelma_features\][ \t]*\n(?:(?!^\[).*\n?)*', sub_repo, s, count=1)
+if s != orig:
+    open(p, 'w').write(s); print('repo atualizado')
+PYEOF
 fi
 
 if [ "$MUDOU" = "0" ]; then

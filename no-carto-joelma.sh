@@ -66,6 +66,20 @@ run_step moonraker_upgrade  features/moonraker-upgrade/install.sh
 # ja reinstala a nivela_web por cima — o run_step seguinte fica como garantia
 run_step fluidd_upstream    features/fluidd-upstream/install.sh
 run_step nivela_web         features/nivela_web/install.sh
+# camera no Fluidd (WebRTC) - depois do fluidd_upstream pra nao ser sobrescrita
+run_step camera_fix         features/camera-fix/install.sh
+# seguranca do probe stock: anti-arrasto do bico no _HOME_Z/SAFE_MOVE_Z
+run_step prtouch_safe_xy    features/prtouch_safe_xy/install.sh
+# START_PRINT cancelavel (so ativa se o firmware expor a API de cancel >=1.1.5.5)
+run_step fast_stop          features/start_print_fast_stop/install.sh
+# backend do "Parar Homing" (patch fail-open no webhooks.py; nao-fatal)
+run_step abort_homing       features/abort_homing/install.sh
+# fix do "Unknown command" apos o print (patch fail-open no virtual_sdcard.py)
+run_step vsd_guard          features/virtual-sdcard-guard/install.sh
+# scanner de footprint da 1a camada (alimenta mesh adaptativo + KAMP) - antes do kamp
+run_step prime_tower        features/prime_tower/install.sh
+# DXC2: disponibiliza o dxc2.cfg INERTE (ativado/desativado pelo painel DXC2)
+run_step dxc2               features/dxc2/install.sh
 
 # ---------- OPCIONAIS (descomente para instalar) ----------
 # Purga adaptativa KAMP (LINE_PURGE) - exige Label objects no slicer
