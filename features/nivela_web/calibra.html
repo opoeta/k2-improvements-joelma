@@ -558,6 +558,39 @@
   <div class="dica" style="margin-top:4px">Grava no CFS e sincroniza <b>ao vivo</b> pela porta 9999 (tela + Orca, sem restart). Slot com tag RFID: a tag manda — use RFID pra reler.</div>
 </div>
 
+<h2><i data-ic="wrench"></i> DXC2 — Extrusor duplo + corte</h2>
+<div class="dica" id="dxc-intro">Perfil do <code>box.cfg</code> para o kit <b>DXC2</b> (extrusor dual-drive + guilhotina). <b>Ativar</b> troca os valores do <code>[box]</code> (com backup) e reinicia o firmware; <b>Desativar</b> volta ao stock. Só ligue depois de instalar o hardware do DXC2.</div>
+<div class="lin" style="gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
+  <button class="principal" id="dxc-toggle">Ativar DXC2</button>
+  <span class="acc-tag" id="dxc-status">—</span>
+  <button class="ghost" id="dxc-reload" title="Atualizar" style="padding:4px 10px"><i data-ic="refresh"></i></button>
+</div>
+<div id="dxc-painel" style="display:none">
+  <div class="dica" style="margin-top:6px"><b>Calibração do corte</b> — roda <code>CALIBRATE_CUT_POS</code> (grava <code>cut_pos_x</code>). <b style="color:var(--warn)">Assista a faca.</b> Nunca copie <code>cut_pos_x</code> de outra máquina.</div>
+  <div class="lin" style="gap:8px;align-items:flex-end;flex-wrap:wrap">
+    <button class="principal" id="dxc-cut"><i data-ic="target"></i> Calibrar corte</button>
+    <label style="min-width:auto;font-size:.7rem;color:var(--mut)">check_x_min<br><input type="number" id="dxc-cmin" step="0.5" style="width:78px"></label>
+    <label style="min-width:auto;font-size:.7rem;color:var(--mut)">check_x_max<br><input type="number" id="dxc-cmax" step="0.5" style="width:78px"></label>
+    <button class="salvar" id="dxc-save-cut"><i data-ic="save"></i> Salvar janela</button>
+  </div>
+  <div class="dica" style="margin-top:10px"><b>Handoff CFS→DXC2 e retração</b> — ajuste de 1–2 mm assistindo o load (no 1.1.6.x+, menor = avança mais).</div>
+  <div class="lin" style="gap:8px;align-items:flex-end;flex-wrap:wrap">
+    <label style="min-width:auto;font-size:.7rem;color:var(--mut)">buffer_empty_len<br><input type="number" id="dxc-buf" step="0.25" style="width:88px"></label>
+    <label style="min-width:auto;font-size:.7rem;color:var(--mut)">Tn_retrude<br><input type="number" id="dxc-ret" step="1" style="width:78px"></label>
+    <label style="min-width:auto;font-size:.7rem;color:var(--mut)">Tn_extrude_temp<br><input type="number" id="dxc-temp" step="5" style="width:88px"></label>
+    <button class="salvar" id="dxc-save-handoff"><i data-ic="save"></i> Salvar handoff</button>
+  </div>
+  <div class="dica" style="margin-top:10px"><b>Troca e unload</b> — cada ação move o hardware (confirmação + só com a impressora parada).</div>
+  <div class="botoes" id="dxc-tools" style="flex-wrap:wrap">
+    <button data-dxc-tool="T0">T0</button><button data-dxc-tool="T1">T1</button>
+    <button data-dxc-tool="T2">T2</button><button data-dxc-tool="T3">T3</button>
+    <button data-dxc-tool="T4">T4</button><button data-dxc-tool="T5">T5</button>
+    <button data-dxc-tool="T6">T6</button><button data-dxc-tool="T7">T7</button>
+    <button data-dxc-tool="BOX_CUT_MATERIAL">Cortar</button>
+    <button data-dxc-tool="DXC2_END_UNLOAD">Unload (DXC2)</button>
+  </div>
+</div>
+
 <h2><i data-ic="settings"></i> CALIBRAÇÕES</h2>
 
 <details class="acc" open>
@@ -1680,6 +1713,83 @@ $("fb-apax-test").onclick = async () => {
 fbSpoolman().then(fbAtualiza);
 setInterval(fbAtualiza, 20000);
 setInterval(fbSpoolman, 90000);
+
+// ---------- DXC2 (perfil do box.cfg via plugin joelma_dxc2) ----------
+async function dxcAtualiza(){
+  try {
+    const r = await fetch(base + "/server/joelma/dxc2");
+    if (!r.ok) { $("dxc-status").textContent = "DXC2: plugin ausente"; $("dxc-painel").style.display = "none"; return; }
+    const d = (await r.json()).result || {};
+    const on = !!d.active, v = d.values || {};
+    $("dxc-status").textContent = "DXC2: " + (on ? "ATIVADO" : "desativado")
+      + (v.Tn_retrude !== undefined ? " · Tn_retrude " + v.Tn_retrude + " · buffer " + v.buffer_empty_len : "");
+    $("dxc-toggle").textContent = on ? "Desativar DXC2" : "Ativar DXC2";
+    $("dxc-painel").style.display = on ? "" : "none";
+    if (v.check_cut_pos_x_min !== undefined) $("dxc-cmin").value = v.check_cut_pos_x_min;
+    if (v.check_cut_pos_x_max !== undefined) $("dxc-cmax").value = v.check_cut_pos_x_max;
+    if (v.buffer_empty_len !== undefined) $("dxc-buf").value = v.buffer_empty_len;
+    if (v.Tn_retrude !== undefined) $("dxc-ret").value = v.Tn_retrude;
+    if (v.Tn_extrude_temp !== undefined) $("dxc-temp").value = v.Tn_extrude_temp;
+  } catch(e){ $("dxc-status").textContent = "DXC2: sem leitura"; }
+}
+async function dxcPost(body){
+  const r = await fetch(base + "/server/joelma/dxc2", {method:"POST",
+    headers:{"Content-Type":"application/json"}, body: JSON.stringify(body)});
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error((j.error && j.error.message) || ("HTTP " + r.status));
+  return j.result || j;
+}
+async function dxcRestart(msg){
+  setStatus(msg, "reiniciando o firmware (box.cfg alterado)...", "busy");
+  try { await fetch(base + "/printer/firmware_restart", {method:"POST"}); } catch(e){}
+  if (await esperaReady(90000)) { setStatus("Pronta", "DXC2 aplicado", "on"); }
+  else setStatus("Firmware reiniciando...", "aguarde e atualize", "busy");
+  dxcAtualiza();
+}
+$("dxc-reload").onclick = () => { if (!ocupado) dxcAtualiza(); };
+$("dxc-toggle").onclick = async () => {
+  if (ocupado) return;
+  const ativando = $("dxc-toggle").textContent.indexOf("Ativar") >= 0;
+  if (!(await fbNaoImprimindo())) { logLinha("!! DXC2: impressão em andamento — abortado"); return; }
+  if (!confirm((ativando ? "ATIVAR" : "DESATIVAR") + " o perfil DXC2? Vai editar o box.cfg (com backup) e REINICIAR o firmware.")) return;
+  trava(true);
+  try {
+    const res = await dxcPost({action: ativando ? "enable" : "disable"});
+    logLinha("// DXC2 " + (ativando ? "ativado" : "desativado") + (res.backup ? " (backup " + res.backup + ")" : ""));
+    await dxcRestart("DXC2 " + (ativando ? "ativando" : "desativando"));
+  } catch(e){ logLinha("!! DXC2: " + e.message); setStatus("Falha DXC2", e.message, "err"); }
+  finally { trava(false); }
+};
+$("dxc-cut").onclick = async () => {
+  if (ocupado) return;
+  if (!(await fbNaoImprimindo())) { logLinha("!! impressão em andamento — abortado"); return; }
+  if (!confirm("Calibrar o corte (CALIBRATE_CUT_POS)? ASSISTA a faca. Garanta que não há impressão em andamento.")) return;
+  roda("CALIBRATE_CUT_POS", "Calibrando corte (DXC2)", 5, () => dxcAtualiza());
+};
+async function dxcSalvar(pares, msg){
+  if (ocupado) return;
+  for (const [k, el] of pares) {
+    if (!/^-?\d+(\.\d+)?$/.test(String(el.value).trim())) { logLinha("!! valor inválido em " + k); return; }
+  }
+  if (!confirm("Salvar no box.cfg (com backup) e REINICIAR o firmware?")) return;
+  trava(true);
+  try {
+    for (const [k, el] of pares) { await dxcPost({action:"set", key:k, value:String(el.value).trim()}); logLinha("// " + k + "=" + el.value); }
+    await dxcRestart(msg);
+  } catch(e){ logLinha("!! " + e.message); setStatus("Falha ao salvar", e.message, "err"); }
+  finally { trava(false); }
+}
+$("dxc-save-cut").onclick = () => dxcSalvar([["check_cut_pos_x_min", $("dxc-cmin")], ["check_cut_pos_x_max", $("dxc-cmax")]], "Salvando janela do corte");
+$("dxc-save-handoff").onclick = () => dxcSalvar([["buffer_empty_len", $("dxc-buf")], ["Tn_retrude", $("dxc-ret")], ["Tn_extrude_temp", $("dxc-temp")]], "Salvando handoff");
+$("dxc-tools").addEventListener("click", async ev => {
+  const b = ev.target.closest("button"); if (!b || ocupado) return;
+  const cmd = b.dataset.dxcTool; if (!cmd) return;
+  if (!(await fbNaoImprimindo())) { logLinha("!! impressão em andamento — abortado"); return; }
+  if (!confirm("Rodar " + cmd + "? Move o hardware do DXC2/CFS.")) return;
+  roda(cmd, "DXC2: " + cmd, 12, () => dxcAtualiza());
+});
+dxcAtualiza();
+setInterval(dxcAtualiza, 30000);
 
 // ---------- Configurador do Spoolman (componente spoolman_admin) ----------
 // Estado do servidor + scan da rede + gravar no Moonraker. O estado vira o
