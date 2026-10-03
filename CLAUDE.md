@@ -219,3 +219,30 @@ pesquisa do CFS no OrcaSlicer, receitas de curl. **Leia sob demanda.**
   Central usa bico a **140°C** (marca a folha térmica de 0,10mm no contato, sem ooze).
 - **Testar** o botão "Sincronizar com Spoolman" (vai criar 2 filaments novos — é esperado, veja o
   HANDOFF §5).
+
+## Referências externas (memória — de onde puxar quando chegar a hora)
+
+Repos de terceiros que **não** copiamos inteiros, mas são a fonte de referência
+para tarefas específicas. Avaliados em out/2026.
+
+- **Cartographer → `Rcpilot33/k2-improvements`.** Quando o usuário for instalar o
+  Cartographer ou falar de Cartographer, **as referências vêm daqui.** É outro fork
+  (base Jacob10383) focado em **instalador guiado + caminhos de Cartographer V3/V4**
+  (mount offset, migração do probe stock, recuperação DFU). Validado até firmware
+  1.1.5.5. Os *macros* dele (START_PRINT, M191, bed mesh com soak, overrides) não
+  têm nada além do que já temos — o valor é o **instalador/Cartographer**.
+- **DXC2 + Beacon → `Tinman-FP/Creality-K2-Plus-DXC2-Beacon`.** Tarefa FUTURA pedida
+  pelo usuário: **ferramentas de ativação e calibração do DXC2 na Central (calibra.html).**
+  DXC2 = extrusor **dual-drive** (Phaetus/D3vil) com guilhotina, 1 bico, multicolor via
+  troca, trabalha junto com a CFS. Beacon = sonda eddy-current (substitui o probe de
+  célula de carga; precisa do binário USB-bridge armv7l). Pinado no firmware 1.1.6.1
+  (conferir compat com 1.1.7.0 na hora). Os comandos/macros ficam em `config/macros/*.cfg`
+  e `docs/DXC2-CFS.md`/`docs/BEACON.md` — **ler esses arquivos** para extrair os nomes
+  reais antes de ligar botão. Calibração exige **medição física** (offset X/Y do Beacon,
+  bico↔probe, alinhamento da guilhotina) e pode causar colisão → toda ferramenta web
+  com `confirm()` + guarda de impressão, como já fazemos no painel do CFS.
+- **Firmware aberta / auto-PA → `Jacob10383/k2-plus-custom-firmware`.** Firmware
+  alternativa completa (Kalico) com `prtouch.py` e `box_*.py` **abertos**. Só interessa
+  se um dia for atacar auto-PA por fora do stock — mas o stock 1.1.7.0 já tem `AUTO_APAX`
+  (PA dinâmico pela célula de carga; não documentado no changelog), então essa é a via
+  preferida antes de trocar de firmware.
