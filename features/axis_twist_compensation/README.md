@@ -1,31 +1,33 @@
-# axis_twist_compensation (OPT-IN — substitui o probe.py)
+# axis_twist_compensation (liga/desliga pelo PAINEL)
 
-Compensa drift de Z ao longo de X/Y (melhora a 1ª camada). **Não** entra no
-install padrão porque **substitui o `probe.py`** do Klipper.
+Compensa drift de Z ao longo de X/Y (melhora a 1ª camada). **Substitui o
+`probe.py`** do Klipper, por isso **não** entra no install padrão — fica como
+recurso que você liga quando quiser, **pela Central** (sem SSH).
 
 Versão vendorada do Rcpilot33 (probe.py 514 ≈ stock 1.1.7.0 513 + 1 linha do
 hook) — mais próxima da linhagem do seu firmware que a nossa antiga (503).
 
-## Instalar (manual, consciente)
-```
-ssh root@IP 'sh /mnt/UDISK/k2-improvements-joelma/features/axis_twist_compensation/install.sh'
-```
-O install faz **backup** do `probe.py` original (`probe.py.orig.<data>`), troca
-por symlink e patcha o `prtouch_v3` (se houver `.py`). **Teste o probe/homing
-depois.**
+## Ligar / desligar (pela Central)
+Abra a Central → seção **Recursos avançados** → **Axis Twist Compensation** →
+botão **Ativar** (ou **Desativar**). O painel:
+
+- faz **backup** do `probe.py` original (`probe.py.joelma-orig`, uma vez só),
+- troca por symlink pro arquivo do repo e patcha o `prtouch_v3`,
+- **reinicia o Klipper sozinho** (~30 s) e mostra o status **ATIVO/inativo**.
+
+Desativar restaura o backup e reinicia. Tudo idempotente e sem terminal.
+(Backend: componente `joelma_features` → `POST /server/joelma/features`.)
 
 ## Calibrar
-`AXIS_TWIST_COMPENSATION_CALIBRATE` (com o bico quente, é o sensor). Segue as
-instruções no console.
+Depois de ativar, rode `AXIS_TWIST_COMPENSATION_CALIBRATE` (com o bico quente,
+que é o sensor). Siga as instruções no console.
 
-## Rollback (se a sondagem quebrar)
-```
-ssh root@IP
-EXTRAS=/usr/share/klipper/klippy/extras
-rm -f $EXTRAS/probe.py
-cp $(ls -t $EXTRAS/probe.py.orig.* | head -1) $EXTRAS/probe.py
-/etc/init.d/klipper restart
-```
+## Rollback automático
+O **Desativar** do painel já reverte pro `probe.py` de fábrica. Mesmo que o
+host do Klipper quebre com o arquivo novo, o Moonraker continua no ar e o botão
+**Desativar** recupera. Se o probe ficar estranho (Z errado, não dispara),
+desative e me avise.
 
-⚠️ `probe.py` é core. Se o probe ficar estranho (Z errado, não dispara),
-reverta e me avise.
+> O `install.sh` deste diretório continua existindo para instalação manual via
+> SSH, mas **o caminho recomendado é o painel** — ele faz backup, status e
+> restart sozinho.

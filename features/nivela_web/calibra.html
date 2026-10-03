@@ -591,6 +591,14 @@
   </div>
 </div>
 
+<h2><i data-ic="sliders"></i> Recursos avançados</h2>
+<div class="dica" id="feat-intro">Liga/desliga recursos que <b>trocam arquivos do Klipper</b> (com backup automático). Cada troca <b>reinicia o Klipper sozinho</b> — espere ~30 s e a tela voltar. Tudo por aqui: <b>nenhum SSH</b>. O estado abaixo é lido ao vivo da impressora.</div>
+<div class="lin" style="gap:10px;align-items:center;margin-bottom:6px">
+  <span class="acc-tag" id="feat-status">—</span>
+  <button class="ghost" id="feat-reload" title="Atualizar" style="padding:4px 10px"><i data-ic="refresh"></i></button>
+</div>
+<div id="feat-lista"></div>
+
 <h2><i data-ic="settings"></i> Tensão das correias (X/Y)</h2>
 <div class="dica">Tensor de correia motorizado do K2 (<code>BELT_MDL_*</code>). Stock ≈ <b>140 N</b> — a comunidade costuma baixar (ex. ~35 N). <b style="color:var(--warn)">Mudança mecânica:</b> valor errado = passo perdido ou correia frouxa. Leia antes, mude com cautela e <b>re-home depois</b>.</div>
 <div class="lin" style="gap:8px;align-items:flex-end;flex-wrap:wrap">
@@ -1801,6 +1809,57 @@ $("dxc-tools").addEventListener("click", async ev => {
 });
 dxcAtualiza();
 setInterval(dxcAtualiza, 30000);
+
+// ---------- Recursos avançados (toggle de arquivos do Klipper via joelma_features) ----------
+// Liga/desliga, com backup, recursos que trocam .py do Klipper. O componente faz
+// o restart do Klipper em background; aqui so esperamos a impressora voltar.
+function featBadge(on){
+  return '<span class="acc-tag" style="background:' + (on ? 'var(--ok,#1a7f37)' : 'var(--mut,#57606a)')
+    + ';color:#fff">' + (on ? 'ATIVO' : 'inativo') + '</span>';
+}
+async function featAtualiza(){
+  try {
+    const r = await fetch(base + "/server/joelma/features");
+    if (!r.ok) { $("feat-status").textContent = "plugin ausente"; $("feat-lista").innerHTML = ""; return; }
+    const d = (await r.json()).result || {};
+    const fs = d.features || {};
+    const chaves = Object.keys(fs);
+    $("feat-status").textContent = chaves.length + " recurso(s)";
+    let html = "";
+    for (const k of chaves) {
+      const f = fs[k], on = !!f.active;
+      html += '<div class="lin" style="gap:10px;align-items:flex-start;flex-wrap:wrap;padding:8px 0;border-top:1px solid var(--bd,#30363d)">'
+        + '<div style="flex:1;min-width:200px"><b>' + f.label + '</b> ' + featBadge(on)
+        + '<div class="dica" style="margin-top:2px">' + f.desc + '</div></div>'
+        + '<button class="' + (on ? 'ghost' : 'principal') + '" data-feat="' + k + '" data-on="' + (on ? 1 : 0)
+        + '" data-label="' + f.label.replace(/"/g, "&quot;") + '">'
+        + (on ? 'Desativar' : 'Ativar') + '</button></div>';
+    }
+    $("feat-lista").innerHTML = html;
+  } catch(e){ $("feat-status").textContent = "sem leitura"; }
+}
+$("feat-reload").onclick = () => { if (!ocupado) featAtualiza(); };
+$("feat-lista").addEventListener("click", async ev => {
+  const b = ev.target.closest("button[data-feat]"); if (!b || ocupado) return;
+  const key = b.dataset.feat, ativando = b.dataset.on === "0";
+  if (!(await fbNaoImprimindo())) { logLinha("!! recurso: impressão em andamento — abortado"); return; }
+  if (!confirm((ativando ? "ATIVAR" : "DESATIVAR") + " \"" + (b.dataset.label || key) + "\"?\n\nVai trocar arquivo(s) do Klipper (com backup) e REINICIAR o Klipper. Leva ~30 s.")) return;
+  trava(true);
+  setStatus((ativando ? "Ativando" : "Desativando") + " recurso", "reiniciando o Klipper...", "busy");
+  try {
+    const r = await fetch(base + "/server/joelma/features", {method:"POST",
+      headers:{"Content-Type":"application/json"}, body: JSON.stringify({feature:key, action: ativando ? "enable" : "disable"})});
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error((j.error && j.error.message) || ("HTTP " + r.status));
+    logLinha("// recurso " + key + " " + (ativando ? "ativado" : "desativado") + " — Klipper reiniciando");
+    await new Promise(res => setTimeout(res, 4000)); // deixa o restart derrubar o klippy antes de sondar
+    if (await esperaReady(120000)) setStatus("Pronta", "recurso aplicado", "on");
+    else setStatus("Klipper reiniciando...", "aguarde e atualize", "busy");
+  } catch(e){ logLinha("!! recurso " + key + ": " + e.message); setStatus("Falha no recurso", e.message, "err"); }
+  finally { trava(false); featAtualiza(); }
+});
+featAtualiza();
+setInterval(() => { if (!ocupado) featAtualiza(); }, 30000);
 
 // ---------- Parar Homing (feature abort_homing via joelma_abort) ----------
 // SEM guarda de ocupado: o proposito e justamente interromper um homing em curso.
