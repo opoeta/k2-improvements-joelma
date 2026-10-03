@@ -1,3 +1,10 @@
+; ===== PLACAS NOMEADAS (Z-offset por placa) =====
+; Troca muito de build plate? Adicione PLATE=<nome> na linha START_PRINT abaixo
+; (ex. ...CURR_BED_TYPE="{curr_bed_type}" PLATE=texturizada_antiga ADAPTIVE=1).
+; Cada PLATE vira uma placa propria com Z-offset proprio, registrada sozinha e
+; listada na Central. Dica: crie um PERFIL de impressora por placa fisica, cada
+; um com seu PLATE=. Sem PLATE, usa o CURR_BED_TYPE (comportamento de sempre).
+; =================================================
 {if curr_bed_type=="Customized Plate"}
 START_PRINT EXTRUDER_TEMP=[nozzle_temperature_initial_layer] BED_TEMP=[bed_temperature_initial_layer_single] CHAMBER_TEMP=[overall_chamber_temperature] MATERIAL={filament_type[initial_tool]} CURR_BED_TYPE="{curr_bed_type}" ADAPTIVE=1
 {else}
