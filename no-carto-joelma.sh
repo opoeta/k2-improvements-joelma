@@ -66,6 +66,8 @@ run_step moonraker_upgrade  features/moonraker-upgrade/install.sh
 # ja reinstala a nivela_web por cima — o run_step seguinte fica como garantia
 run_step fluidd_upstream    features/fluidd-upstream/install.sh
 run_step nivela_web         features/nivela_web/install.sh
+# camera no Fluidd (WebRTC) - depois do fluidd_upstream pra nao ser sobrescrita
+run_step camera_fix         features/camera-fix/install.sh
 # seguranca do probe stock: anti-arrasto do bico no _HOME_Z/SAFE_MOVE_Z
 run_step prtouch_safe_xy    features/prtouch_safe_xy/install.sh
 # START_PRINT cancelavel (so ativa se o firmware expor a API de cancel >=1.1.5.5)
