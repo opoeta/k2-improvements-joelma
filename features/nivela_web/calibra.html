@@ -298,28 +298,61 @@
   .mesh-ctl button { padding:6px 12px; min-height:28px; font-size:.7rem; border-radius:16px; box-shadow:none; border:1px solid var(--line); background:transparent; }
   .mesh-ctl button.on { background:var(--primary); border-color:transparent; color:#fff; }
   #papelbox button.on { background:var(--primary); border-color:transparent; color:#fff; }
-  /* ---------- Filament Box (CFS) ---------- */
-  .fb-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px; margin-top:8px; }
-  .fb-slot { background:var(--card); border-radius:10px; padding:8px 10px; box-shadow:var(--elev);
-             border:1.5px solid transparent; animation:floatIn .3s ease both; }
-  .fb-slot.on { border-color:var(--warn); }
-  .fb-slot.vazio { opacity:.55; }
-  .fb-slot h4 { font-size:.82rem; display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
-  .fb-slot h4 .est { font-size:.66rem; font-weight:500; padding:1px 7px; border-radius:9px; border:1px solid var(--line); }
-  .fb-slot.on h4 .est { color:var(--warn); border-color:var(--warn); }
-  .fb-slot .mat { display:flex; align-items:center; gap:7px; font-weight:700; font-size:.95rem; }
-  .fb-swatch { width:17px; height:17px; border-radius:50%; border:2px solid var(--line); flex:none; }
-  .fb-slot .peso { font-size:.7rem; color:var(--mut); margin-top:2px; }
-  .fb-slot .barra { height:4px; border-radius:2px; background:var(--card2); margin-top:3px; overflow:hidden; }
-  .fb-slot .barra > i { display:block; height:100%; background:var(--primary); }
-  .fb-slot .acts { display:flex; gap:4px; margin-top:6px; }
-  .fb-slot .acts button { padding:3px 8px; font-size:.68rem; min-width:0; }
-  .fb-slot .fb-sub { font-size:.7rem; color:var(--mut); margin-top:2px; }
-  /* cabecalho por caixa quando ha mais de uma CFS (T1, T2, ...) */
-  .fb-boxhdr { grid-column:1/-1; display:flex; justify-content:space-between; align-items:baseline;
-               gap:8px; flex-wrap:wrap; margin-top:6px; padding:2px 2px 4px; border-bottom:1px solid var(--line); }
-  .fb-boxhdr .fb-box-nome { font-weight:700; font-size:.92rem; }
-  .fb-boxhdr .fb-box-nome small { color:var(--mut); font-weight:500; margin-left:4px; }
+  /* ---------- Filament Box (CFS) — cards v4 com gauge ---------- */
+  .fb-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(186px,1fr)); gap:11px; margin-top:8px; }
+  .fb-slot { position:relative; border-radius:16px; padding:12px 13px 11px; border:1px solid var(--line);
+             background:var(--card); box-shadow:var(--elev); overflow:hidden; animation:floatIn .3s ease both;
+             transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease; }
+  .fb-slot:hover { transform:translateY(-3px); box-shadow:var(--elev2); }
+  .fb-slot.cheio { background:radial-gradient(120% 90% at 85% 0%, color-mix(in srgb, var(--fc) 20%, transparent), transparent 60%), var(--card);
+                   border-color:color-mix(in srgb, var(--fc) 40%, var(--line)); }
+  .fb-slot.on { border-color:var(--warn); box-shadow:0 0 0 1px var(--warn), 0 0 22px -5px color-mix(in srgb, var(--warn) 75%, transparent); }
+  .fb-slot.vazio { border-style:dashed; border-color:color-mix(in srgb, var(--line) 160%, transparent); background:transparent; box-shadow:none; }
+  .fb-slot.vazio:hover { opacity:1; transform:none; box-shadow:none; border-color:var(--primary); }
+  .fb-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:9px; }
+  .fb-tnn { font:700 .72rem ui-monospace,Menlo,monospace; color:var(--mut); background:color-mix(in srgb, var(--txt) 8%, transparent); padding:2px 8px; border-radius:7px; }
+  .fb-state { font-size:.6rem; font-weight:800; text-transform:uppercase; letter-spacing:.06em; padding:3px 9px; border-radius:999px; display:inline-flex; align-items:center; gap:5px; }
+  .fb-state.carregado { color:#1a1205; background:var(--warn); }
+  .fb-state.carregado .p { width:6px; height:6px; border-radius:50%; background:#1a1205; animation:pz 1.3s ease-in-out infinite; }
+  @keyframes pz { 0%,100%{opacity:.35} 50%{opacity:1} }
+  .fb-state.pronto { color:var(--ok); background:color-mix(in srgb, var(--ok) 15%, transparent); }
+  .fb-state.vazio { color:var(--dim); background:color-mix(in srgb, var(--dim) 13%, transparent); }
+  .fb-id { display:flex; align-items:center; gap:12px; min-height:62px; }
+  .fb-gauge { flex:none; }
+  .fb-mat { font-weight:800; font-size:1.16rem; line-height:1.02; }
+  .fb-name { font-size:.75rem; color:var(--mut); margin-top:2px; }
+  .fb-meta { font-size:.66rem; color:var(--dim); margin-top:9px; display:flex; gap:6px; flex-wrap:wrap; }
+  .fb-meta span { background:color-mix(in srgb, var(--txt) 6%, transparent); padding:2px 7px; border-radius:6px; }
+  .fb-slot .acts { display:flex; gap:5px; margin-top:11px; }
+  .fb-slot .acts button { flex:1; padding:4px 8px; font-size:.68rem; min-width:0; }
+  .fb-vz { display:flex; flex-direction:column; align-items:center; gap:6px; padding:4px 0 2px; color:var(--dim); min-height:62px; justify-content:center; font-size:.72rem; }
+  /* cabecalho por caixa (grid full-width) */
+  .fb-boxhdr { grid-column:1/-1; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;
+               margin-top:4px; padding-bottom:6px; border-bottom:1px solid var(--line); }
+  .fb-boxhdr .fb-box-nome { font-weight:800; font-size:1rem; display:flex; align-items:center; gap:7px; }
+  .fb-boxhdr .fb-box-nome small { color:var(--dim); font-weight:600; font-size:.72rem; }
+  .fb-boxhdr .bdot { width:8px; height:8px; border-radius:50%; background:var(--ok); box-shadow:0 0 0 3px color-mix(in srgb, var(--ok) 22%, transparent); }
+  .fb-boxhdr .env { display:flex; gap:6px; flex-wrap:wrap; }
+  .fb-boxhdr .env span { background:var(--card); border:1px solid var(--line); border-radius:999px; padding:3px 9px; font-size:.7rem; color:var(--mut); }
+  .fb-boxhdr .env .hum-ok { color:var(--ok); } .fb-boxhdr .env .hum-warn { color:var(--warn); } .fb-boxhdr .env .hum-bad { color:var(--bad); }
+  /* ferramentas do CFS */
+  .fb-tools { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+  .fb-tool { display:flex; align-items:center; gap:9px; background:var(--card); border:1px solid var(--line); border-radius:12px;
+             padding:9px 13px; cursor:pointer; transition:.13s; font-size:.8rem; color:var(--txt); text-align:left; }
+  .fb-tool:hover { border-color:var(--primary); transform:translateY(-2px); box-shadow:var(--elev); }
+  .fb-tool:disabled { opacity:.5; cursor:not-allowed; transform:none; box-shadow:none; }
+  .fb-tool .ic { font-size:1.1rem; }
+  .fb-tool b { font-weight:700; display:block; }
+  .fb-tool small { color:var(--dim); font-size:.66rem; }
+  .fb-tool .wb { font-size:.56rem; color:var(--warn); border:1px solid color-mix(in srgb, var(--warn) 45%, var(--line)); border-radius:6px; padding:1px 5px; margin-left:4px; }
+  /* card Auto-PA (APAX) */
+  .fb-apax { display:flex; gap:14px; align-items:flex-start; margin-top:12px; padding:14px 16px; border-radius:16px;
+             background:linear-gradient(135deg, color-mix(in srgb, var(--primary) 16%, var(--card)), var(--card) 70%);
+             border:1px solid color-mix(in srgb, var(--primary) 40%, var(--line)); }
+  .fb-apax .big { font-size:1.6rem; line-height:1; }
+  .fb-apax .ti { font-weight:800; font-size:.98rem; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .fb-apax .new { font-size:.56rem; font-weight:800; letter-spacing:.06em; background:var(--ok); color:#06220a; padding:2px 7px; border-radius:999px; }
+  .fb-apax p { margin:5px 0 9px; font-size:.76rem; color:var(--mut); line-height:1.4; }
   /* ---------- Spoolman (configurador) ---------- */
   #sp-found { margin-top:10px; display:flex; flex-direction:column; gap:6px; }
   .sp-hit { display:flex; align-items:center; gap:9px; padding:9px 11px; border-radius:8px;
@@ -492,6 +525,19 @@
 </dialog>
 <div class="fb-grid" id="fb-grid"><div class="det" style="grid-column:1/-1">lendo o CFS…</div></div>
 <div class="det" id="fb-runout" style="margin-top:4px"></div>
+<div class="fb-tools" id="fb-tools" style="display:none">
+  <button class="fb-tool" id="fb-rfid-all"><span class="ic">🔄</span><span><b>Reler RFID (todos)</b><small>atualiza material/cor de todos os slots</small></span></button>
+  <button class="fb-tool" id="fb-cut"><span class="ic">✂️</span><span><b>Calibrar corte</b><small>CALIBRATE_CUT_POS <span class="wb">move o hardware</span></small></span></button>
+  <button class="fb-tool" id="fb-nozzle"><span class="ic">🧹</span><span><b>Limpar bico</b><small>CX_NOZZLE_CLEAR <span class="wb">aquece + move</span></small></span></button>
+</div>
+<div class="fb-apax" id="fb-apax" style="display:none">
+  <span class="big">⚡</span>
+  <div style="flex:1">
+    <div class="ti">Auto-PA dinâmico (APAX)</div>
+    <p>O firmware tem detecção de Pressure Advance pela célula de carga (<code>AUTO_APAX</code>) — ajusta o PA sem calibrar no fatiador. Não aparece no changelog oficial, então começamos só com o teste de diagnóstico seguro (não altera a impressão). A integração no START_PRINT vem depois de validar.</p>
+    <button class="ghost" id="fb-apax-test">Testar Auto-PA (diagnóstico)</button>
+  </div>
+</div>
 <div id="fb-editor" style="display:none">
   <div class="lin" style="gap:8px;flex-wrap:wrap;align-items:end;margin-top:8px">
     <b id="fb-ed-tnn" style="min-width:38px">—</b>
@@ -1435,47 +1481,77 @@ function fbNormKlipper(box){
            runoutGate: String(box.filament_useup ?? "0") === "1", ativoTnn: ativoTnn, fonte: "klipper" } };
 }
 // --- renderizador unico (interface inspirada no ACEPROK1Max/HimAndRobot) ---
+// gauge circular: carretel colorido + anel de % restante. cor=null -> slot vazio.
+function fbGauge(cor, pct){
+  const R = 26, C = 2 * Math.PI * R;
+  const show = cor && pct != null;
+  const off = show ? C * (1 - Math.max(0, Math.min(100, pct)) / 100) : C;
+  const col = cor || "var(--dim)";
+  let ring;
+  if (show) {
+    ring = '<circle cx="31" cy="31" r="' + R + '" fill="none" stroke="color-mix(in srgb,var(--txt) 10%,transparent)" stroke-width="4"/>'
+      + '<circle cx="31" cy="31" r="' + R + '" fill="none" stroke="' + col + '" stroke-width="4" stroke-linecap="round" stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="' + off.toFixed(1) + '" transform="rotate(-90 31 31)"/>';
+  } else {
+    ring = '<circle cx="31" cy="31" r="' + R + '" fill="none" stroke="color-mix(in srgb,var(--dim) 55%,transparent)" stroke-width="3" stroke-dasharray="3 4"/>';
+  }
+  const coil = cor
+    ? '<circle cx="31" cy="31" r="17" fill="' + cor + '"/><circle cx="31" cy="31" r="17" fill="none" stroke="rgba(0,0,0,.3)" stroke-width="1.3"/><circle cx="31" cy="31" r="13" fill="none" stroke="rgba(0,0,0,.16)" stroke-width="1.1"/><circle cx="31" cy="31" r="10" fill="none" stroke="rgba(0,0,0,.16)" stroke-width="1.1"/><circle cx="31" cy="31" r="6" fill="var(--card)"/><circle cx="31" cy="31" r="6" fill="none" stroke="rgba(0,0,0,.25)" stroke-width="1.1"/>'
+    : '<circle cx="31" cy="31" r="15" fill="none" stroke="var(--dim)" stroke-width="1.4" opacity=".5"/>';
+  return '<svg class="fb-gauge" viewBox="0 0 62 62" width="60" height="60">' + ring + coil + '</svg>';
+}
+// cor de alerta da umidade do CFS (secagem): <45 ok, 45-60 atencao, >60 ruim
+function fbHumClass(h){ const v = parseFloat(h); if (isNaN(v)) return ""; return v < 45 ? "hum-ok" : v <= 60 ? "hum-warn" : "hum-bad"; }
 function fbRender(boxes, meta){
   fbSlots = {};
+  const tools = $("fb-tools"), apax = $("fb-apax");
   if (!boxes || !boxes.length) {
     $("fb-status").textContent = "CFS: desconectado";
     $("fb-clima").textContent = "🌡 — · 💧 —"; $("fb-path").textContent = "bico: —"; $("fb-runout").textContent = "";
     $("fb-grid").innerHTML = '<div class="det" style="grid-column:1/-1">nenhuma CFS conectada</div>';
+    if (tools) tools.style.display = "none";
+    if (apax) apax.style.display = "none";
     return;
   }
+  if (tools) tools.style.display = "";
+  if (apax) apax.style.display = "";
   const multi = boxes.length > 1;
-  $("fb-status").textContent = (multi ? boxes.length + " CFS: " : "CFS: ") + boxes.map(function(b){ return b.label + " " + (b.state || "?"); }).join(" · ");
+  $("fb-status").textContent = (multi ? boxes.length + " CFS conectadas" : "CFS conectada");
   $("fb-clima").textContent = boxes.map(function(b){ return (multi ? b.id + " " : "") + "🌡 " + (b.temp ?? "—") + "°C · 💧 " + (b.hum ?? "—") + "%"; }).join(" · ");
-  $("fb-path").textContent = "bico: " + (meta.ativoTnn ? "com filamento · slot " + meta.ativoTnn : "vazio");
+  $("fb-path").textContent = "bico: " + (meta.ativoTnn ? "carregado " + meta.ativoTnn : "vazio");
   $("fb-refill").textContent = "runout: " + (meta.runoutGate ? "SLOT ESGOTADO!" : (meta.autoRefill ? "auto-troca ligada" : "pausa (auto off)"));
   let html = "";
   boxes.forEach(function(b){
-    if (multi) {
-      html += '<div class="fb-boxhdr"><span class="fb-box-nome">' + b.label + ' <small>' + b.id + '</small></span>' +
-        '<span class="det">' + (b.state || "?") + (b.version ? " · fw " + b.version : "") +
-        ' · 🌡 ' + (b.temp ?? "—") + '°C · 💧 ' + (b.hum ?? "—") + '%</span></div>';
-    }
+    const hc = fbHumClass(b.hum);
+    html += '<div class="fb-boxhdr"><span class="fb-box-nome"><span class="bdot"></span>' + b.label + ' <small>' + b.id + '</small></span>'
+      + '<span class="env"><span>🌡 ' + (b.temp ?? "—") + '°C</span><span class="' + hc + '">💧 ' + (b.hum ?? "—") + '%</span>'
+      + '<span>fw ' + (b.version || "—") + '</span></span></div>';
     b.slots.forEach(function(s){
       fbSlots[s.tnn] = s;
       const sp = fbSpool[s.tnn];
       const pct = sp && sp.total > 0 ? Math.max(0, Math.min(100, Math.round(100 * sp.resta / sp.total))) : (s.remain != null ? s.remain : null);
-      const estado = s.active ? "Carregado" : s.present ? "Pronto" : "vazio";
-      const sub = [];
-      if (s.present && s.name && s.name !== s.type) sub.push(s.name);
-      if (s.present && (s.tmin || s.tmax)) sub.push((s.tmin || "?") + "–" + (s.tmax || "?") + "°C");
-      if (s.present && s.pa) sub.push("PA " + s.pa);
-      html += '<div class="fb-slot' + (s.active ? " on" : "") + (s.present ? "" : " vazio") + '">' +
-        '<h4>' + s.tnn + '<span class="est">' + estado + '</span></h4>' +
-        '<div class="mat"><span class="fb-swatch" style="background:' + (s.cor || "transparent") + '"></span>' + (s.type || "—") + '</div>' +
-        (sub.length ? '<div class="fb-sub">' + sub.join(" · ") + '</div>' : "") +
-        (sp && sp.resta != null ? '<div class="peso">' + Math.round(sp.resta) + 'g/' + Math.round(sp.total) + 'g' + (sp.nome ? " · " + sp.nome : "") + '</div>' : "") +
-        (pct != null ? '<div class="barra"><i style="width:' + pct + '%"></i></div>' : "") +
-        '<div class="acts">' +
-          (s.present && !s.active ? '<button class="ghost" data-fb-load="' + s.tnn + '">Load</button>' : "") +
-          (s.active ? '<button class="ghost" data-fb-unload="1">Unload</button>' : "") +
-          '<button class="ghost" data-fb-edit="' + s.tnn + '">Editar</button>' +
-          '<button class="ghost" data-fb-rfid="' + s.tnn + '" title="Reler a tag RFID deste slot">RFID</button>' +
-        '</div></div>';
+      if (!s.present) {
+        html += '<div class="fb-slot vazio" style="--fc:var(--dim)">'
+          + '<div class="fb-top"><span class="fb-tnn">' + s.tnn + '</span><span class="fb-state vazio">vazio</span></div>'
+          + '<div class="fb-vz">' + fbGauge(null, null) + '<span>sem filamento</span></div>'
+          + '<div class="acts"><button class="ghost" data-fb-edit="' + s.tnn + '">Atribuir</button>'
+          + '<button class="ghost" data-fb-rfid="' + s.tnn + '" title="Reler a tag RFID deste slot">RFID</button></div></div>';
+        return;
+      }
+      const est = s.active ? '<span class="fb-state carregado"><span class="p"></span>carregado</span>' : '<span class="fb-state pronto">pronto</span>';
+      const m = [];
+      if (s.tmin || s.tmax) m.push((s.tmin || "?") + "–" + (s.tmax || "?") + "°C");
+      if (s.pa) m.push("PA " + s.pa);
+      if (sp && sp.resta != null) m.push(Math.round(sp.resta) + "g");
+      html += '<div class="fb-slot cheio' + (s.active ? " on" : "") + '" style="--fc:' + (s.cor || "#888") + '">'
+        + '<div class="fb-top"><span class="fb-tnn">' + s.tnn + '</span>' + est + '</div>'
+        + '<div class="fb-id">' + fbGauge(s.cor, pct) + '<div><div class="fb-mat">' + (s.type || "—") + '</div>'
+        + (s.name && s.name !== s.type ? '<div class="fb-name">' + s.name + '</div>' : '') + '</div></div>'
+        + (m.length ? '<div class="fb-meta">' + m.map(function(x){ return '<span>' + x + '</span>'; }).join("") + '</div>' : "")
+        + '<div class="acts">'
+        + (s.active ? '<button class="ghost" data-fb-unload="1">Unload</button>' : '<button class="ghost" data-fb-load="' + s.tnn + '">Load</button>')
+        + '<button class="ghost" data-fb-edit="' + s.tnn + '">Editar</button>'
+        + '<button class="ghost" data-fb-rfid="' + s.tnn + '" title="Reler a tag RFID deste slot">RFID</button>'
+        + '</div></div>';
     });
   });
   $("fb-grid").innerHTML = html;
@@ -1561,6 +1637,46 @@ $("fb-ed-ok").onclick = async () => {
   } catch(e){ logLinha("!! editar " + tnn + ": " + e.message); }
 };
 $("fb-reload").onclick = () => { if (!ocupado) { fbSpoolman().then(fbAtualiza); spRender(); } };
+// ---------- Ferramentas do CFS ----------
+// guarda: nenhuma acao que mexe no hardware roda durante impressao
+async function fbNaoImprimindo(){
+  try { const q = await rpc("printer.objects.query", {objects:{print_stats:["state"]}});
+    return (((q.status.print_stats || {}).state) || "") !== "printing"; } catch(e){ return true; }
+}
+// Reler RFID de TODOS os slots presentes (via 9999, seguro — nao move hardware)
+$("fb-rfid-all").onclick = async () => {
+  if (ocupado) return;
+  const tnns = Object.keys(fbSlots).filter(function(t){ return fbSlots[t] && fbSlots[t].present; });
+  if (!tnns.length) { logLinha("// RFID: nenhum slot com filamento pra reler"); return; }
+  logLinha("// RFID: relendo " + tnns.length + " slot(s) pela porta 9999...");
+  for (const tnn of tnns) {
+    try { await fetch(base + "/server/joelma/cfs/rfid", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({tnn})}); }
+    catch(e){ logLinha("!! RFID " + tnn + ": " + e.message); }
+  }
+  setTimeout(function(){ fbSpoolman().then(fbAtualiza); }, 3000);
+};
+// Calibrar corte (guilhotina do CFS) — CALIBRATE_CUT_POS move o hardware
+$("fb-cut").onclick = async () => {
+  if (ocupado) return;
+  if (!(await fbNaoImprimindo())) { logLinha("!! Calibrar corte: impressão em andamento — abortado"); return; }
+  if (!confirm("Calibrar a posição de corte da guilhotina? A máquina vai MOVER o hardware. Confirme que não há impressão em andamento.")) return;
+  roda("CALIBRATE_CUT_POS", "Calibrando corte do CFS", 5, function(){ fbAtualiza(); });
+};
+// Limpar bico — CX_NOZZLE_CLEAR aquece e move a cabeca
+$("fb-nozzle").onclick = async () => {
+  if (ocupado) return;
+  if (!(await fbNaoImprimindo())) { logLinha("!! Limpar bico: impressão em andamento — abortado"); return; }
+  if (!confirm("Limpar o bico? Vai AQUECER e mover a cabeça até a mesa.")) return;
+  roda("CX_NOZZLE_CLEAR", "Limpando o bico", 6, function(){ fbAtualiza(); });
+};
+// Auto-PA (APAX) — SO o diagnostico seguro por enquanto (TEST_APAX). A
+// integracao do AUTO_APAX RUN_TYPE no START_PRINT fica para depois de validar.
+$("fb-apax-test").onclick = async () => {
+  if (ocupado) return;
+  if (!(await fbNaoImprimindo())) { logLinha("!! Auto-PA: impressão em andamento — abortado"); return; }
+  if (!confirm("Rodar o teste de Auto-PA (APAX)? Vai aquecer o bico e extrudar um pouco pra medir a contrapressão pela célula de carga. NÃO altera a impressão.")) return;
+  roda("TEST_APAX", "Testando Auto-PA (APAX)", 8, null);
+};
 fbSpoolman().then(fbAtualiza);
 setInterval(fbAtualiza, 20000);
 setInterval(fbSpoolman, 90000);
