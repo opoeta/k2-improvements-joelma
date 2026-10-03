@@ -180,6 +180,20 @@ JDXC2
     MUDOU=1
     echo "I: [joelma_dxc2] ativado (toggle do perfil DXC2 no box.cfg)"
 fi
+# joelma_abort: expoe o endpoint force_stop_homing (feature abort_homing) via
+# REST, pra a Central disparar o "Parar Homing".
+if [ -f "${FEAT_DIR}/joelma_abort.py" ]; then
+    cp "${FEAT_DIR}/joelma_abort.py" /usr/share/moonraker/components/joelma_abort.py
+    echo "I: componente joelma_abort.py copiado"
+fi
+if ! grep -q '^\[joelma_abort\]' ${CONF}; then
+    cat >> ${CONF} <<'JABRT'
+
+[joelma_abort]
+JABRT
+    MUDOU=1
+    echo "I: [joelma_abort] ativado (Parar Homing via REST)"
+fi
 if ! grep -q '^\[spoolman_admin\]' ${CONF}; then
     cat >> ${CONF} <<'SPADM'
 
