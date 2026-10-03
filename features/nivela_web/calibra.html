@@ -1819,11 +1819,22 @@ async function beltLer(){
   try {
     await gcode("BELT_MDL_INFO MDL_NAME=mdlx", 1);
     await gcode("BELT_MDL_INFO MDL_NAME=mdly", 1);
-    const d = await rpc("server.gcode_store", {count: 30});
-    const linhas = (d.gcode_store || []).map(x => x.message)
-      .filter(m => /belt|mdl|tens|correia|force|\bN\b/i.test(m));
-    $("belt-out").textContent = linhas.slice(-6).join("  |  ") || "(sem linhas de belt no console — confira o terminal)";
-    logLinha("// BELT_MDL_INFO X/Y lido");
+    const d = await rpc("server.gcode_store", {count: 60});
+    const msgs = (d.gcode_store || []).map(x => x.message);
+    // a tensao atual e o pull_num; cada bloco termina em "MDL_NAME: mdlx|mdly"
+    let pull = null; const res = {};
+    for (const m of msgs) {
+      const pm = m.match(/pull_num:\s*(-?\d+(?:\.\d+)?)/i);
+      if (pm) pull = parseFloat(pm[1]);
+      const nm = m.match(/MDL_NAME:\s*(mdlx|mdly)/i);
+      if (nm && pull != null) { res[nm[1].toLowerCase()] = pull; pull = null; }
+    }
+    const fx = res.mdlx != null ? Math.round(res.mdlx) : null;
+    const fy = res.mdly != null ? Math.round(res.mdly) : null;
+    $("belt-out").textContent = "Tensão atual (pull_num) — X: " + (fx != null ? fx + " N" : "?") + " · Y: " + (fy != null ? fy + " N" : "?");
+    if (fx != null && !String($("belt-x").value).trim()) $("belt-x").value = fx;
+    if (fy != null && !String($("belt-y").value).trim()) $("belt-y").value = fy;
+    logLinha("// correias — X: " + fx + " N · Y: " + fy + " N");
   } catch(e){ logLinha("!! belt: " + e.message); }
 }
 $("belt-read").onclick = beltLer;
