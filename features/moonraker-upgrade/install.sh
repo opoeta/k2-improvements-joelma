@@ -207,8 +207,12 @@ fi
 # restart automatico. Zero SSH. Precisa saber a raiz do repo p/ achar os .py
 # fonte: FEAT_DIR e features/moonraker-upgrade -> repo = dois niveis acima.
 if [ -f "${FEAT_DIR}/joelma_features.py" ]; then
-    cp "${FEAT_DIR}/joelma_features.py" /usr/share/moonraker/components/joelma_features.py
-    echo "I: componente joelma_features.py copiado"
+    DST=/usr/share/moonraker/components/joelma_features.py
+    if ! cmp -s "${FEAT_DIR}/joelma_features.py" "$DST" 2>/dev/null; then
+        cp "${FEAT_DIR}/joelma_features.py" "$DST"
+        MUDOU=1
+        echo "I: componente joelma_features.py copiado/atualizado"
+    fi
 fi
 REPO_ROOT=$(readlink -f "${FEAT_DIR}/../..")
 if ! grep -q '^\[joelma_features\]' ${CONF}; then
