@@ -19,3 +19,17 @@ See the parent feature [README.md](../README.md) § "Slicer change required" for
 2. Replace the entire block with the contents of the appropriate template
 3. Save the printer profile
 4. Slice a test print and verify with the grep command from the parent README before sending to the printer
+
+## Placas nomeadas (Z-offset por placa) — PLATE=
+
+Para quem troca muito de build plate: adicione `PLATE=<nome>` na linha
+`START_PRINT` (ex.: `... CURR_BED_TYPE="{curr_bed_type}" PLATE=texturizada_antiga`).
+
+- Cada `PLATE` diferente vira uma **placa própria** com **Z-offset próprio**
+  (`zoff_<material>_<plate>`), registrada sozinha no `joelma_vars.cfg` e listada
+  na Central (dropdown de placas).
+- O `CURR_BED_TYPE` continua sendo passado (classifica textured/smooth pro
+  fallback legado). O `PLATE` só manda na **identidade** da placa.
+- Jeito prático: crie um **perfil de impressora por placa física** no fatiador,
+  cada um com seu `PLATE=`. Troca de placa = troca de perfil.
+- Sem `PLATE`, tudo funciona como antes (placa vem do `CURR_BED_TYPE`).
