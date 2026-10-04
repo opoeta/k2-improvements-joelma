@@ -1235,6 +1235,17 @@ async function esperaReady(maxMs){
   }
   return false;
 }
+// Carga do CFS exige a maquina HOMED: rodar BOX_LOAD_MATERIAL sem home deixa o
+// toolhead com posicao NULL e derruba o Klipper (shutdown). Retorna "" se ja
+// esta homed, ou "G28\n" pra prefixar no script de carga. Fail-safe: na duvida,
+// manda homear.
+async function prefixoHome(){
+  try {
+    const q = await rpc("printer.objects.query", {objects:{toolhead:["homed_axes"]}});
+    const ax = String(((q.status.toolhead||{}).homed_axes)||"");
+    return ax.indexOf("x") >= 0 && ax.indexOf("y") >= 0 && ax.indexOf("z") >= 0 ? "" : "G28\n";
+  } catch(e){ return "G28\n"; }
+}
 async function roda(cmd, fazendo, minutos, aposOk){
   trava(true); setStatus(fazendo, "acompanhe no console abaixo", "busy");
   try {
@@ -1656,7 +1667,9 @@ $("fb-grid").addEventListener("click", async ev => {
     // guarda dupla: presença física (já filtrada no render) + bico livre —
     // BOX_LOAD_MATERIAL com filamento no bico / slot vazio já derrubou o Klipper
     if (!confirm("Carregar " + tnn + "? O CFS vai alimentar, cortar e purgar. Confirme que o bico está SEM filamento (Unload antes, se preciso).")) return;
-    roda("BOX_LOAD_MATERIAL TNN=" + tnn, "CFS: carregando " + tnn, 12, () => fbAtualiza());
+    const ph = await prefixoHome();
+    if (ph) logLinha("// sem home — G28 antes de carregar");
+    roda(ph + "BOX_LOAD_MATERIAL TNN=" + tnn, "CFS: carregando " + tnn, 12, () => fbAtualiza());
   } else if (b.dataset.fbUnload) {
     if (!confirm("Descarregar o filamento do bico?")) return;
     roda("BOX_QUIT_MATERIAL", "CFS: descarregando", 12, () => fbAtualiza());
@@ -2011,7 +2024,9 @@ $("wiz-body").addEventListener("click", async ev => {
     const tnn = (act === "vload" ? $("wiz-vtnn").value : $(b.dataset.tnnid).value).trim().toUpperCase();
     if (!/^T\d+[A-D]$/.test(tnn)) { logLinha("!! TNN inválido: " + tnn + " (ex. T1A)"); return; }
     if (!confirm("Carregar " + tnn + "? Move o hardware do CFS/DXC2.")) return;
-    roda("BOX_LOAD_MATERIAL TNN=" + tnn, "Carregando " + tnn, 8);
+    const ph = await prefixoHome();
+    if (ph) logLinha("// sem home — G28 antes de carregar");
+    roda(ph + "BOX_LOAD_MATERIAL TNN=" + tnn, "Carregando " + tnn, 10);
   } else if (act === "savebuf") {
     dxcSalvar([["buffer_empty_len", $("wiz-buf")]], "Salvando buffer_empty_len");
   } else if (act === "quit") {
@@ -2027,6 +2042,8 @@ $("wiz-body").addEventListener("click", async ev => {
     if (!confirm("Rodar 10 trocas alternando " + a + " e " + bb + "? Garanta que os dois slots têm filamento. Vai cortar e trocar 10x — assista.")) return;
     trava(true); setStatus("Teste de 10 trocas", "acompanhe no console", "busy");
     try {
+      const ph = await prefixoHome();
+      if (ph) { logLinha("// sem home — G28 antes das trocas"); await gcode("G28", 5); }
       for (let i = 0; i < 10; i++) {
         const cmd = (i % 2 === 0) ? a : bb;
         logLinha("// troca " + (i+1) + "/10: " + cmd);
