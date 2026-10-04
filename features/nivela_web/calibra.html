@@ -530,6 +530,15 @@
   <button class="fb-tool" id="fb-cut"><span class="ic">✂️</span><span><b>Calibrar corte</b><small>CALIBRATE_CUT_POS <span class="wb">move o hardware</span></small></span></button>
   <button class="fb-tool" id="fb-nozzle"><span class="ic">🧹</span><span><b>Limpar bico</b><small>CX_NOZZLE_CLEAR <span class="wb">aquece + move</span></small></span></button>
 </div>
+<div id="fb-extrude" class="lin" style="display:none;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-top:10px;padding:10px 12px;border:1px solid var(--bd,#30363d);border-radius:10px">
+  <div style="width:100%;font-size:.82rem;font-weight:700">💧 Extrusão manual <span style="font-weight:400;color:var(--mut)">— no filamento <b id="fb-ex-slot">carregado</b> (exige bico quente)</span></div>
+  <label style="min-width:auto;font-size:.7rem;color:var(--mut)">mm<br><input type="number" id="fb-ex-len" value="50" step="5" style="width:72px"></label>
+  <label style="min-width:auto;font-size:.7rem;color:var(--mut)">vel (mm/min)<br><input type="number" id="fb-ex-spd" value="300" step="60" style="width:96px"></label>
+  <label style="min-width:auto;font-size:.7rem;color:var(--mut)">°C<br><input type="number" id="fb-ex-temp" value="220" step="5" style="width:72px"></label>
+  <button class="ghost" id="fb-ex-heat"><i data-ic="flame"></i> Aquecer</button>
+  <button class="principal" id="fb-ex-go"><i data-ic="load"></i> Extrudar</button>
+  <button class="ghost" id="fb-ex-ret"><i data-ic="eject"></i> Retrair</button>
+</div>
 <div class="fb-apax" id="fb-apax" style="display:none">
   <span class="big">⚡</span>
   <div style="flex:1">
@@ -1570,17 +1579,19 @@ function fbGauge(cor, pct){
 function fbHumClass(h){ const v = parseFloat(h); if (isNaN(v)) return ""; return v < 45 ? "hum-ok" : v <= 60 ? "hum-warn" : "hum-bad"; }
 function fbRender(boxes, meta){
   fbSlots = {};
-  const tools = $("fb-tools"), apax = $("fb-apax");
+  const tools = $("fb-tools"), apax = $("fb-apax"), extr = $("fb-extrude");
   if (!boxes || !boxes.length) {
     $("fb-status").textContent = "CFS: desconectado";
     $("fb-clima").textContent = "🌡 — · 💧 —"; $("fb-path").textContent = "bico: —"; $("fb-runout").textContent = "";
     $("fb-grid").innerHTML = '<div class="det" style="grid-column:1/-1">nenhuma CFS conectada</div>';
     if (tools) tools.style.display = "none";
     if (apax) apax.style.display = "none";
+    if (extr) extr.style.display = "none";
     return;
   }
   if (tools) tools.style.display = "";
   if (apax) apax.style.display = "";
+  if (extr) { extr.style.display = ""; $("fb-ex-slot").textContent = meta.ativoTnn ? "carregado (" + meta.ativoTnn + ")" : "carregado"; }
   const multi = boxes.length > 1;
   $("fb-status").textContent = (multi ? boxes.length + " CFS conectadas" : "CFS conectada");
   $("fb-clima").textContent = boxes.map(function(b){ return (multi ? b.id + " " : "") + "🌡 " + (b.temp ?? "—") + "°C · 💧 " + (b.hum ?? "—") + "%"; }).join(" · ");
@@ -1744,6 +1755,29 @@ $("fb-apax-test").onclick = async () => {
   if (!confirm("Rodar o teste de Auto-PA (APAX)? Vai aquecer o bico e extrudar um pouco pra medir a contrapressão pela célula de carga. NÃO altera a impressão.")) return;
   roda("TEST_APAX", "Testando Auto-PA (APAX)", 8, null);
 };
+// Extrusao manual — no filamento carregado no bico. Guarda de bico frio: o
+// Klipper recusa extrudar abaixo do min_extrude_temp; aqui barramos antes em
+// 170C (e o botao Aquecer leva o bico ao alvo com M109 bloqueante).
+function fbExNum(id, min){ const v = parseFloat($(id).value); return (isNaN(v) || v < min) ? null : v; }
+async function fbExtrudar(sinal){
+  if (ocupado) return;
+  if (!(await fbNaoImprimindo())) { logLinha("!! Extrusão: impressão em andamento — abortado"); return; }
+  const len = fbExNum("fb-ex-len", 0.1), spd = fbExNum("fb-ex-spd", 1);
+  if (len === null) { logLinha("!! comprimento inválido (mm)"); return; }
+  if (spd === null) { logLinha("!! velocidade inválida (mm/min)"); return; }
+  const t = (typeof ultimo !== "undefined" && ultimo.ext != null) ? ultimo.ext : 0;
+  if (t < 170) { logLinha("!! bico frio (" + t.toFixed(0) + "°C) — clique Aquecer primeiro"); setStatus("Bico frio", "aqueça antes de extrudar", "err"); return; }
+  const e = (sinal < 0 ? "-" : "") + len;
+  roda("M83\nG1 E" + e + " F" + spd, (sinal < 0 ? "Retraindo " : "Extrudando ") + len + " mm", 3, null);
+}
+$("fb-ex-heat").onclick = () => {
+  if (ocupado) return;
+  const tp = fbExNum("fb-ex-temp", 0);
+  if (tp === null || tp < 150 || tp > 300) { logLinha("!! temperatura inválida (150–300°C)"); return; }
+  roda("M109 S" + tp, "Aquecendo bico a " + tp + "°C", 8, null);
+};
+$("fb-ex-go").onclick = () => fbExtrudar(1);
+$("fb-ex-ret").onclick = () => fbExtrudar(-1);
 fbSpoolman().then(fbAtualiza);
 setInterval(fbAtualiza, 20000);
 setInterval(fbSpoolman, 90000);
