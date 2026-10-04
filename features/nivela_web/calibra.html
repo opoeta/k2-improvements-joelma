@@ -591,7 +591,22 @@
   </div>
 </div>
 
-<h2><i data-ic="sliders"></i> Recursos avançados</h2>
+<h2><i data-ic="activity"></i> Rotina de calibração DXC2 + CFS</h2>
+<div class="dica" id="wiz-intro">Assistente <b>passo a passo</b> na ordem segura do DXC2 (ref. Tinman). Cada fase tem a instrução, o botão certo e a dica de direção. <b style="color:var(--warn)">Você dispara e assiste cada corte</b> — nada roda sozinho. Mantenha a mesa livre e fique na frente da máquina.</div>
+<div id="wiz-nostart" class="dica" style="display:none;color:var(--warn)">Plugin <code>joelma_dxc2</code> ausente — a rotina precisa dele.</div>
+<div id="wiz-box" style="border:1px solid var(--bd,#30363d);border-radius:8px;padding:12px;margin-top:6px">
+  <div class="lin" style="justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+    <div id="wiz-steps" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+    <span class="acc-tag" id="wiz-pos">—</span>
+  </div>
+  <div id="wiz-body" style="margin-top:10px;min-height:60px"></div>
+  <div class="lin" style="gap:8px;margin-top:12px">
+    <button class="ghost" id="wiz-prev">← Anterior</button>
+    <button class="principal" id="wiz-next">Próximo →</button>
+  </div>
+</div>
+
+<h2><i data-ic="chip"></i> Recursos avançados</h2>
 <div class="dica" id="feat-intro">Liga/desliga recursos que <b>trocam arquivos do Klipper</b> (com backup automático). Cada troca <b>reinicia o Klipper sozinho</b> — espere ~30 s e a tela voltar. Tudo por aqui: <b>nenhum SSH</b>. O estado abaixo é lido ao vivo da impressora.</div>
 <div class="lin" style="gap:10px;align-items:center;margin-bottom:6px">
   <span class="acc-tag" id="feat-status">—</span>
@@ -1734,12 +1749,16 @@ setInterval(fbAtualiza, 20000);
 setInterval(fbSpoolman, 90000);
 
 // ---------- DXC2 (perfil do box.cfg via plugin joelma_dxc2) ----------
+let dxcVals = {};   // ultimos valores do [box] lidos (prefill da rotina de calibracao)
+let dxcAtivo = false, dxcPlugin = true;
 async function dxcAtualiza(){
   try {
     const r = await fetch(base + "/server/joelma/dxc2");
-    if (!r.ok) { $("dxc-status").textContent = "DXC2: plugin ausente"; $("dxc-painel").style.display = "none"; return; }
+    if (!r.ok) { $("dxc-status").textContent = "DXC2: plugin ausente"; $("dxc-painel").style.display = "none"; dxcPlugin = false; if (typeof wizPoll === "function") wizPoll(); return; }
     const d = (await r.json()).result || {};
     const on = !!d.active, v = d.values || {};
+    dxcVals = v; dxcAtivo = on; dxcPlugin = true;
+    if (typeof wizPoll === "function") wizPoll();
     $("dxc-status").textContent = "DXC2: " + (on ? "ATIVADO" : "desativado")
       + (v.Tn_retrude !== undefined ? " · Tn_retrude " + v.Tn_retrude + " · buffer " + v.buffer_empty_len : "");
     $("dxc-toggle").textContent = on ? "Desativar DXC2" : "Ativar DXC2";
@@ -1809,6 +1828,185 @@ $("dxc-tools").addEventListener("click", async ev => {
 });
 dxcAtualiza();
 setInterval(dxcAtualiza, 30000);
+
+// ---------- Rotina de calibração DXC2 + CFS (assistente guiado) ----------
+// Sequencia a ordem oficial do Tinman (mecanica -> corte -> engate -> retracao
+// -> temperatura -> verificacao), reusando os endpoints/macros que o painel ja
+// tem. Nada roda sozinho: cada corte/troca e disparado e assistido pelo usuario.
+let wizStep = 0;
+const WL = 'style="min-width:auto;font-size:.7rem;color:var(--mut)"';
+function wizNum(id, def){ const v = parseFloat(dxcVals[id]); return isNaN(v) ? def : v; }
+const wizSteps = [
+  { k:"DXC2", t:"Ativar", render(){
+      if (dxcAtivo) return '<p>✅ <b>Perfil DXC2 ativo.</b> Pode avançar.</p>';
+      return '<p>O perfil DXC2 precisa estar <b>ativo</b> (troca os valores do <code>[box]</code> e reinicia o firmware) antes de calibrar.</p>'
+        + '<button class="principal" data-wiz-act="activate"><i data-ic="power"></i> Ativar DXC2 agora</button>';
+  }},
+  { k:"PTFE", t:"Mecânica", render(){
+      const itens = [
+        "Atuador/plunger estendido na orientação certa, move livre e retorna todo",
+        "Faca instalada e corta de verdade (não é cold-pull)",
+        "PCB do sensor do cortador e conector assentados, parafusos do tamanho certo",
+        "Braço de pressão e entrada de PTFE alinhados",
+        "PTFE com curvas largas, sem guias extras, e não toca a tampa em todo o curso XY",
+      ];
+      let h = '<p><b>Mecânica primeiro</b> — corrija o caminho antes de compensar em software:</p>';
+      itens.forEach(t => h += '<label style="display:block;margin:5px 0;font-size:.82rem"><input type="checkbox" class="wiz-ptfe"> ' + t + '</label>');
+      return h + '<div class="dica" style="margin-top:6px">Marque todos pra liberar o próximo passo.</div>';
+  }},
+  { k:"Corte", t:"Corte", render(){
+      return '<p><b style="color:var(--warn)">ASSISTA A FACA.</b> Roda <code>CALIBRATE_CUT_POS</code> (acha a posição de corte). Nunca copie de outra máquina.</p>'
+        + '<button class="principal" data-wiz-act="cutcal"><i data-ic="target"></i> Calibrar corte</button>'
+        + '<div class="lin" style="gap:8px;align-items:flex-end;flex-wrap:wrap;margin-top:10px">'
+        + '<label ' + WL + '>check_x_min<br><input type="number" id="wiz-cmin" step="0.5" style="width:84px" value="' + wizNum("check_cut_pos_x_min",-9.5) + '"></label>'
+        + '<label ' + WL + '>check_x_max<br><input type="number" id="wiz-cmax" step="0.5" style="width:84px" value="' + wizNum("check_cut_pos_x_max",-5.0) + '"></label>'
+        + '<button class="salvar" data-wiz-act="savecut"><i data-ic="save"></i> Salvar janela</button></div>'
+        + '<div class="dica" style="margin-top:6px">Reduza o corte só em passos de <b>0.1 mm</b> e recalibre após cada mudança. Abaixo de <b>0.0</b> pode bater a faca no corpo do extrusor.</div>';
+  }},
+  { k:"Engate", t:"Engate", render(){
+      return '<p>Carregue e <b>olhe os últimos 100 mm</b> do curso. Teste as <b>duas</b> caixas (unload entre os testes, não reuse filamento achatado).</p>'
+        + '<div class="lin" style="gap:8px;align-items:flex-end;flex-wrap:wrap">'
+        + '<label ' + WL + '>Caixa 1 (TNN)<br><input id="wiz-tnn1" value="T1A" style="width:70px"></label>'
+        + '<button data-wiz-act="load" data-tnnid="wiz-tnn1"><i data-ic="load"></i> Carregar caixa 1</button>'
+        + '<label ' + WL + '>Caixa 2 (TNN)<br><input id="wiz-tnn2" value="T2A" style="width:70px"></label>'
+        + '<button data-wiz-act="load" data-tnnid="wiz-tnn2"><i data-ic="load"></i> Carregar caixa 2</button></div>'
+        + '<div class="lin" style="gap:8px;align-items:flex-end;flex-wrap:wrap;margin-top:10px">'
+        + '<label ' + WL + '>buffer_empty_len<br><input type="number" id="wiz-buf" step="0.25" style="width:96px" value="' + wizNum("buffer_empty_len",23.25) + '"></label>'
+        + '<button class="salvar" data-wiz-act="savebuf"><i data-ic="save"></i> Salvar buffer</button></div>'
+        + '<div class="dica" style="margin-top:6px">Para <b>antes</b> de engatar a 2ª engrenagem → <b>diminua</b> 1–2 mm (lembre: <b>diminuir = avança MAIS</b>). Chega mas <b>trava/embola</b> → <b>aumente</b> 1–2 mm. Ande de 1–2 mm, não pule.</div>';
+  }},
+  { k:"Retração", t:"Retração", render(){
+      return '<p>Com o engate estável, ajuste a retração. Descarregue e veja se sai liso, <b>sem re-tentativas</b>.</p>'
+        + '<button class="principal" data-wiz-act="quit"><i data-ic="eject"></i> Descarregar (BOX_QUIT_MATERIAL)</button>'
+        + '<div class="lin" style="gap:8px;align-items:flex-end;flex-wrap:wrap;margin-top:10px">'
+        + '<label ' + WL + '>Tn_retrude<br><input type="number" id="wiz-ret" step="1" style="width:84px" value="' + wizNum("Tn_retrude",-18) + '"></label>'
+        + '<button class="salvar" data-wiz-act="saveret"><i data-ic="save"></i> Salvar retração</button></div>'
+        + '<div class="dica" style="margin-top:6px">Sem <code>RETRUDE_ERR6</code>/<code>key865</code> e retrai de primeira = ok. Na máquina de referência <b>-18</b> saiu melhor que -20. Não diminua indefinidamente.</div>';
+  }},
+  { k:"Temp", t:"Temp.", render(){
+      return '<p>Temperatura de load/unload <b>do material instalado</b>. Não exponha PLA a 260 °C à toa.</p>'
+        + '<div class="lin" style="gap:8px;align-items:flex-end;flex-wrap:wrap">'
+        + '<label ' + WL + '>Tn_extrude_temp (°C)<br><input type="number" id="wiz-temp" step="5" style="width:110px" value="' + wizNum("Tn_extrude_temp",220) + '"></label>'
+        + '<button class="salvar" data-wiz-act="savetemp"><i data-ic="save"></i> Salvar temp</button></div>'
+        + '<div class="dica" style="margin-top:6px">Ordem que importa: aquece até o alvo (±2 °C) → corta → retrai. O sensor do cortador tocar <b>não</b> prova que cortou.</div>';
+  }},
+  { k:"Teste", t:"Verificação", render(){
+      return '<p><b>Teste final.</b> Carregue um slot, rode <b>10 trocas</b> alternando duas ferramentas <b>com filamento</b>, e descarregue.</p>'
+        + '<div class="lin" style="gap:8px;align-items:flex-end;flex-wrap:wrap">'
+        + '<label ' + WL + '>Carregar (TNN)<br><input id="wiz-vtnn" value="T1A" style="width:70px"></label>'
+        + '<button data-wiz-act="vload"><i data-ic="load"></i> Carregar</button></div>'
+        + '<div class="lin" style="gap:8px;align-items:flex-end;flex-wrap:wrap;margin-top:10px">'
+        + '<label ' + WL + '>Troca A<br><input id="wiz-va" value="T0" style="width:58px"></label>'
+        + '<label ' + WL + '>Troca B<br><input id="wiz-vb" value="T4" style="width:58px"></label>'
+        + '<button class="principal" data-wiz-act="verify"><i data-ic="restart"></i> 10 trocas (A↔B)</button></div>'
+        + '<button class="salvar" data-wiz-act="vunload" style="margin-top:10px"><i data-ic="eject"></i> Unload final (DXC2_END_UNLOAD)</button>'
+        + '<div class="dica" style="margin-top:6px">Sucesso = <b>zero</b> watchdog retries, sem pausa, sem <code>RETRUDE_ERR6</code>/<code>key865</code>, o unload verifica o fim e os aquecedores zeram. Troca A/B devem apontar slots <b>com filamento</b>.</div>';
+  }},
+];
+function wizPtfeOk(){
+  const cbs = document.querySelectorAll(".wiz-ptfe");
+  return cbs.length > 0 && Array.from(cbs).every(c => c.checked);
+}
+function wizChrome(){
+  // so o "cromo" (trilha, posicao, travas do proximo) - NAO toca no corpo, pra
+  // o poll de 30s nao apagar o que o usuario digitou/marcou.
+  $("wiz-steps").innerHTML = wizSteps.map((s,i) =>
+    '<span data-wiz-go="' + i + '" style="cursor:pointer;font-size:.72rem;padding:2px 7px;border-radius:10px;'
+    + (i === wizStep ? 'background:var(--acc,#0ea5a5);color:#fff' : 'background:var(--bg2,#1b2130);color:var(--mut,#8aa)')
+    + '">' + (i+1) + '. ' + s.t + '</span>').join("");
+  $("wiz-pos").textContent = "Passo " + (wizStep+1) + "/" + wizSteps.length;
+  $("wiz-prev").disabled = wizStep === 0;
+  const last = wizStep === wizSteps.length - 1;
+  $("wiz-next").style.display = last ? "none" : "";
+  let bloq = false;
+  if (wizStep === 0 && !dxcAtivo) bloq = true;
+  if (wizStep === 1 && !wizPtfeOk()) bloq = true;
+  $("wiz-next").disabled = bloq;
+  $("wiz-next").title = bloq ? (wizStep === 0 ? "Ative o DXC2 primeiro" : "Marque todos os itens") : "";
+}
+function wizRender(){
+  // reconstroi tudo (corpo incluso) - usar na navegacao/init, NAO no poll
+  if (!$("wiz-box")) return;
+  $("wiz-nostart").style.display = dxcPlugin ? "none" : "";
+  $("wiz-box").style.display = dxcPlugin ? "" : "none";
+  if (!dxcPlugin) return;
+  wizChrome();
+  $("wiz-body").innerHTML = wizSteps[wizStep].render();
+  pintaIcones($("wiz-body"));
+}
+function wizPoll(){
+  // chamado pelo refresh do DXC2 (30s): atualiza visibilidade/cromo e, SO no
+  // passo 0 (sem inputs), reflete o estado de ativacao. Passos 1-6 mantem o DOM.
+  if (!$("wiz-box")) return;
+  $("wiz-nostart").style.display = dxcPlugin ? "none" : "";
+  $("wiz-box").style.display = dxcPlugin ? "" : "none";
+  if (!dxcPlugin) return;
+  wizChrome();
+  if (wizStep === 0) { $("wiz-body").innerHTML = wizSteps[0].render(); pintaIcones($("wiz-body")); }
+}
+function wizGo(i){ wizStep = Math.max(0, Math.min(wizSteps.length-1, i)); wizRender(); }
+$("wiz-prev").onclick = () => wizGo(wizStep - 1);
+$("wiz-next").onclick = () => wizGo(wizStep + 1);
+$("wiz-steps").addEventListener("click", ev => {
+  const s = ev.target.closest("[data-wiz-go]"); if (s) wizGo(parseInt(s.dataset.wizGo, 10));
+});
+$("wiz-body").addEventListener("change", ev => {
+  if (ev.target.classList && ev.target.classList.contains("wiz-ptfe")) {
+    $("wiz-next").disabled = !wizPtfeOk();
+    $("wiz-next").title = wizPtfeOk() ? "" : "Marque todos os itens";
+  }
+});
+$("wiz-body").addEventListener("click", async ev => {
+  const b = ev.target.closest("button[data-wiz-act]"); if (!b || ocupado) return;
+  const act = b.dataset.wizAct;
+  // acoes que mexem no hardware exigem impressora parada
+  const precisaParada = ["cutcal","load","quit","vload","verify","vunload"].includes(act);
+  if (precisaParada && !(await fbNaoImprimindo())) { logLinha("!! rotina: impressão em andamento — abortado"); return; }
+  if (act === "activate") {
+    if (!confirm("ATIVAR o perfil DXC2? Edita o box.cfg (com backup) e REINICIA o firmware.")) return;
+    trava(true);
+    try { const res = await dxcPost({action:"enable"}); logLinha("// DXC2 ativado" + (res.backup ? " (backup " + res.backup + ")" : "")); await dxcRestart("DXC2 ativando"); }
+    catch(e){ logLinha("!! DXC2: " + e.message); setStatus("Falha DXC2", e.message, "err"); }
+    finally { trava(false); }
+  } else if (act === "cutcal") {
+    if (!confirm("Calibrar o corte (CALIBRATE_CUT_POS)? ASSISTA a faca.")) return;
+    roda("CALIBRATE_CUT_POS", "Calibrando corte (DXC2)", 5, () => dxcAtualiza());
+  } else if (act === "savecut") {
+    dxcSalvar([["check_cut_pos_x_min", $("wiz-cmin")], ["check_cut_pos_x_max", $("wiz-cmax")]], "Salvando janela do corte");
+  } else if (act === "load" || act === "vload") {
+    const tnn = (act === "vload" ? $("wiz-vtnn").value : $(b.dataset.tnnid).value).trim().toUpperCase();
+    if (!/^T\d+[A-D]$/.test(tnn)) { logLinha("!! TNN inválido: " + tnn + " (ex. T1A)"); return; }
+    if (!confirm("Carregar " + tnn + "? Move o hardware do CFS/DXC2.")) return;
+    roda("BOX_LOAD_MATERIAL TNN=" + tnn, "Carregando " + tnn, 8);
+  } else if (act === "savebuf") {
+    dxcSalvar([["buffer_empty_len", $("wiz-buf")]], "Salvando buffer_empty_len");
+  } else if (act === "quit") {
+    if (!confirm("Descarregar (BOX_QUIT_MATERIAL)?")) return;
+    roda("BOX_QUIT_MATERIAL", "Descarregando (CFS)", 8);
+  } else if (act === "saveret") {
+    dxcSalvar([["Tn_retrude", $("wiz-ret")]], "Salvando Tn_retrude");
+  } else if (act === "savetemp") {
+    dxcSalvar([["Tn_extrude_temp", $("wiz-temp")]], "Salvando Tn_extrude_temp");
+  } else if (act === "verify") {
+    const a = $("wiz-va").value.trim().toUpperCase(), bb = $("wiz-vb").value.trim().toUpperCase();
+    if (!/^T\d+$/.test(a) || !/^T\d+$/.test(bb)) { logLinha("!! Troca A/B inválida (ex. T0 / T4)"); return; }
+    if (!confirm("Rodar 10 trocas alternando " + a + " e " + bb + "? Garanta que os dois slots têm filamento. Vai cortar e trocar 10x — assista.")) return;
+    trava(true); setStatus("Teste de 10 trocas", "acompanhe no console", "busy");
+    try {
+      for (let i = 0; i < 10; i++) {
+        const cmd = (i % 2 === 0) ? a : bb;
+        logLinha("// troca " + (i+1) + "/10: " + cmd);
+        await gcode(cmd, 6);
+      }
+      setStatus("Trocas concluídas", "rode o unload final", "on"); logLinha("// 10 trocas OK");
+    } catch(e){ setStatus("Falha nas trocas", e.message, "err"); logLinha("!! troca: " + e.message); }
+    finally { trava(false); }
+  } else if (act === "vunload") {
+    if (!confirm("Unload final (DXC2_END_UNLOAD)?")) return;
+    roda("DXC2_END_UNLOAD", "Unload final (DXC2)", 8, () => dxcAtualiza());
+  }
+});
+wizRender();
 
 // ---------- Recursos avançados (toggle de arquivos do Klipper via joelma_features) ----------
 // Liga/desliga, com backup, recursos que trocam .py do Klipper. O componente faz
