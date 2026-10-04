@@ -1391,6 +1391,7 @@ const FB_SLOTS = ["A","B","C","D"];
 let fbSpool = {};        // TNN -> {nome, resta, total} via Spoolman
 let fbUlt = null;        // ultimo snapshot normalizado (debug)
 let fbSlots = {};        // TNN -> slot normalizado (pro editor)
+let fbAtivoTnn = null;   // slot atualmente carregado no bico (ou null)
 function fbCor(v){
   if (v == null || v === "" || v === "-1") return null;
   const h = String(v).replace(/^#/, "").replace(/^0/, "");
@@ -1603,6 +1604,7 @@ function fbRender(boxes, meta){
   if (tools) tools.style.display = "";
   if (apax) apax.style.display = "";
   if (extr) { extr.style.display = ""; $("fb-ex-slot").textContent = meta.ativoTnn ? "carregado (" + meta.ativoTnn + ")" : "carregado"; }
+  fbAtivoTnn = meta.ativoTnn || null;
   const multi = boxes.length > 1;
   $("fb-status").textContent = (multi ? boxes.length + " CFS conectadas" : "CFS conectada");
   $("fb-clima").textContent = boxes.map(function(b){ return (multi ? b.id + " " : "") + "🌡 " + (b.temp ?? "—") + "°C · 💧 " + (b.hum ?? "—") + "%"; }).join(" · ");
@@ -1664,12 +1666,20 @@ $("fb-grid").addEventListener("click", async ev => {
   if (!b || ocupado) return;
   if (b.dataset.fbLoad) {
     const tnn = b.dataset.fbLoad;
-    // guarda dupla: presença física (já filtrada no render) + bico livre —
-    // BOX_LOAD_MATERIAL com filamento no bico / slot vazio já derrubou o Klipper
-    if (!confirm("Carregar " + tnn + "? O CFS vai alimentar, cortar e purgar. Confirme que o bico está SEM filamento (Unload antes, se preciso).")) return;
+    const carregado = fbAtivoTnn;   // o que esta no bico agora (ou null)
+    if (carregado && carregado === tnn) { logLinha("// " + tnn + " ja esta carregado"); return; }
+    // Se ja tem filamento no bico, descarrega ANTES (BOX_QUIT_MATERIAL) e so
+    // entao carrega o novo - a interface decide sozinha pelo estado (fbAtivoTnn).
+    const precisaUnload = !!carregado;
+    const msg = precisaUnload
+      ? "Trocar para " + tnn + "? Vai DESCARREGAR o " + carregado + " e carregar o " + tnn + " (alimenta, corta e purga)."
+      : "Carregar " + tnn + "? O CFS vai alimentar, cortar e purgar.";
+    if (!confirm(msg)) return;
     const ph = await prefixoHome();
     if (ph) logLinha("// sem home — G28 antes de carregar");
-    roda(ph + "BOX_LOAD_MATERIAL TNN=" + tnn, "CFS: carregando " + tnn, 12, () => fbAtualiza());
+    if (precisaUnload) logLinha("// descarregando " + carregado + " antes de carregar " + tnn);
+    const script = ph + (precisaUnload ? "BOX_QUIT_MATERIAL\n" : "") + "BOX_LOAD_MATERIAL TNN=" + tnn;
+    roda(script, "CFS: " + (precisaUnload ? "trocando " + carregado + " → " + tnn : "carregando " + tnn), 15, () => fbAtualiza());
   } else if (b.dataset.fbUnload) {
     if (!confirm("Descarregar o filamento do bico?")) return;
     roda("BOX_QUIT_MATERIAL", "CFS: descarregando", 12, () => fbAtualiza());
@@ -2023,10 +2033,13 @@ $("wiz-body").addEventListener("click", async ev => {
   } else if (act === "load" || act === "vload") {
     const tnn = (act === "vload" ? $("wiz-vtnn").value : $(b.dataset.tnnid).value).trim().toUpperCase();
     if (!/^T\d+[A-D]$/.test(tnn)) { logLinha("!! TNN inválido: " + tnn + " (ex. T1A)"); return; }
-    if (!confirm("Carregar " + tnn + "? Move o hardware do CFS/DXC2.")) return;
+    if (fbAtivoTnn && fbAtivoTnn === tnn) { logLinha("// " + tnn + " já está carregado"); return; }
+    const precisaUnload = !!fbAtivoTnn;
+    if (!confirm((precisaUnload ? "Trocar para " + tnn + " (descarrega o " + fbAtivoTnn + " antes)" : "Carregar " + tnn) + "? Move o hardware do CFS/DXC2.")) return;
     const ph = await prefixoHome();
     if (ph) logLinha("// sem home — G28 antes de carregar");
-    roda(ph + "BOX_LOAD_MATERIAL TNN=" + tnn, "Carregando " + tnn, 10);
+    if (precisaUnload) logLinha("// descarregando " + fbAtivoTnn + " antes de carregar " + tnn);
+    roda(ph + (precisaUnload ? "BOX_QUIT_MATERIAL\n" : "") + "BOX_LOAD_MATERIAL TNN=" + tnn, (precisaUnload ? "Trocando " + fbAtivoTnn + " → " + tnn : "Carregando " + tnn), 15);
   } else if (act === "savebuf") {
     dxcSalvar([["buffer_empty_len", $("wiz-buf")]], "Salvando buffer_empty_len");
   } else if (act === "quit") {
