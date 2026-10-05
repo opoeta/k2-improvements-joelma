@@ -1723,6 +1723,19 @@ $("fb-ed-ok").onclick = async () => {
     if (!r.ok) throw new Error((j.error && j.error.message) || ("HTTP " + r.status));
     const res = j.result || j;
     logLinha("// Slot " + tnn + " editado" + (res.enviado_9999 ? " e sincronizado AO VIVO pela porta 9999" : " (9999 falhou — pode precisar de restart)"));
+    // Liga o PA do card ao START_PRINT: grava pa_<material-base> em save_variables
+    // (mesmo store que o START_PRINT le e aplica sozinho, persistente). Antes o PA
+    // do card so ia pro JSON do CFS e nunca chegava na impressao. Chave saneada
+    // [a-z0-9_] (START_PRINT casa pelo material-base: PETG-CF -> petg). Flow NAO
+    // entra aqui de proposito: o fatiador ja assa o flow no gcode (M221 duplicaria).
+    if (pa && /^-?\d+(\.\d+)?$/.test(pa)) {
+      const matBase = String(corpo.materialType || "").toLowerCase().split('-')[0].split(' ')[0].replace(/[^a-z0-9_]/g, "");
+      if (matBase) {
+        try { await gcode("SAVE_VARIABLE VARIABLE=pa_" + matBase + " VALUE=" + pa, 1);
+          logLinha("// PA " + pa + " salvo p/ START_PRINT (pa_" + matBase + ") — aplicado sozinho nas impressões de " + matBase.toUpperCase());
+        } catch(e){ logLinha("// PA salvo no CFS, mas pa_" + matBase + " falhou: " + e.message); }
+      }
+    }
     // sincroniza o Spoolman (cria/atualiza o spool vinculado ao slot) —
     // best-effort: nao trava a edicao do CFS se o Spoolman estiver fora
     try {
