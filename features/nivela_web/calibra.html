@@ -1666,20 +1666,17 @@ $("fb-grid").addEventListener("click", async ev => {
   if (!b || ocupado) return;
   if (b.dataset.fbLoad) {
     const tnn = b.dataset.fbLoad;
-    const carregado = fbAtivoTnn;   // o que esta no bico agora (ou null)
-    if (carregado && carregado === tnn) { logLinha("// " + tnn + " ja esta carregado"); return; }
-    // Se ja tem filamento no bico, descarrega ANTES (BOX_QUIT_MATERIAL) e so
-    // entao carrega o novo - a interface decide sozinha pelo estado (fbAtivoTnn).
-    const precisaUnload = !!carregado;
-    const msg = precisaUnload
-      ? "Trocar para " + tnn + "? Vai DESCARREGAR o " + carregado + " e carregar o " + tnn + " (alimenta, corta e purga)."
-      : "Carregar " + tnn + "? O CFS vai alimentar, cortar e purgar.";
-    if (!confirm(msg)) return;
-    const ph = await prefixoHome();
-    if (ph) logLinha("// sem home — G28 antes de carregar");
-    if (precisaUnload) logLinha("// descarregando " + carregado + " antes de carregar " + tnn);
-    const script = ph + (precisaUnload ? "BOX_QUIT_MATERIAL\n" : "") + "BOX_LOAD_MATERIAL TNN=" + tnn;
-    roda(script, "CFS: " + (precisaUnload ? "trocando " + carregado + " → " + tnn : "carregando " + tnn), 15, () => fbAtualiza());
+    // IMPORTANTE: neste firmware a carga POR COMANDO (BOX_LOAD_MATERIAL) trava o
+    // Klipper no BOX_EXTRUDE_MATERIAL - mesmo homed/quente/cortado, com ou sem
+    // DXC2. So o fluxo NATIVO (tela da impressora / Creality Print) monta o setup
+    // de flush (flush_volume/flush_len/buffer_state) que o extrude exige. Por
+    // isso NAO disparamos o load aqui - orientamos a usar a tela.
+    alert("Para carregar o " + tnn + ", use a TELA da impressora (ou a Creality Print).\n\n"
+      + "Neste firmware o carregamento por comando trava o Klipper no passo de extrusao "
+      + "(key60 em BOX_EXTRUDE_MATERIAL) - so o fluxo nativo funciona.\n\n"
+      + "Depois de carregar pela tela, use a Extrusao manual e os ajustes aqui no painel.");
+    logLinha("// LOAD " + tnn + ": carregue pela TELA (load por comando trava o firmware neste modelo)");
+    return;
   } else if (b.dataset.fbUnload) {
     if (!confirm("Descarregar o filamento do bico?")) return;
     roda("BOX_QUIT_MATERIAL", "CFS: descarregando", 12, () => fbAtualiza());
@@ -1921,16 +1918,11 @@ const wizSteps = [
         + '<div class="dica" style="margin-top:6px">Reduza o corte só em passos de <b>0.1 mm</b> e recalibre após cada mudança. Abaixo de <b>0.0</b> pode bater a faca no corpo do extrusor.</div>';
   }},
   { k:"Engate", t:"Engate", render(){
-      return '<p>Carregue e <b>olhe os últimos 100 mm</b> do curso. Teste as <b>duas</b> caixas (unload entre os testes, não reuse filamento achatado).</p>'
-        + '<div class="lin" style="gap:8px;align-items:flex-end;flex-wrap:wrap">'
-        + '<label ' + WL + '>Caixa 1 (TNN)<br><input id="wiz-tnn1" value="T1A" style="width:70px"></label>'
-        + '<button data-wiz-act="load" data-tnnid="wiz-tnn1"><i data-ic="load"></i> Carregar caixa 1</button>'
-        + '<label ' + WL + '>Caixa 2 (TNN)<br><input id="wiz-tnn2" value="T2A" style="width:70px"></label>'
-        + '<button data-wiz-act="load" data-tnnid="wiz-tnn2"><i data-ic="load"></i> Carregar caixa 2</button></div>'
-        + '<div class="lin" style="gap:8px;align-items:flex-end;flex-wrap:wrap;margin-top:10px">'
+      return '<p><b>Carregue pela TELA</b> da impressora (ou Creality Print), <b>olhando os últimos 100 mm</b>. Teste as duas caixas. <span style="color:var(--mut)">(Carga por comando trava o firmware — por isso é pela tela.)</span></p>'
+        + '<div class="lin" style="gap:8px;align-items:flex-end;flex-wrap:wrap;margin-top:6px">'
         + '<label ' + WL + '>buffer_empty_len<br><input type="number" id="wiz-buf" step="0.25" style="width:96px" value="' + wizNum("buffer_empty_len",23.25) + '"></label>'
         + '<button class="salvar" data-wiz-act="savebuf"><i data-ic="save"></i> Salvar buffer</button></div>'
-        + '<div class="dica" style="margin-top:6px">Para <b>antes</b> de engatar a 2ª engrenagem → <b>diminua</b> 1–2 mm (lembre: <b>diminuir = avança MAIS</b>). Chega mas <b>trava/embola</b> → <b>aumente</b> 1–2 mm. Ande de 1–2 mm, não pule.</div>';
+        + '<div class="dica" style="margin-top:6px">Para <b>antes</b> de engatar a 2ª engrenagem → <b>diminua</b> 1–2 mm (lembre: <b>diminuir = avança MAIS</b>). Chega mas <b>trava/embola</b> → <b>aumente</b> 1–2 mm. Carregue de novo pela tela e observe. Ande de 1–2 mm, não pule.</div>';
   }},
   { k:"Retração", t:"Retração", render(){
       return '<p>Com o engate estável, ajuste a retração. Descarregue e veja se sai liso, <b>sem re-tentativas</b>.</p>'
@@ -1948,16 +1940,10 @@ const wizSteps = [
         + '<div class="dica" style="margin-top:6px">Ordem que importa: aquece até o alvo (±2 °C) → corta → retrai. O sensor do cortador tocar <b>não</b> prova que cortou.</div>';
   }},
   { k:"Teste", t:"Verificação", render(){
-      return '<p><b>Teste final.</b> Carregue um slot, rode <b>10 trocas</b> alternando duas ferramentas <b>com filamento</b>, e descarregue.</p>'
-        + '<div class="lin" style="gap:8px;align-items:flex-end;flex-wrap:wrap">'
-        + '<label ' + WL + '>Carregar (TNN)<br><input id="wiz-vtnn" value="T1A" style="width:70px"></label>'
-        + '<button data-wiz-act="vload"><i data-ic="load"></i> Carregar</button></div>'
-        + '<div class="lin" style="gap:8px;align-items:flex-end;flex-wrap:wrap;margin-top:10px">'
-        + '<label ' + WL + '>Troca A<br><input id="wiz-va" value="T0" style="width:58px"></label>'
-        + '<label ' + WL + '>Troca B<br><input id="wiz-vb" value="T4" style="width:58px"></label>'
-        + '<button class="principal" data-wiz-act="verify"><i data-ic="restart"></i> 10 trocas (A↔B)</button></div>'
+      return '<p><b>Teste final = imprimir um multicolor.</b> Mande um teste de 2 cores (ex. cubo) pela Creality Print. A troca por comando trava fora do print — a verificação real é dentro de uma impressão.</p>'
+        + '<button class="principal" data-wiz-act="verify"><i data-ic="bulb"></i> Como testar</button>'
         + '<button class="salvar" data-wiz-act="vunload" style="margin-top:10px"><i data-ic="eject"></i> Unload final (DXC2_END_UNLOAD)</button>'
-        + '<div class="dica" style="margin-top:6px">Sucesso = <b>zero</b> watchdog retries, sem pausa, sem <code>RETRUDE_ERR6</code>/<code>key865</code>, o unload verifica o fim e os aquecedores zeram. Troca A/B devem apontar slots <b>com filamento</b>.</div>';
+        + '<div class="dica" style="margin-top:6px">Sucesso = <b>zero</b> watchdog retries, sem pausa, sem <code>RETRUDE_ERR6</code>/<code>key865</code>, cores limpas e aquecedores zeram no fim.</div>';
   }},
 ];
 function wizPtfeOk(){
@@ -2031,15 +2017,12 @@ $("wiz-body").addEventListener("click", async ev => {
   } else if (act === "savecut") {
     dxcSalvar([["check_cut_pos_x_min", $("wiz-cmin")], ["check_cut_pos_x_max", $("wiz-cmax")]], "Salvando janela do corte");
   } else if (act === "load" || act === "vload") {
-    const tnn = (act === "vload" ? $("wiz-vtnn").value : $(b.dataset.tnnid).value).trim().toUpperCase();
-    if (!/^T\d+[A-D]$/.test(tnn)) { logLinha("!! TNN inválido: " + tnn + " (ex. T1A)"); return; }
-    if (fbAtivoTnn && fbAtivoTnn === tnn) { logLinha("// " + tnn + " já está carregado"); return; }
-    const precisaUnload = !!fbAtivoTnn;
-    if (!confirm((precisaUnload ? "Trocar para " + tnn + " (descarrega o " + fbAtivoTnn + " antes)" : "Carregar " + tnn) + "? Move o hardware do CFS/DXC2.")) return;
-    const ph = await prefixoHome();
-    if (ph) logLinha("// sem home — G28 antes de carregar");
-    if (precisaUnload) logLinha("// descarregando " + fbAtivoTnn + " antes de carregar " + tnn);
-    roda(ph + (precisaUnload ? "BOX_QUIT_MATERIAL\n" : "") + "BOX_LOAD_MATERIAL TNN=" + tnn, (precisaUnload ? "Trocando " + fbAtivoTnn + " → " + tnn : "Carregando " + tnn), 15);
+    // Carga por comando trava o Klipper neste firmware (so o fluxo nativo monta o
+    // flush). Orientamos a carregar pela tela e observar os ultimos 100 mm.
+    alert("Carregue pela TELA da impressora (ou Creality Print), observando os últimos 100 mm.\n\n"
+      + "Neste firmware o load por comando trava o Klipper no extrude - só o fluxo nativo funciona.\n\n"
+      + "Depois da carga, ajuste o buffer_empty_len aqui e repita até engatar liso.");
+    logLinha("// Engate: carregue pela TELA (load por comando trava o firmware); depois ajuste o buffer aqui");
   } else if (act === "savebuf") {
     dxcSalvar([["buffer_empty_len", $("wiz-buf")]], "Salvando buffer_empty_len");
   } else if (act === "quit") {
@@ -2050,21 +2033,14 @@ $("wiz-body").addEventListener("click", async ev => {
   } else if (act === "savetemp") {
     dxcSalvar([["Tn_extrude_temp", $("wiz-temp")]], "Salvando Tn_extrude_temp");
   } else if (act === "verify") {
-    const a = $("wiz-va").value.trim().toUpperCase(), bb = $("wiz-vb").value.trim().toUpperCase();
-    if (!/^T\d+$/.test(a) || !/^T\d+$/.test(bb)) { logLinha("!! Troca A/B inválida (ex. T0 / T4)"); return; }
-    if (!confirm("Rodar 10 trocas alternando " + a + " e " + bb + "? Garanta que os dois slots têm filamento. Vai cortar e trocar 10x — assista.")) return;
-    trava(true); setStatus("Teste de 10 trocas", "acompanhe no console", "busy");
-    try {
-      const ph = await prefixoHome();
-      if (ph) { logLinha("// sem home — G28 antes das trocas"); await gcode("G28", 5); }
-      for (let i = 0; i < 10; i++) {
-        const cmd = (i % 2 === 0) ? a : bb;
-        logLinha("// troca " + (i+1) + "/10: " + cmd);
-        await gcode(cmd, 6);
-      }
-      setStatus("Trocas concluídas", "rode o unload final", "on"); logLinha("// 10 trocas OK");
-    } catch(e){ setStatus("Falha nas trocas", e.message, "err"); logLinha("!! troca: " + e.message); }
-    finally { trava(false); }
+    // Trocas por comando (T0/T4) passam pelo mesmo load/extrude que trava o
+    // Klipper fora de uma impressao. A verificacao real e um PRINT multicolor.
+    alert("A verificação de trocas deve ser feita IMPRIMINDO um teste multicolor "
+      + "(ex. um cubo de 2 cores) pela Creality Print.\n\n"
+      + "Trocar por comando (T0/T4) no console trava o Klipper neste firmware - a troca "
+      + "só monta o flush correto dentro de um print.\n\n"
+      + "Critério de sucesso: sem pausa, sem RETRUDE_ERR6/key865, cores limpas.");
+    logLinha("// Verificação: imprima um teste multicolor pela Creality Print (troca por comando trava fora do print)");
   } else if (act === "vunload") {
     if (!confirm("Unload final (DXC2_END_UNLOAD)?")) return;
     roda("DXC2_END_UNLOAD", "Unload final (DXC2)", 8, () => dxcAtualiza());
