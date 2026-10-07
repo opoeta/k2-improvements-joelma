@@ -586,7 +586,7 @@
 
 <h2><i data-ic="activity"></i> Rotina de calibração DXC2 + CFS</h2>
 <div class="dica" id="wiz-intro">Assistente <b>passo a passo</b> na ordem segura do DXC2 (ref. Tinman). Cada fase tem a instrução, o botão certo e a dica de direção. <b style="color:var(--warn)">Você dispara e assiste cada corte</b> — nada roda sozinho. Mantenha a mesa livre e fique na frente da máquina.</div>
-<div id="wiz-nostart" class="dica" style="display:none;color:var(--warn)">Plugin <code>joelma_dxc2</code> ausente — a rotina precisa dele.</div>
+<div id="wiz-nostart" class="dica" style="display:none;color:var(--warn)">Plugin <code>k2_dxc2</code> ausente — a rotina precisa dele.</div>
 <div id="wiz-box" style="border:1px solid var(--bd,#30363d);border-radius:8px;padding:12px;margin-top:6px">
   <div class="lin" style="justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
     <div id="wiz-steps" style="display:flex;gap:6px;flex-wrap:wrap"></div>
@@ -1366,7 +1366,7 @@ async function render(){
 // Klipper `box` (T1.temperature/dry_and_humidity/material_type/color_value/
 // vender/remain_len), sensor `filament_switch_sensor filament_sensor` no
 // printhead, Spoolman (extra.tag = TNN) e edição ao vivo pela porta 9999
-// (joelma_cfs_edit). Encoder/buffer/clog não existem no stock — omitidos em
+// (k2_cfs_edit). Encoder/buffer/clog não existem no stock — omitidos em
 // vez de exibir "--" falso.
 // FONTE PRIMÁRIA = box.same_material (o firmware da K2 Plus resolve material +
 // cor + NOME por TNN aqui; confirmado no dump jul/2026). Ex.:
@@ -1474,17 +1474,17 @@ async function fbSyncSpoolman(tnn, o){
     extra: {tag: JSON.stringify(tnn)}});
   return {acao:"criado", spool: novo.id};
 }
-// MULTI-CFS. Fonte PRIMARIA: GET /server/joelma/cfs/edit -> material_box_info.json,
+// MULTI-CFS. Fonte PRIMARIA: GET /server/k2/cfs/edit -> material_box_info.json,
 // cujo box.Material.info[] e um ARRAY de caixas (T1..T4) com temperature/umidade/
 // state/version por unidade e materialType+color+pressure+remainLen por slot. E o
 // estado em disco que a tela da impressora usa -> autoritativo e multi-CFS de
 // verdade (confirmado no dump out/2026: 2 CFS = T1 + T2, slot cheio traz name/
-// color "#0RRGGBB"/pressure). FALLBACK: se o plugin joelma (moonraker-upgrade) nao
+// color "#0RRGGBB"/pressure). FALLBACK: se o plugin k2 (moonraker-upgrade) nao
 // existir, cai no objeto `box` do Klipper, que so expoe T1/same_material.
 async function fbAtualiza(){
   let norm = null;
   try {
-    const r = await fetch(base + "/server/joelma/cfs/edit");
+    const r = await fetch(base + "/server/k2/cfs/edit");
     if (r.ok) {
       const j = await r.json();
       const bx = (j.result || j).box;
@@ -1671,7 +1671,7 @@ $("fb-grid").addEventListener("click", async ev => {
   } else if (b.dataset.fbRfid) {
     const tnn = b.dataset.fbRfid;
     try {
-      const r = await fetch(base + "/server/joelma/cfs/rfid", {method:"POST",
+      const r = await fetch(base + "/server/k2/cfs/rfid", {method:"POST",
         headers:{"Content-Type":"application/json"}, body:JSON.stringify({tnn})});
       const j = await r.json().catch(() => ({}));
       logLinha("// RFID " + tnn + ": " + ((j.result || j).ok ? "pedido enviado pela porta 9999" : "falhou"));
@@ -1705,7 +1705,7 @@ $("fb-ed-ok").onclick = async () => {
   const pa = $("fb-ed-pa").value.trim();
   if (pa) corpo.pressure = pa;
   try {
-    const r = await fetch(base + "/server/joelma/cfs/edit", {method:"POST",
+    const r = await fetch(base + "/server/k2/cfs/edit", {method:"POST",
       headers:{"Content-Type":"application/json"}, body:JSON.stringify(corpo)});
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error((j.error && j.error.message) || ("HTTP " + r.status));
@@ -1749,7 +1749,7 @@ $("fb-rfid-all").onclick = async () => {
   if (!tnns.length) { logLinha("// RFID: nenhum slot com filamento pra reler"); return; }
   logLinha("// RFID: relendo " + tnns.length + " slot(s) pela porta 9999...");
   for (const tnn of tnns) {
-    try { await fetch(base + "/server/joelma/cfs/rfid", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({tnn})}); }
+    try { await fetch(base + "/server/k2/cfs/rfid", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({tnn})}); }
     catch(e){ logLinha("!! RFID " + tnn + ": " + e.message); }
   }
   setTimeout(function(){ fbSpoolman().then(fbAtualiza); }, 3000);
@@ -1795,12 +1795,12 @@ fbSpoolman().then(fbAtualiza);
 setInterval(fbAtualiza, 20000);
 setInterval(fbSpoolman, 90000);
 
-// ---------- DXC2 (perfil do box.cfg via plugin joelma_dxc2) ----------
+// ---------- DXC2 (perfil do box.cfg via plugin k2_dxc2) ----------
 let dxcVals = {};   // ultimos valores do [box] lidos (prefill da rotina de calibracao)
 let dxcAtivo = false, dxcPlugin = true;
 async function dxcAtualiza(){
   try {
-    const r = await fetch(base + "/server/joelma/dxc2");
+    const r = await fetch(base + "/server/k2/dxc2");
     if (!r.ok) { $("dxc-status").textContent = "DXC2: plugin ausente"; $("dxc-painel").style.display = "none"; dxcPlugin = false; if (typeof wizPoll === "function") wizPoll(); return; }
     const d = (await r.json()).result || {};
     const on = !!d.active, v = d.values || {};
@@ -1818,7 +1818,7 @@ async function dxcAtualiza(){
   } catch(e){ $("dxc-status").textContent = "DXC2: sem leitura"; }
 }
 async function dxcPost(body){
-  const r = await fetch(base + "/server/joelma/dxc2", {method:"POST",
+  const r = await fetch(base + "/server/k2/dxc2", {method:"POST",
     headers:{"Content-Type":"application/json"}, body: JSON.stringify(body)});
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error((j.error && j.error.message) || ("HTTP " + r.status));
@@ -2041,7 +2041,7 @@ $("wiz-body").addEventListener("click", async ev => {
 });
 wizRender();
 
-// ---------- Recursos avançados (toggle de arquivos do Klipper via joelma_features) ----------
+// ---------- Recursos avançados (toggle de arquivos do Klipper via k2_features) ----------
 // Liga/desliga, com backup, recursos que trocam .py do Klipper. O componente faz
 // o restart do Klipper em background; aqui so esperamos a impressora voltar.
 function featBadge(on){
@@ -2050,7 +2050,7 @@ function featBadge(on){
 }
 async function featAtualiza(){
   try {
-    const r = await fetch(base + "/server/joelma/features");
+    const r = await fetch(base + "/server/k2/features");
     if (!r.ok) { $("feat-status").textContent = "plugin ausente"; $("feat-lista").innerHTML = ""; return; }
     const d = (await r.json()).result || {};
     const fs = d.features || {};
@@ -2078,7 +2078,7 @@ $("feat-lista").addEventListener("click", async ev => {
   trava(true);
   setStatus((ativando ? "Ativando" : "Desativando") + " recurso", "reiniciando o Klipper...", "busy");
   try {
-    const r = await fetch(base + "/server/joelma/features", {method:"POST",
+    const r = await fetch(base + "/server/k2/features", {method:"POST",
       headers:{"Content-Type":"application/json"}, body: JSON.stringify({feature:key, action: ativando ? "enable" : "disable"})});
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error((j.error && j.error.message) || ("HTTP " + r.status));
@@ -2092,11 +2092,11 @@ $("feat-lista").addEventListener("click", async ev => {
 featAtualiza();
 setInterval(() => { if (!ocupado) featAtualiza(); }, 30000);
 
-// ---------- Parar Homing (feature abort_homing via joelma_abort) ----------
+// ---------- Parar Homing (feature abort_homing via k2_abort) ----------
 // SEM guarda de ocupado: o proposito e justamente interromper um homing em curso.
 $("parar-homing").onclick = async () => {
   try {
-    const r = await fetch(base + "/server/joelma/abort_homing", {method:"POST"});
+    const r = await fetch(base + "/server/k2/abort_homing", {method:"POST"});
     const j = await r.json().catch(() => ({}));
     if (r.ok) { logLinha("// Parar Homing: enviado"); setStatus("Homing abortado", "motores desligados", "on"); }
     else logLinha("!! Parar Homing: " + ((j.error && j.error.message) || ("HTTP " + r.status)) + " (feature abort_homing instalada?)");
@@ -2173,7 +2173,7 @@ async function spRender(){
     else if (conectado) { st.textContent = "Spoolman ✓"; btn.title = cfg.server + " — conectado, sync a cada " + (cfg.sync_rate||5) + "s"; st.style.color = "var(--ok)"; }
     else { st.textContent = "Spoolman ✗"; btn.title = cfg.server + " — sem resposta; o servidor esta ligado?"; st.style.color = "var(--bad)"; }
   } catch(e) {
-    st.textContent = "Spoolman ?"; btn.title = "componente spoolman_admin ausente (rode: joelma update)"; st.style.color = "var(--bad)";
+    st.textContent = "Spoolman ?"; btn.title = "componente spoolman_admin ausente (rode: k2 update)"; st.style.color = "var(--bad)";
   }
 }
 async function spScan(){
@@ -3136,13 +3136,13 @@ function desenhaMesh2D(g, W, H, m, min, span){
 })();
 
 // ---------- Graficos de ressonancia (CSV do Klipper via REST) ----------
-// O Klipper grava os CSVs dos testes em /tmp; o componente joelma_resonances
-// (moonraker-upgrade) os expoe em /server/joelma/resonances[/csv].
+// O Klipper grava os CSVs dos testes em /tmp; o componente k2_resonances
+// (moonraker-upgrade) os expoe em /server/k2/resonances[/csv].
 const RES_CORES = ["#42a5f5","#66bb6a","#ffa726","#ef5350","#ab47bc","#26c6da","#d4e157","#8d6e63"];
 async function resLista(){
   const sel = $("ressel");
   try {
-    const r = await fetch(base + "/server/joelma/resonances");
+    const r = await fetch(base + "/server/k2/resonances");
     if (!r.ok) throw new Error("HTTP " + r.status);
     const d = await r.json();
     const arqs = (d.result || d).arquivos || [];
@@ -3160,13 +3160,13 @@ async function resLista(){
     });
     resDesenha(sel.value).catch(e => logLinha("!! grafico: " + e.message));
   } catch(e) {
-    sel.innerHTML = '<option value="">componente ausente — rode joelma update</option>';
+    sel.innerHTML = '<option value="">componente ausente — rode k2 update</option>';
     $("resmap").style.display = "none";
   }
 }
 async function resDesenha(nome){
   if (!nome) return;
-  const r = await fetch(base + "/server/joelma/resonances/csv?nome=" + encodeURIComponent(nome));
+  const r = await fetch(base + "/server/k2/resonances/csv?nome=" + encodeURIComponent(nome));
   if (!r.ok) throw new Error("HTTP " + r.status);
   const d = await r.json();
   const j = d.result || d;
@@ -3281,7 +3281,7 @@ $("zread").onclick = () => zLeAtual();
 // O ajuste fino (SET_GCODE_OFFSET) e temporario: zera no restart E o START_PRINT
 // o re-seta no comeco de cada print (soma material+placa, que era 0 -> "o offset
 // zera quando reinicia"). Aqui o offset ATUAL e gravado via SAVE_VARIABLE como
-// zoff_<material>_<placa> (joelma_vars.cfg, persistente) e o START_PRINT passa a
+// zoff_<material>_<placa> (k2_vars.cfg, persistente) e o START_PRINT passa a
 // aplicar ESSE valor sozinho em toda impressao da combinacao. "Limpar" grava
 // None -> o START_PRINT ignora e volta pra soma legada do overrides.
 const ZC_MATS = ["PLA","PETG","ABS","ASA","TPU","PC","PA","default"];
@@ -3602,7 +3602,7 @@ async function paLinha(){
 $("palprint").onclick = () => { if (!ocupado) paLinha(); };
 
 // ---------- PA salvo por material (START_PRINT aplica SET_PRESSURE_ADVANCE sozinho) ----------
-// Espelha a persistencia do Z-offset: grava pa_<material> no joelma_vars.cfg e o
+// Espelha a persistencia do Z-offset: grava pa_<material> no k2_vars.cfg e o
 // START_PRINT reaplica a cada print (SET_PRESSURE_ADVANCE zera no restart). Cadeia
 // no macro: material exato -> material-BASE -> default. "Limpar" grava None.
 const PA_MATS = ["PLA","PETG","ABS","ASA","TPU","PC","PA","default"];
@@ -3943,9 +3943,9 @@ async function pintaSistema(){
              ? d.moonraker_version.split("-")[0] : null;
     $("fwMoon").textContent = mv || ("API " + (d.api_version_string || "?"));
   } catch(e) { $("fwMoon").textContent = "?"; }
-  // Firmware da impressora (componente joelma_info)
+  // Firmware da impressora (componente k2_info)
   try {
-    const r = await fetch(base + "/server/joelma/info");
+    const r = await fetch(base + "/server/k2/info");
     const d = (await r.json()).result;
     $("fwPrinter").textContent = d.firmware || "?";
     $("fwModelo").textContent = d.modelo || "impressora";
@@ -3990,7 +3990,7 @@ pintaIcones();
 pintaTema();
 pintaNome();
 // carimbo no console: data da COPIA servida em /usr/share/fluidd — diagnostica
-// na hora se um "joelma update" realmente trocou a pagina
+// na hora se um "k2 update" realmente trocou a pagina
 logLinha("// Central de Calibracao — pagina copiada em " + document.lastModified);
 descobreSensores();
 pintaSistema();

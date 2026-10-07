@@ -1,4 +1,4 @@
-# joelma_dxc2.py - componente Moonraker que ATIVA/DESATIVA o perfil DXC2 e edita
+# k2_dxc2.py - componente Moonraker que ATIVA/DESATIVA o perfil DXC2 e edita
 # as chaves de calibracao no [box] do box.cfg, SEMPRE com backup. Faz parte do
 # fork k2-improvements-joelma.
 #
@@ -13,8 +13,8 @@
 # /printer/firmware_restart depois do POST (um unico dono do efeito).
 #
 # Endpoints:
-#   GET  /server/joelma/dxc2  -> {active, values:{...}, has_snapshot}
-#   POST /server/joelma/dxc2  body:
+#   GET  /server/k2/dxc2  -> {active, values:{...}, has_snapshot}
+#   POST /server/k2/dxc2  body:
 #        {"action":"enable"}                      ativa o perfil DXC2
 #        {"action":"disable"}                     volta ao stock (snapshot)
 #        {"action":"set","key":"Tn_retrude","value":"-18"}   grava 1 chave
@@ -36,7 +36,7 @@ if TYPE_CHECKING:
 CFG_DIR = "/mnt/UDISK/printer_data/config"
 BOX_CFG = os.path.join(CFG_DIR, "box.cfg")
 MAIN_CFG = os.path.join(CFG_DIR, "custom", "main.cfg")
-SNAPSHOT = os.path.join(CFG_DIR, ".joelma_dxc2_stock.json")
+SNAPSHOT = os.path.join(CFG_DIR, ".k2_dxc2_stock.json")
 INCLUDE_LINE = "[include dxc2.cfg]"
 
 # chaves do [box] que o toggle/edicao gerenciam (nada fora disto e tocado)
@@ -116,11 +116,11 @@ def _set_include(incluir: bool) -> None:
         _grava_atomico(MAIN_CFG, "\n".join(linhas) + ("\n" if linhas else ""))
 
 
-class JoelmaDxc2:
+class K2Dxc2:
     def __init__(self, config: "ConfigHelper") -> None:
         self.server = config.get_server()
         self.server.register_endpoint(
-            "/server/joelma/dxc2",
+            "/server/k2/dxc2",
             RequestType.GET | RequestType.POST,
             self._handle,
         )
@@ -206,5 +206,5 @@ class JoelmaDxc2:
                 "aviso": "reinicie o firmware para aplicar"}
 
 
-def load_component(config: "ConfigHelper") -> JoelmaDxc2:
-    return JoelmaDxc2(config)
+def load_component(config: "ConfigHelper") -> K2Dxc2:
+    return K2Dxc2(config)

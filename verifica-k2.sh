@@ -1,12 +1,12 @@
 #!/bin/ash
 # ============================================================
-# Pre-verificacao antes de instalar o k2-improvements na Joelma
+# Pre-verificacao antes de instalar o k2-improvements na K2 Plus
 # Roda NA IMPRESSORA via SSH. Nao modifica nada alem de criar
 # um backup do printer_data/config em /mnt/UDISK.
 # ============================================================
 
 echo "=========================================="
-echo " Pre-verificacao k2-improvements (Joelma)"
+echo " Pre-verificacao k2-improvements (K2 Plus)"
 echo "=========================================="
 
 # ---------- 1. Firmware ----------
@@ -22,7 +22,7 @@ fi
 echo ""
 echo "[1] Firmware detectado: ${FW:-DESCONHECIDO}"
 case "$FW" in
-    1.1.6.*)  echo "    OK - rota da Joelma (no-carto-joelma.sh, adaptado ao 1.1.6.x)" ;;
+    1.1.6.*)  echo "    OK - rota da K2 Plus (no-carto-k2.sh, adaptado ao 1.1.6.x)" ;;
     1.1.5.2)  echo "    OK - rota principal deste fork (testada)" ;;
     1.1.3.13) echo "    OK - suportado (rota do upstream Jacob10383)" ;;
     1.1.2.*)  echo "    ATENCAO - firmware 1.1.2.x tem bugs conhecidos (homing invertido)."
@@ -95,16 +95,16 @@ falta(){ echo "    FALTA - $1"; }
     && ok "Central de Calibracao (calibra.html)" || falta "Central de Calibracao"
 grep -q "sensEl" /usr/share/fluidd/calibra.html 2>/dev/null \
     && ok "calibra.html na versao atual (render in-place)" \
-    || falta "calibra.html atualizado (rode: joelma update)"
-[ -f /usr/share/moonraker/components/joelma_info.py ] \
-    && ok "componente joelma_info" || falta "componente joelma_info"
+    || falta "calibra.html atualizado (rode: k2 update)"
+[ -f /usr/share/moonraker/components/k2_info.py ] \
+    && ok "componente k2_info" || falta "componente k2_info"
 [ -f /usr/share/moonraker/components/spoolman_admin.py ] \
     && ok "componente spoolman_admin" || falta "componente spoolman_admin"
-[ -f /usr/share/moonraker/components/joelma_resonances.py ] \
-    && ok "componente joelma_resonances (graficos de ressonancia)" \
-    || falta "componente joelma_resonances"
-grep -q '^\[joelma_resonances\]' /usr/share/moonraker/moonraker.conf 2>/dev/null \
-    && ok "[joelma_resonances] no moonraker.conf" || falta "[joelma_resonances] no conf"
+[ -f /usr/share/moonraker/components/k2_resonances.py ] \
+    && ok "componente k2_resonances (graficos de ressonancia)" \
+    || falta "componente k2_resonances"
+grep -q '^\[k2_resonances\]' /usr/share/moonraker/moonraker.conf 2>/dev/null \
+    && ok "[k2_resonances] no moonraker.conf" || falta "[k2_resonances] no conf"
 [ -e /mnt/UDISK/printer_data/config/custom/box_guard.cfg ] \
     && ok "box_guard (blindagem do bug key171 do BOX_INFO_REFRESH)" \
     || falta "box_guard (macro de protecao do CFS)"

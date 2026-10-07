@@ -1,4 +1,4 @@
-# joelma_info.py - componente Moonraker que expoe a versao do firmware da
+# k2_info.py - componente Moonraker que expoe a versao do firmware da
 # impressora (o OTA da Creality), que nem o Klipper nem o Moonraker reportam.
 #
 # A Creality guarda a versao numa variavel do U-Boot, nao em arquivo:
@@ -6,7 +6,7 @@
 # (ler /etc/os-release daria a versao do OpenWrt, que NAO e o firmware.)
 #
 # Endpoint:
-#   GET /server/joelma/info -> {firmware, board, modelo, modelo_cod}
+#   GET /server/k2/info -> {firmware, board, modelo, modelo_cod}
 #
 # Faz parte do fork k2-improvements-joelma.
 from __future__ import annotations
@@ -26,16 +26,16 @@ MODELOS = {"F008": "K2 Plus", "F012": "K2 Pro", "F021": "K2",
            "F022": "SPARKX i7", "F018": "Hi"}
 
 
-class JoelmaInfo:
+class K2Info:
     def __init__(self, config: ConfigHelper) -> None:
         self.server = config.get_server()
         self.cache: Optional[Dict[str, Any]] = None
         self.server.register_endpoint(
-            "/server/joelma/info",
+            "/server/k2/info",
             RequestType.GET,
             self._handle_info,
         )
-        logging.info("joelma_info: endpoint registrado")
+        logging.info("k2_info: endpoint registrado")
 
     async def _uboot(self, chave: str) -> Optional[str]:
         # fw_printenv <chave> -> "chave=valor"
@@ -85,5 +85,5 @@ class JoelmaInfo:
         return d
 
 
-def load_component(config: ConfigHelper) -> JoelmaInfo:
-    return JoelmaInfo(config)
+def load_component(config: ConfigHelper) -> K2Info:
+    return K2Info(config)

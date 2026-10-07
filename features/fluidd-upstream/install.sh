@@ -6,11 +6,11 @@
 #   GitHub e so baixa se houver versao nova.
 # - Backup do build da Creality em /usr/share/fluidd_backup (so na 1a vez).
 #   Rollback: rm -rf /usr/share/fluidd && cp -r /usr/share/fluidd_backup /usr/share/fluidd
-# - Preserva os extras da Joelma: camera.html/snapshot.html (do moonraker-upgrade)
+# - Preserva os extras da K2 Plus: camera.html/snapshot.html (do moonraker-upgrade)
 #   e reinstala a Central de Calibracao (nivela_web) por cima do fluidd novo.
 #
 # O firmware stock nao tem curl/wget: download via python3 (urllib), mesmo
-# padrao do bootstrap-joelma.sh.
+# padrao do bootstrap-k2.sh.
 
 set -e
 
@@ -67,7 +67,7 @@ rm -rf ${DEST}
 mv ${TMP} ${DEST}
 rm -f ${ZIP}
 
-# ---------- repoe os extras da Joelma por cima do fluidd novo ----------
+# ---------- repoe os extras da K2 Plus por cima do fluidd novo ----------
 for f in camera.html snapshot.html; do
     [ -f ${BKP}/$f ] && cp ${BKP}/$f ${DEST}/$f && echo "I: ${f} preservado"
 done
@@ -78,4 +78,4 @@ sh ${SCRIPT_DIR}/../nivela_web/install.sh
 /etc/init.d/moonraker restart 2>/dev/null || true
 
 echo "I: fluidd ${REMOTA:-novo} instalado em ${DEST} - http://IP:4408 (Ctrl+F5)"
-echo "I: atualizacoes futuras: aba Machine do Fluidd -> Update (ou joelma update)"
+echo "I: atualizacoes futuras: aba Machine do Fluidd -> Update (ou k2 update)"

@@ -1,17 +1,17 @@
-# joelma_features.py - liga/desliga os RECURSOS AVANCADOS que trocam arquivo do
+# k2_features.py - liga/desliga os RECURSOS AVANCADOS que trocam arquivo do
 # Klipper (axis_twist, save-config-restart), direto pela Central, com status e
 # backup. Zero SSH. Faz parte do fork k2-improvements-joelma.
 #
 # Como funciona: cada recurso e um conjunto de SYMLINKS (arquivo do repo ->
 # destino no Klipper) + opcional include de cfg + opcional patch. Ativar faz
-# BACKUP do original (<dest>.joelma-orig, uma vez), aponta o symlink e reinicia
+# BACKUP do original (<dest>.k2-orig, uma vez), aponta o symlink e reinicia
 # o Klipper. Desativar restaura o backup e reinicia. O estado (ativo/inativo) e
 # detectado pelo symlink -> seguro e idempotente. Mesmo que o configfile.py
 # quebre o host do Klipper, o Moonraker continua e o DESATIVAR daqui recupera.
 #
 # Endpoints:
-#   GET  /server/joelma/features                      -> estado de cada recurso
-#   POST /server/joelma/features {feature, action}    action = enable|disable
+#   GET  /server/k2/features                      -> estado de cada recurso
+#   POST /server/k2/features {feature, action}    action = enable|disable
 from __future__ import annotations
 
 import logging
@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 EXTRAS = "/usr/share/klipper/klippy/extras"
 KLIPPY = "/usr/share/klipper/klippy"
 MAIN_CFG = "/mnt/UDISK/printer_data/config/custom/main.cfg"
-ORIG = ".joelma-orig"
+ORIG = ".k2-orig"
 
 # Registro dos recursos toggleaveis. Caminhos de origem sao RELATIVOS ao repo.
 FEATURES: Dict[str, Dict[str, Any]] = {
@@ -123,12 +123,12 @@ def _include(name: str, add: bool) -> None:
     os.replace(tmp, MAIN_CFG)
 
 
-class JoelmaFeatures:
+class K2Features:
     def __init__(self, config: "ConfigHelper") -> None:
         self.server = config.get_server()
         self.repo = config.get("repo", "/mnt/UDISK/k2-improvements-joelma")
         self.server.register_endpoint(
-            "/server/joelma/features",
+            "/server/k2/features",
             RequestType.GET | RequestType.POST,
             self._handle,
         )
@@ -153,7 +153,7 @@ class JoelmaFeatures:
             else:
                 self._disable(feat)
         except Exception as e:
-            logging.exception("joelma_features %s %s", key, action)
+            logging.exception("k2_features %s %s", key, action)
             raise self.server.error("%s falhou: %s" % (action, e), 500)
         self._restart_klipper()
         return {"ok": True, "feature": key, "active": action == "enable",
@@ -220,12 +220,12 @@ class JoelmaFeatures:
             try:
                 subprocess.run(["/etc/init.d/klipper", "restart"], check=False)
             except Exception:
-                logging.exception("joelma_features: falha ao reiniciar klipper")
+                logging.exception("k2_features: falha ao reiniciar klipper")
         try:
             self.server.get_event_loop().run_in_thread(_do)
         except Exception:
             _do()
 
 
-def load_component(config: "ConfigHelper") -> JoelmaFeatures:
-    return JoelmaFeatures(config)
+def load_component(config: "ConfigHelper") -> K2Features:
+    return K2Features(config)

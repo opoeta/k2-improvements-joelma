@@ -11,12 +11,12 @@ hook) — mais próxima da linhagem do seu firmware que a nossa antiga (503).
 Abra a Central → seção **Recursos avançados** → **Axis Twist Compensation** →
 botão **Ativar** (ou **Desativar**). O painel:
 
-- faz **backup** do `probe.py` original (`probe.py.joelma-orig`, uma vez só),
+- faz **backup** do `probe.py` original (`probe.py.k2-orig`, uma vez só),
 - troca por symlink pro arquivo do repo e patcha o `prtouch_v3`,
 - **reinicia o Klipper sozinho** (~30 s) e mostra o status **ATIVO/inativo**.
 
 Desativar restaura o backup e reinicia. Tudo idempotente e sem terminal.
-(Backend: componente `joelma_features` → `POST /server/joelma/features`.)
+(Backend: componente `k2_features` → `POST /server/k2/features`.)
 
 ## Calibrar
 Depois de ativar, rode `AXIS_TWIST_COMPENSATION_CALIBRATE` (com o bico quente,

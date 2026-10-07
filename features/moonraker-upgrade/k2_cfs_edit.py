@@ -1,4 +1,4 @@
-# joelma_cfs_edit.py - componente Moonraker que edita material/cor de um slot
+# k2_cfs_edit.py - componente Moonraker que edita material/cor de um slot
 # do CFS GRAVANDO NO FIRMWARE, nos mesmos arquivos que a tela da impressora usa
 # (descobertos empiricamente em jul/2026 editando um slot na tela e vendo o que
 # mudou no disco):
@@ -15,12 +15,12 @@
 # edicao pra tela/Orca AO VIVO, sem restart e sem o barramento 485.
 #
 # Endpoints:
-#   GET  /server/joelma/cfs/edit    -> conteudo dos dois JSONs
-#   POST /server/joelma/cfs/edit    -> edita um slot (arquivos + 9999)
+#   GET  /server/k2/cfs/edit    -> conteudo dos dois JSONs
+#   POST /server/k2/cfs/edit    -> edita um slot (arquivos + 9999)
 #        body: {"tnn":"T1D","materialType":"PLA","color":"#RRGGBB",
 #               "name":"apelido","brand":"Generic",
 #               "minTemp":190,"maxTemp":240,"pressure":"0.04"}   (3 ultimos opcionais)
-#   POST /server/joelma/cfs/rfid    -> {"tnn":"T1A"} rele o RFID de UM slot pela
+#   POST /server/k2/cfs/rfid    -> {"tnn":"T1A"} rele o RFID de UM slot pela
 #        9999 (cRFIDRefresh) — seguro, NAO e o BOX_INFO_REFRESH que derruba o Klipper
 #
 # Escrita atomica (tmp + replace). So slots T1A..T4D.
@@ -71,7 +71,7 @@ def _envia_9999(obj: Dict[str, Any], timeout: float = 4.0) -> bool:
     try:
         s = socket.create_connection(("127.0.0.1", 9999), timeout=timeout)
     except OSError as e:
-        logging.info("joelma_cfs_edit: 9999 indisponivel (%s)", e)
+        logging.info("k2_cfs_edit: 9999 indisponivel (%s)", e)
         return False
     try:
         s.settimeout(timeout)
@@ -100,7 +100,7 @@ def _envia_9999(obj: Dict[str, Any], timeout: float = 4.0) -> bool:
         s.sendall(hdr + bytes(b ^ m[i % 4] for i, b in enumerate(payload)))
         return True
     except OSError as e:
-        logging.info("joelma_cfs_edit: falha no envio 9999 (%s)", e)
+        logging.info("k2_cfs_edit: falha no envio 9999 (%s)", e)
         return False
     finally:
         try:
@@ -121,16 +121,16 @@ def _grava(caminho: str, dados: Dict[str, Any]) -> None:
     os.replace(tmp, caminho)
 
 
-class JoelmaCfsEdit:
+class K2CfsEdit:
     def __init__(self, config: ConfigHelper) -> None:
         self.server = config.get_server()
         self.server.register_endpoint(
-            "/server/joelma/cfs/edit",
+            "/server/k2/cfs/edit",
             RequestType.GET | RequestType.POST,
             self._handle,
         )
         self.server.register_endpoint(
-            "/server/joelma/cfs/rfid",
+            "/server/k2/cfs/rfid",
             RequestType.POST,
             self._rfid,
         )
@@ -246,5 +246,5 @@ class JoelmaCfsEdit:
                 "enviado_9999": enviado}
 
 
-def load_component(config: ConfigHelper) -> JoelmaCfsEdit:
-    return JoelmaCfsEdit(config)
+def load_component(config: ConfigHelper) -> K2CfsEdit:
+    return K2CfsEdit(config)

@@ -1,6 +1,6 @@
 #!/bin/ash
 # ============================================================
-# Instalador k2-improvements SEM Cartographer - K2 Plus (Joelma)
+# Instalador k2-improvements SEM Cartographer - K2 Plus (K2 Plus)
 # v2 - ADAPTADO PARA FIRMWARE 1.1.6.x
 #
 # No 1.1.6.x a Creality ja embute Moonraker (7125) e Fluidd

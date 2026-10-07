@@ -1,13 +1,13 @@
 #!/bin/sh
 # ============================================================
-# bootstrap-joelma.sh - roda NA IMPRESSORA (K2 Plus)
+# bootstrap-k2.sh - roda NA IMPRESSORA (K2 Plus)
 # Baixa o pacote k2-improvements-joelma direto do GitHub,
 # extrai em /mnt/UDISK e roda a verificacao (padrao) ou a
 # instalacao (argumento "install").
 #
 # Uso na impressora:
-#   sh bootstrap-joelma.sh              -> so verifica
-#   sh bootstrap-joelma.sh install      -> verifica e instala
+#   sh bootstrap-k2.sh              -> so verifica
+#   sh bootstrap-k2.sh install      -> verifica e instala
 #
 # O firmware stock do K2 Plus nao tem wget nem curl; o download
 # cai no python3 (urllib), que sempre existe no firmware.
@@ -17,11 +17,11 @@ set -e
 
 REPO="${2:-opoeta/k2-improvements-joelma}"
 MODO="${1:-verificar}"
-VERFILE=/mnt/UDISK/.joelma-version
+VERFILE=/mnt/UDISK/.k2-version
 
 URL="https://github.com/${REPO}/archive/refs/heads/main.tar.gz"
 DEST=/mnt/UDISK/k2-improvements-joelma
-TGZ=/mnt/UDISK/k2imp-joelma.tar.gz
+TGZ=/mnt/UDISK/k2imp-k2.tar.gz
 
 echo "==> Baixando ${URL}"
 
@@ -69,21 +69,21 @@ rm -rf "$DEST.tmp" "$TGZ"
 chmod +x "$DEST"/*.sh 2>/dev/null || true
 
 echo "==> Rodando pre-verificacao"
-sh "$DEST/verifica-joelma.sh"
+sh "$DEST/verifica-k2.sh"
 
 if [ "$MODO" = "install" ]; then
     echo ""
     echo "==> Modo install: iniciando instalacao em 5 segundos (Ctrl+C para abortar)"
     sleep 5
-    sh "$DEST/no-carto-joelma.sh"
-    # registra a versao instalada e instala/atualiza o comando joelma
+    sh "$DEST/no-carto-k2.sh"
+    # registra a versao instalada e instala/atualiza o comando k2
     SHA=$(python3 -c "import json,ssl,urllib.request;ctx=ssl._create_unverified_context();print(json.load(urllib.request.urlopen('https://api.github.com/repos/${REPO}/commits/main',context=ctx,timeout=30))['sha'][:12])" 2>/dev/null || true)
     [ -n "$SHA" ] && echo "$SHA" > $VERFILE
-    cp -f "$DEST/joelma" /usr/bin/joelma && chmod +x /usr/bin/joelma
-    echo "==> Comando joelma instalado (versao ${SHA:-desconhecida})"
-    echo "    Proximos updates: ssh root@IP joelma update"
+    cp -f "$DEST/k2" /usr/bin/k2 && chmod +x /usr/bin/k2
+    echo "==> Comando k2 instalado (versao ${SHA:-desconhecida})"
+    echo "    Proximos updates: ssh root@IP k2 update"
 else
     echo ""
     echo "==> Somente verificacao executada. Para instalar:"
-    echo "    sh $DEST/no-carto-joelma.sh"
+    echo "    sh $DEST/no-carto-k2.sh"
 fi

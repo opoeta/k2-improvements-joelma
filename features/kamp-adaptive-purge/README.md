@@ -31,7 +31,7 @@ Small prints get short purges, large prints get long ones — no wasted filament
 `Smart_Park.cfg` from KAMP is intentionally **not** installed — its heat-soak/parking
 conflicts with the heat-soak logic already in k2-improvements' `START_PRINT`.
 
-### Adaptive_Meshing.cfg carries a local patch ("PATCH JOELMA")
+### Adaptive_Meshing.cfg carries a local patch ("PATCH K2")
 
 The K2 Plus probe is a compiled Creality blob (`prtouch_v3_wrapper`, fw 1.1.6.1) that
 always assumes the `[bed_mesh]` config grid (`probe_count: 5,5` = 25 points). Stock KAMP
@@ -41,7 +41,7 @@ adapts `PROBE_COUNT` down (e.g. 3,3) for small prints, which makes the blob thro
 The vendored `Adaptive_Meshing.cfg` keeps the adaptive **area** (the real win) but pins
 the probe **count** to the config grid. A 5×5 mesh over a partial area was validated in
 production (jul/2026). Never re-sync the file from upstream without re-applying the patch
-— `install.sh` greps for the `PATCH JOELMA` marker and aborts if it's missing.
+— `install.sh` greps for the `PATCH K2` marker and aborts if it's missing.
 
 ## Slicer change required
 
