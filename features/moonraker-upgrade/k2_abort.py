@@ -1,7 +1,7 @@
 # k2_abort.py - expoe o endpoint Klipper force_stop_homing (feature
 # abort_homing) via REST, pra a Central disparar o "Parar Homing". Usa o MESMO
 # caminho interno do emergency_stop do Moonraker (_send_klippy_request). Faz
-# parte do fork k2-improvements-joelma.
+# parte do fork k2-improvements.
 #
 # Endpoint:
 #   POST /server/k2/abort_homing  -> chama force_stop_homing no Klipper

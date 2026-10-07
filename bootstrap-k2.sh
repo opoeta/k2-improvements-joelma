@@ -1,7 +1,7 @@
 #!/bin/sh
 # ============================================================
 # bootstrap-k2.sh - roda NA IMPRESSORA (K2 Plus)
-# Baixa o pacote k2-improvements-joelma direto do GitHub,
+# Baixa o pacote k2-improvements direto do GitHub,
 # extrai em /mnt/UDISK e roda a verificacao (padrao) ou a
 # instalacao (argumento "install").
 #
@@ -15,7 +15,7 @@
 
 set -e
 
-REPO="${2:-opoeta/k2-improvements-joelma}"
+REPO="${2:-opoeta/k2-improvements}"
 MODO="${1:-verificar}"
 VERFILE=/mnt/UDISK/.k2-version
 

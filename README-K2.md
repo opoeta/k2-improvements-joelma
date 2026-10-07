@@ -6,16 +6,16 @@ Fork de [erondiel/k2-improvements](https://github.com/erondiel/k2-improvements) 
 
 ```sh
 # Verificar (firmware, respond, espaço, backup — NÃO instala nada):
-curl -sSL https://raw.githubusercontent.com/opoeta/k2-improvements-joelma/main/instalar-remoto.sh | sh -s -- 10.10.1.240
+curl -sSL https://raw.githubusercontent.com/opoeta/k2-improvements/main/instalar-remoto.sh | sh -s -- 10.10.1.240
 
 # Verificar e instalar:
-curl -sSL https://raw.githubusercontent.com/opoeta/k2-improvements-joelma/main/instalar-remoto.sh | sh -s -- 10.10.1.240 install
+curl -sSL https://raw.githubusercontent.com/opoeta/k2-improvements/main/instalar-remoto.sh | sh -s -- 10.10.1.240 install
 ```
 
 Alternativa direto no shell da impressora (stock não tem wget/curl, então via python3):
 
 ```sh
-python3 -c "import urllib.request,ssl;ctx=ssl._create_unverified_context();open('/tmp/bj.sh','wb').write(urllib.request.urlopen('https://raw.githubusercontent.com/opoeta/k2-improvements-joelma/main/bootstrap-k2.sh',context=ctx).read())" && sh /tmp/bj.sh
+python3 -c "import urllib.request,ssl;ctx=ssl._create_unverified_context();open('/tmp/bj.sh','wb').write(urllib.request.urlopen('https://raw.githubusercontent.com/opoeta/k2-improvements/main/bootstrap-k2.sh',context=ctx).read())" && sh /tmp/bj.sh
 ```
 
 ## O que foi modificado em relação ao original

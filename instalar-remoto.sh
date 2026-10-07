@@ -8,14 +8,14 @@
 #   sh instalar-remoto.sh 10.10.1.240 install    -> verifica e instala
 #
 # Ou direto do GitHub, sem clonar nada:
-#   curl -sSL https://raw.githubusercontent.com/opoeta/k2-improvements-joelma/main/instalar-remoto.sh | sh -s -- 10.10.1.240
+#   curl -sSL https://raw.githubusercontent.com/opoeta/k2-improvements/main/instalar-remoto.sh | sh -s -- 10.10.1.240
 # ============================================================
 
 set -e
 
 IP="${1:?Uso: sh instalar-remoto.sh <ip-da-impressora> [install]}"
 MODO="${2:-verificar}"
-REPO="opoeta/k2-improvements-joelma"
+REPO="opoeta/k2-improvements"
 RAW="https://raw.githubusercontent.com/${REPO}/main/bootstrap-k2.sh"
 SENHA_PADRAO="creality_2024"
 

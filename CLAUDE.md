@@ -1,4 +1,4 @@
-# K2 Plus — Creality K2 Plus (fork k2-improvements-joelma)
+# K2 Plus — Creality K2 Plus (fork k2-improvements)
 
 Fork de melhorias para a K2 Plus "K2 Plus": Klipper + Moonraker upstream, **Central de Calibração**
 web completa, integração CFS ↔ Spoolman.

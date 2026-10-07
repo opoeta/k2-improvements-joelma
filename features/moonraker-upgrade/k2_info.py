@@ -8,7 +8,7 @@
 # Endpoint:
 #   GET /server/k2/info -> {firmware, board, modelo, modelo_cod}
 #
-# Faz parte do fork k2-improvements-joelma.
+# Faz parte do fork k2-improvements.
 from __future__ import annotations
 import asyncio
 import logging

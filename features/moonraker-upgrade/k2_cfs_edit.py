@@ -25,7 +25,7 @@
 #
 # Escrita atomica (tmp + replace). So slots T1A..T4D.
 #
-# Faz parte do fork k2-improvements-joelma.
+# Faz parte do fork k2-improvements.
 from __future__ import annotations
 import base64
 import json

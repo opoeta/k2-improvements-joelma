@@ -1,6 +1,6 @@
 # k2_features.py - liga/desliga os RECURSOS AVANCADOS que trocam arquivo do
 # Klipper (axis_twist, save-config-restart), direto pela Central, com status e
-# backup. Zero SSH. Faz parte do fork k2-improvements-joelma.
+# backup. Zero SSH. Faz parte do fork k2-improvements.
 #
 # Como funciona: cada recurso e um conjunto de SYMLINKS (arquivo do repo ->
 # destino no Klipper) + opcional include de cfg + opcional patch. Ativar faz

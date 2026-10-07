@@ -9,7 +9,7 @@
 # Seguranca: le SOMENTE /tmp e SOMENTE nomes no padrao do Klipper
 # (resonances_*.csv / calibration_data_*.csv) — sem path traversal.
 #
-# Faz parte do fork k2-improvements-joelma.
+# Faz parte do fork k2-improvements.
 from __future__ import annotations
 import os
 import re

@@ -1,6 +1,6 @@
 # k2_dxc2.py - componente Moonraker que ATIVA/DESATIVA o perfil DXC2 e edita
 # as chaves de calibracao no [box] do box.cfg, SEMPRE com backup. Faz parte do
-# fork k2-improvements-joelma.
+# fork k2-improvements.
 #
 # Mecanismo (o [box] e secao unica no box.cfg, nao da pra sobrepor de outro
 # arquivo, entao editamos o box.cfg em si):

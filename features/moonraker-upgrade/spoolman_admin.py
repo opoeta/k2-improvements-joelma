@@ -6,7 +6,7 @@
 #   POST /server/spoolman_admin/config  -> grava [spoolman] server no conf e reinicia
 #   GET  /server/spoolman_admin/scan    -> varre a subnet local por servidores Spoolman
 #
-# Faz parte do fork k2-improvements-joelma. Reinstalado pela feature moonraker-upgrade.
+# Faz parte do fork k2-improvements. Reinstalado pela feature moonraker-upgrade.
 from __future__ import annotations
 import asyncio
 import logging
