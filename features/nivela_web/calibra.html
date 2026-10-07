@@ -345,14 +345,6 @@
   .fb-tool b { font-weight:700; display:block; }
   .fb-tool small { color:var(--dim); font-size:.66rem; }
   .fb-tool .wb { font-size:.56rem; color:var(--warn); border:1px solid color-mix(in srgb, var(--warn) 45%, var(--line)); border-radius:6px; padding:1px 5px; margin-left:4px; }
-  /* card Auto-PA (APAX) */
-  .fb-apax { display:flex; gap:14px; align-items:flex-start; margin-top:12px; padding:14px 16px; border-radius:16px;
-             background:linear-gradient(135deg, color-mix(in srgb, var(--primary) 16%, var(--card)), var(--card) 70%);
-             border:1px solid color-mix(in srgb, var(--primary) 40%, var(--line)); }
-  .fb-apax .big { font-size:1.6rem; line-height:1; }
-  .fb-apax .ti { font-weight:800; font-size:.98rem; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-  .fb-apax .new { font-size:.56rem; font-weight:800; letter-spacing:.06em; background:var(--ok); color:#06220a; padding:2px 7px; border-radius:999px; }
-  .fb-apax p { margin:5px 0 9px; font-size:.76rem; color:var(--mut); line-height:1.4; }
   /* ---------- Spoolman (configurador) ---------- */
   #sp-found { margin-top:10px; display:flex; flex-direction:column; gap:6px; }
   .sp-hit { display:flex; align-items:center; gap:9px; padding:9px 11px; border-radius:8px;
@@ -538,14 +530,6 @@
   <button class="ghost" id="fb-ex-heat"><i data-ic="flame"></i> Aquecer</button>
   <button class="principal" id="fb-ex-go"><i data-ic="load"></i> Extrudar</button>
   <button class="ghost" id="fb-ex-ret"><i data-ic="eject"></i> Retrair</button>
-</div>
-<div class="fb-apax" id="fb-apax" style="display:none">
-  <span class="big">⚡</span>
-  <div style="flex:1">
-    <div class="ti">Auto-PA dinâmico (APAX)</div>
-    <p>O firmware tem detecção de Pressure Advance pela célula de carga (<code>AUTO_APAX</code>) — ajusta o PA sem calibrar no fatiador. Não aparece no changelog oficial, então começamos só com o teste de diagnóstico seguro (não altera a impressão). A integração no START_PRINT vem depois de validar.</p>
-    <button class="ghost" id="fb-apax-test">Testar Auto-PA (diagnóstico)</button>
-  </div>
 </div>
 <div id="fb-editor" style="display:none">
   <div class="lin" style="gap:8px;flex-wrap:wrap;align-items:end;margin-top:8px">
@@ -857,13 +841,6 @@
     </div>
     <div id="palist" class="dica" style="margin-top:6px">PA salvos: lendo…</div>
 
-    <div class="dica" style="margin-top:14px"><b>Auto-PA por célula de carga (experimental).</b> Usa o sensor de força do bico (prtouch/CS1237, ~1280&nbsp;Hz) pra medir a <b>contrapressão</b> do filamento em várias vazões — <b>sem imprimir</b>. Primeiro confirma se o sinal sai do ruído (SNR); com sinal bom, dá pra derivar o PA e a <b>vazão volumétrica máx</b>. Solta um cordão curto no ar sobre o centro.</div>
-    <div class="lin" style="gap:10px;flex-wrap:wrap">
-      <label style="min-width:auto">Bico °C <input type="number" id="paf-temp" value="220" step="5" min="170" max="300" style="width:64px"></label>
-      <label style="min-width:auto">Vazões (mm³/s) <input type="text" id="paf-flows" value="3,5,8,11,14,18" style="width:150px"></label>
-      <button id="pafgo" class="principal"><i data-ic="activity"></i> Medir contrapressão</button>
-    </div>
-    <div id="pafout" class="dica" style="margin-top:6px;white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.78rem"></div>
   </div>
 </details>
 
@@ -1604,18 +1581,16 @@ function fbGauge(cor, pct){
 function fbHumClass(h){ const v = parseFloat(h); if (isNaN(v)) return ""; return v < 45 ? "hum-ok" : v <= 60 ? "hum-warn" : "hum-bad"; }
 function fbRender(boxes, meta){
   fbSlots = {};
-  const tools = $("fb-tools"), apax = $("fb-apax"), extr = $("fb-extrude");
+  const tools = $("fb-tools"), extr = $("fb-extrude");
   if (!boxes || !boxes.length) {
     $("fb-status").textContent = "CFS: desconectado";
     $("fb-clima").textContent = "🌡 — · 💧 —"; $("fb-path").textContent = "bico: —"; $("fb-runout").textContent = "";
     $("fb-grid").innerHTML = '<div class="det" style="grid-column:1/-1">nenhuma CFS conectada</div>';
     if (tools) tools.style.display = "none";
-    if (apax) apax.style.display = "none";
     if (extr) extr.style.display = "none";
     return;
   }
   if (tools) tools.style.display = "";
-  if (apax) apax.style.display = "";
   if (extr) { extr.style.display = ""; $("fb-ex-slot").textContent = meta.ativoTnn ? "carregado (" + meta.ativoTnn + ")" : "carregado"; }
   fbAtivoTnn = meta.ativoTnn || null;
   const multi = boxes.length > 1;
@@ -1792,14 +1767,6 @@ $("fb-nozzle").onclick = async () => {
   if (!(await fbNaoImprimindo())) { logLinha("!! Limpar bico: impressão em andamento — abortado"); return; }
   if (!confirm("Limpar o bico? Vai AQUECER e mover a cabeça até a mesa.")) return;
   roda("CX_NOZZLE_CLEAR", "Limpando o bico", 6, function(){ fbAtualiza(); });
-};
-// Auto-PA (APAX) — SO o diagnostico seguro por enquanto (TEST_APAX). A
-// integracao do AUTO_APAX RUN_TYPE no START_PRINT fica para depois de validar.
-$("fb-apax-test").onclick = async () => {
-  if (ocupado) return;
-  if (!(await fbNaoImprimindo())) { logLinha("!! Auto-PA: impressão em andamento — abortado"); return; }
-  if (!confirm("Rodar o teste de Auto-PA (APAX)? Vai aquecer o bico e extrudar um pouco pra medir a contrapressão pela célula de carga. NÃO altera a impressão.")) return;
-  roda("TEST_APAX", "Testando Auto-PA (APAX)", 8, null);
 };
 // Extrusao manual — no filamento carregado no bico. Guarda de bico frio: o
 // Klipper recusa extrudar abaixo do min_extrude_temp; aqui barramos antes em
@@ -3669,66 +3636,6 @@ async function paSalvar(){
 }
 $("pasave").onclick = () => { if (!ocupado) paSalvar(); };
 
-// ---------- Auto-PA por celula de carga (experimental): varredura READ_PRES ----------
-// Le a forca (prtouch/CS1237) via READ_PRES pela API do Moonraker (gcode_store),
-// mede a contrapressao em varias vazoes e diz se o sinal sai do ruido (SNR). Nao
-// seta PA: e MEDICAO. Mesma logica do pa_tuner.py, agora no navegador.
-const PAF_INFO_RE = /\[PRES_DATA_CH0_INFO\]\[CFG=\S+\s+MIN=(-?\d+)\s+MAX=(-?\d+)\s+DIF=(\d+)\s+AVG=(-?\d+)\]/;
-async function pafReadPres(){
-  await gcode("READ_PRES", 1);
-  await new Promise(r => setTimeout(r, 450));
-  const d = await rpc("server.gcode_store", {count: 80});
-  const msgs = (d.gcode_store || []).map(m => m.message);
-  for (let i = msgs.length - 1; i >= 0; i--) {
-    const m = msgs[i].match(PAF_INFO_RE);
-    if (m) return { min:+m[1], max:+m[2], dif:+m[3], avg:+m[4] };
-  }
-  throw new Error("READ_PRES não retornou [PRES_DATA_CH0_INFO] (comando existe nesta cabeça?)");
-}
-async function pafMedir(){
-  const temp = Math.max(170, Math.min(300, +$("paf-temp").value || 220));
-  const flows = ($("paf-flows").value || "").split(",").map(s => parseFloat(s.trim())).filter(x => isFinite(x) && x > 0);
-  if (!flows.length) { setStatus("Vazões inválidas", "ex.: 3,5,8,11,14,18", "err"); return; }
-  if (!confirm("Medir contrapressão em " + flows.length + " vazões?\n\nConfirme: FILAMENTO carregado. Bico vai a " + temp + "C e solta um cordão curto no ar sobre o centro (X175 Y175, Z30).")) return;
-  const AREA = Math.PI * Math.pow(1.75 / 2, 2), DUR = 4.0;   // ~4s de extrusao por vazao
-  trava(true); setStatus("Auto-PA: medindo contrapressão", "aquecendo e varrendo vazões — acompanhe abaixo", "busy");
-  const out = $("pafout"); out.textContent = "";
-  const log = s => { out.textContent += s + "\n"; };
-  try {
-    await gcode("G90", 1);
-    await gcode("G1 Z30 F1200", 2);
-    await gcode("G1 X175 Y175 F6000", 2);
-    log("aquecendo bico " + temp + "C...");
-    await gcode("M104 S" + temp, 1);
-    await gcode("M109 S" + temp, 6);
-    await gcode("M83", 1);
-    const idle = await pafReadPres();   // ruído REAL de repouso (bico parado) = piso p/ o SNR
-    log("ruído de repouso (DIF) = " + idle.dif + " counts");
-    const rows = [];
-    for (const q of flows) {
-      const v = q / AREA, feed = v * 60, length = Math.max(2, v * DUR);
-      const base = await pafReadPres();
-      await gcode("G1 E" + length.toFixed(2) + " F" + feed.toFixed(1), 5);
-      const load = await pafReadPres();
-      await gcode("G1 E-2 F1800", 1);
-      await new Promise(r => setTimeout(r, 1200));
-      const sig = load.avg - base.avg;
-      rows.push({ q, feed, sig, dif: load.dif });
-      log("q=" + q.toFixed(1) + " mm3/s  feed=" + feed.toFixed(0) + "  sinal=" + (sig >= 0 ? "+" : "") + sig + " counts  (ruído=" + load.dif + ")");
-    }
-    await gcode("M104 S0", 1);
-    // piso de ruído = DIF de REPOUSO (nao o DIF durante extrusao, que e a propria
-    // pressao variando). Sinal = |load - base| por vazao.
-    const noise = Math.max(idle.dif, 1);
-    const big = Math.max.apply(null, rows.map(r => Math.abs(r.sig)));
-    log("\nsinal máx=" + big + "  ruído repouso=" + noise + "  SNR~" + (big / noise).toFixed(0) + "x");
-    if (big > 3 * noise) { log("VEREDITO: SNR ÓTIMO → auto-PA destravado. Manda esta saída pro Claude derivar o K."); setStatus("Auto-PA: SNR ótimo", "sinal bem acima do ruído", "on"); }
-    else if (big > noise) { log("VEREDITO: SNR marginal → dá com média/repetição. Manda pro Claude."); setStatus("Auto-PA: SNR marginal", "dá, com cuidado", "on"); }
-    else { log("VEREDITO: sinal PERDIDO no ruído → load-cell não compensa nesta cabeça. Use o teste de linha."); setStatus("Auto-PA: sem sinal", "use o teste de linha", "err"); }
-  } catch(e){ log("\nFALHOU: " + e.message); setStatus("FALHOU: auto-PA", e.message, "err"); logLinha("!! " + e.message); try { await gcode("M104 S0", 1); } catch(_){} }
-  finally { trava(false); }
-}
-$("pafgo").onclick = () => { if (!ocupado) pafMedir(); };
 // extrusora
 $("ext100").onclick = () => roda(
   "M109 S220\nG91\nG1 E100 F60\nG90", "Extrudando 100mm a 220C (leva ~2 min)", 8);
