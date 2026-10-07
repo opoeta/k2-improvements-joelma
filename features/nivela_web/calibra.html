@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Central de Calibração — Joelma</title>
+<title>Central de Calibração — K2 Plus</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -412,7 +412,7 @@
   <div class="appbar-title">
     <i data-ic="wrench"></i>
     <div style="min-width:0">
-      <div class="appbar-nome">Central de Calibração — <span id="nomeImpressora">Joelma</span></div>
+      <div class="appbar-nome">Central de Calibração — <span id="nomeImpressora">K2 Plus</span></div>
       <div class="sub">K2 Plus — vista de cima, a FRENTE da impressora é você (embaixo)</div>
     </div>
   </div>
@@ -786,7 +786,7 @@
 <details class="acc" id="acc-shaper">
   <summary><i data-ic="wave"></i> Input Shaper &amp; ressonância <span class="acc-tag vazio" id="tag-shaper">—</span></summary>
   <div class="acc-body">
-    <div class="dica">A Joelma tem acelerômetro <b>LIS2DW</b> no bico. O shaper mata o ringing (ghosting) nas paredes. Rode o teste de cada eixo e depois <b>SALVAR</b>.</div>
+    <div class="dica">A K2 Plus tem acelerômetro <b>LIS2DW</b> no bico. O shaper mata o ringing (ghosting) nas paredes. Rode o teste de cada eixo e depois <b>SALVAR</b>.</div>
     <div class="botoes">
       <button id="shapercal" class="principal"><i data-ic="wave"></i> CALIBRAR AUTOMÁTICO (X + Y, ~5 min)</button>
       <button id="resx">Testar eixo X</button>
@@ -919,7 +919,7 @@
 </div>
 
 <div class="aviso">
-  Cada card manda <b>SUBIR</b> ou <b>DESCER</b> o canto (medido pelo probe — sempre certo). Sentido (padrão Klipper CW-M4, confirmado na Joelma): <b>SUBIR = horário</b> • <b>DESCER = anti-horário</b>. Na dúvida gire um pouco e aperte RELER — se o desvio <b>aumentar</b>, inverta.<br>
+  Cada card manda <b>SUBIR</b> ou <b>DESCER</b> o canto (medido pelo probe — sempre certo). Sentido (padrão Klipper CW-M4, confirmado na K2 Plus): <b>SUBIR = horário</b> • <b>DESCER = anti-horário</b>. Na dúvida gire um pouco e aperte RELER — se o desvio <b>aumentar</b>, inverta.<br>
   Repita a medição até todos ✓ OK (≤ 18°). Após PID concluído, aperte SALVAR para gravar.
 </div>
 <script>
@@ -1184,7 +1184,7 @@ function desenha(){
 // que pular aos olhos); depois o RUIDO de baixo nivel (protocolo serial/motor,
 // blobs hex, debug interno do firmware) vai pro cinza pra nao competir; por fim
 // as tarefas (gcode, calibracao, CFS, ventoinha). Baseado nos tipos de linha
-// reais do console ao vivo da Joelma (dump jul/2026).
+// reais do console ao vivo da K2 Plus (dump jul/2026).
 function logClasse(msg){
   if (msg.startsWith("!!")) return "e";                                        // erro
   if (msg.startsWith("$"))  return "cmd";                                      // voce digitou
@@ -1368,7 +1368,7 @@ async function render(){
 // printhead, Spoolman (extra.tag = TNN) e edição ao vivo pela porta 9999
 // (joelma_cfs_edit). Encoder/buffer/clog não existem no stock — omitidos em
 // vez de exibir "--" falso.
-// FONTE PRIMÁRIA = box.same_material (o firmware da Joelma resolve material +
+// FONTE PRIMÁRIA = box.same_material (o firmware da K2 Plus resolve material +
 // cor + NOME por TNN aqui; confirmado no dump jul/2026). Ex.:
 //   ["001601","0000000",["T1C"],"PLA"]  -> T1C = PLA, preto.
 // O material_type/color_value cru (codigo tipo "001601") e so fallback.
@@ -3375,7 +3375,7 @@ async function zcLerSalvos(){
     // com a persistencia inexistente e o Salvar quebraria com erro criptico.
     if (!q || !q.status || !("save_variables" in q.status)) {
       zcDispo = false;
-      $("zclist").textContent = "persistência indisponível — rode o update da Joelma (instala o [save_variables]) e reinicie o Klipper";
+      $("zclist").textContent = "persistência indisponível — rode o update da K2 Plus (instala o [save_variables]) e reinicie o Klipper";
       return;
     }
     zcDispo = true;
@@ -3426,8 +3426,8 @@ $("zclist").addEventListener("click", async ev => {
 });
 async function zcSalvar(){
   if (!zcDispo) {
-    logLinha("!! persistencia indisponivel - rode o update da Joelma ([save_variables]) e recarregue a Central");
-    setStatus("Persistência indisponível", "rode o update da Joelma e recarregue", "err");
+    logLinha("!! persistencia indisponivel - rode o update da K2 Plus ([save_variables]) e recarregue a Central");
+    setStatus("Persistência indisponível", "rode o update da K2 Plus e recarregue", "err");
     zcLerSalvos();
     return;
   }
@@ -3615,7 +3615,7 @@ async function paLerSalvos(){
     const q = await rpc("printer.objects.query", {objects:{save_variables:null}});
     if (!q || !q.status || !("save_variables" in q.status)) {
       paDispo = false;
-      $("palist").textContent = "persistência indisponível — rode o update da Joelma ([save_variables]) e reinicie o Klipper";
+      $("palist").textContent = "persistência indisponível — rode o update da K2 Plus ([save_variables]) e reinicie o Klipper";
       return;
     }
     paDispo = true;
@@ -3644,7 +3644,7 @@ $("palist").addEventListener("click", ev => {
   }
 });
 async function paSalvar(){
-  if (!paDispo) { setStatus("Persistência indisponível", "rode o update da Joelma e recarregue", "err"); paLerSalvos(); return; }
+  if (!paDispo) { setStatus("Persistência indisponível", "rode o update da K2 Plus e recarregue", "err"); paLerSalvos(); return; }
   const mat = $("pa-mat").value, v = +$("pa-val").value;
   if (!isFinite(v) || v < 0 || v > 1) { setStatus("PA inválido", "informe um valor entre 0 e 1", "err"); return; }
   const k = "pa_" + mat.toLowerCase();
@@ -3829,7 +3829,7 @@ function renderSensores(){
 async function pintaNome(){
   try {
     const r = await fetch(base + "/server/database/item?namespace=fluidd&key=uiSettings.general.instanceName");
-    if (!r.ok) return;                          // sem nome configurado: mantem "Joelma"
+    if (!r.ok) return;                          // sem nome configurado: mantem "K2 Plus"
     const nome = (await r.json()).result.value;
     if (nome && typeof nome === "string") {
       $("nomeImpressora").textContent = nome;
