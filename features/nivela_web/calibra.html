@@ -769,6 +769,19 @@
     </div>
     <div id="zc-atual-hint" class="dica" style="margin-top:4px;font-size:.78rem;opacity:.85"></div>
     <div id="zclist" class="dica" style="margin-top:6px">offsets salvos: lendo…</div>
+
+    <div style="margin-top:14px;border-top:1px solid var(--bd,#30363d);padding-top:12px">
+      <b>🎯 Assistente de Z-offset por placa</b>
+      <div class="dica" style="margin-top:4px">Desenha um <b>patch de 1ª camada real</b> no centro (material e temperatura reais — reflete a placa de verdade), você ajusta ao vivo e salva na placa. <b>Precisa de filamento carregado</b> (pela tela) e bico quente. O patch anda um pouco a cada redesenho pra cair em mesa limpa.</div>
+      <div class="lin" style="gap:8px;align-items:flex-end;flex-wrap:wrap;margin-top:8px">
+        <label style="min-width:auto;font-size:.7rem;color:var(--mut)">Temp (°C)<br><input type="number" id="zw-temp" value="220" step="5" style="width:72px"></label>
+        <button class="principal" id="zw-start"><i data-ic="target"></i> Começar (home + patch)</button>
+        <button class="ghost" id="zw-redraw"><i data-ic="refresh"></i> Redesenhar</button>
+        <button class="salvar" id="zw-save"><i data-ic="save"></i> Salvar nesta placa</button>
+        <button class="ghost" id="zw-end"><i data-ic="eject"></i> Encerrar</button>
+      </div>
+      <div class="dica" style="margin-top:6px">Fluxo: <b>Começar</b> → observe o patch → ajuste com os botões <b>Offset Z</b> lá em cima → <b>Redesenhar</b> pra ver de novo → <b>Salvar nesta placa</b> quando perfeito. &nbsp; Linhas <b>separadas/translúcidas</b> = bico ALTO → mais <b>negativo</b>. &nbsp; <b>Áspero/arrastando</b> = bico BAIXO → mais <b>positivo</b>. Dica: clique <b>Aplicar agora</b> num offset salvo pra partir dele.</div>
+    </div>
   </div>
 </details>
 
@@ -3446,6 +3459,46 @@ async function zcSalvar(){
   roda("SAVE_VARIABLE VARIABLE=" + k + " VALUE=" + v.toFixed(3), "Salvando offset " + v.toFixed(3) + "mm p/ " + zcNome(k), 2, () => zcLerSalvos());
 }
 $("zcsave").onclick = () => { if (!ocupado) zcSalvar(); };
+
+// ---------- Assistente de Z-offset por placa (patch de 1a camada real) ----------
+// Desenha um patch real no centro (material/temp reais) pra julgar o squish ao
+// vivo. O ajuste usa os botoes de Offset Z (SET_GCODE_OFFSET MOVE=1); o salvar
+// reusa o zcSalvar (grava zoff_<mat>_<placa>). Cada patch anda em Y pra cair em
+// mesa limpa. Exige filamento carregado (pela tela) e bico quente (M109).
+let zwN = 0;
+function zwPatch(){
+  const dy = ((zwN++ % 5) - 2) * 10;   // -20..+20 mm em passos de 10, perto do centro
+  const y = 165 + dy, x0 = 155, x1 = 195;
+  let g = "M83\nG90\nG1 Z3 F600\n";
+  g += "G1 X" + x0 + " Y" + y + " F9000\n";
+  g += "G1 Z0.2 F600\nG1 E3 F300\n";   // desce e purga um fio
+  let yy = y;
+  for (let i = 0; i < 5; i++) {
+    g += "G1 X" + (i % 2 === 0 ? x1 : x0) + " E1.5 F1200\n";
+    if (i < 4) { yy += 2; g += "G1 Y" + yy + " E0.08 F1200\n"; }
+  }
+  g += "G1 E-1 F1800\nG1 Z3 F600\nG90\n";
+  return g;
+}
+$("zw-start").onclick = async () => {
+  if (ocupado) return;
+  if (!(await fbNaoImprimindo())) { logLinha("!! Z-offset: impressão em andamento — abortado"); return; }
+  const t = parseFloat($("zw-temp").value);
+  if (!(t >= 150 && t <= 300)) { logLinha("!! temp inválida (150–300°C)"); return; }
+  if (!fbAtivoTnn && !confirm("Nenhum filamento detectado carregado. Carregue pela tela antes.\n\nComeçar mesmo assim?")) return;
+  const ph = await prefixoHome();
+  if (ph) logLinha("// sem home — G28 antes do patch");
+  roda(ph + "M109 S" + t + "\n" + zwPatch(), "Z-offset: aquecendo + desenhando patch", 8, () => leCalib());
+};
+$("zw-redraw").onclick = () => {
+  if (ocupado) return;
+  roda(zwPatch(), "Z-offset: redesenhando patch", 5, () => leCalib());
+};
+$("zw-save").onclick = () => { if (!ocupado) zcSalvar(); };
+$("zw-end").onclick = () => {
+  if (ocupado) return;
+  roda("G91\nG1 Z10 F600\nG90\nM104 S0", "Encerrando assistente (bico levantado, aquecedor off)", 3, () => leCalib());
+};
 // material auto-detectado do slot CARREGADO do CFS (box.T1.filament + same_material);
 // o select continua manual — auto so pre-seleciona quando reconhece. Retry cobre o
 // boot (Moonraker/Klipper ainda subindo). A leitura da LISTA de offsets nao mora
