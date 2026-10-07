@@ -3296,7 +3296,24 @@ $("zc-mat").innerHTML = ZC_MATS.map(m => "<option>" + m + "</option>").join("");
 // slug da placa usa "_" (mesmo separador do START_PRINT) -> nome de variavel
 // [a-z0-9_], aceito por qualquer Klipper no SAVE_VARIABLE
 const PLACA_KEY_RE = /^placa_([a-z0-9_]+)$/;
-const PLACA_DEFAULTS = {textured:"Textured PEI", smooth:"Smooth PEI"};
+// Placas pre-cadastradas: o VALUE e o slug que o START_PRINT calcula do
+// curr_bed_type (minusculo, nao-alfanum -> "_"). CONFIRMADOS nos slices do
+// usuario: textured_pei_plate, high_temp_plate, customized_plate. Os demais
+// usam o nome canonico padrao Orca/Creality — se um slice registrar um slug
+// diferente (auto-registro do START_PRINT), esse e o autoritativo. "textured"/
+// "smooth" ficam como fallback binario (PLACA_BIN) do START_PRINT.
+const PLACA_DEFAULTS = {
+  textured_pei_plate:   "PEI Texturizada (Textured PEI Plate)",
+  high_temp_plate:      "PEI Lisa / Alta Temp (High Temp Plate)",
+  customized_plate:     "Personalizada (Customized Plate)",
+  epoxy_resin_plate:    "Resina Epóxi (Epoxy Resin Plate)",
+  cool_plate:           "Fria Lisa (Cool Plate)",
+  textured_cool_plate:  "Fria Texturizada (Textured Cool Plate)",
+  engineering_plate:    "Engenharia (Engineering Plate)",
+  cool_plate_supertack: "Fria SuperTack (Cool Plate SuperTack)",
+  textured:             "— genérica texturizada —",
+  smooth:               "— genérica lisa —",
+};
 let placaLabels = Object.assign({}, PLACA_DEFAULTS);   // slug -> label amigavel
 function escHtml(s){ return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]); }
 function placaNome(slug){   // label do variables, senao prettifica o slug
