@@ -109,6 +109,27 @@ grep -q '^\[k2_resonances\]' /usr/share/moonraker/moonraker.conf 2>/dev/null \
     && ok "box_guard (blindagem do bug key171 do BOX_INFO_REFRESH)" \
     || falta "box_guard (macro de protecao do CFS)"
 
+# ---------- 7. Paridade componente <-> secao no moonraker.conf ----------
+# Modo de falha visto em 10/2025: os k2_*.py existiam em components/ mas as
+# secoes [k2_*] nunca foram gravadas no conf (um cleanup copiou os .py por fora
+# do install.sh). Sem a secao, o Moonraker nao registra a rota e a Central da
+# "Failed to fetch". Aqui conferimos que TODO k2_*.py tem seu [k2_*].
+echo ""
+echo "[7] Paridade componentes k2_* <-> secoes [k2_*] no moonraker.conf:"
+MKCONF=/usr/share/moonraker/moonraker.conf
+GAP=0
+for PY in /usr/share/moonraker/components/k2_*.py; do
+    [ -f "$PY" ] || continue
+    NAME=$(basename "$PY" .py)
+    if grep -q "^\[$NAME\]" "$MKCONF" 2>/dev/null; then
+        ok "[$NAME] registrado"
+    else
+        falta "[$NAME] SEM secao no conf (rota morta - rode: k2 update)"
+        GAP=1
+    fi
+done
+[ "$GAP" = "0" ] && echo "    (todas as rotas k2_* registradas)"
+
 echo ""
 echo "=========================================="
 echo " Verificacao concluida. Me mande a saida"
