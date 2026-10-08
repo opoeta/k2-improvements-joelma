@@ -2881,9 +2881,14 @@ async function leCalib(){
     if (cfg && cfg.input_shaper) {
       const i = cfg.input_shaper;
       const tx = (i.shaper_type_x || "?").toUpperCase();
+      const ty = (i.shaper_type_y || "?").toUpperCase();
       const fx = i.shaper_freq_x ? Math.round(i.shaper_freq_x) : "?";
       const fy = i.shaper_freq_y ? Math.round(i.shaper_freq_y) : "?";
-      tag("tag-shaper", tx + " " + fx + "/" + fy + "Hz", true);
+      // mostra os dois tipos quando diferem (ex. "EI/MZV 39/41Hz"); se iguais,
+      // um so (ex. "MZV 39/41Hz") pra nao poluir. Antes so mostrava o X e o badge
+      // ficava "cego" pro shaper do Y.
+      const tipo = (tx === ty) ? tx : (tx + "/" + ty);
+      tag("tag-shaper", tipo + " " + fx + "/" + fy + "Hz", true);
     }
 
     // Mesh
