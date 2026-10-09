@@ -405,6 +405,31 @@
   @media (max-width:400px) {
     .swatch { width:38px; height:38px; }
   }
+  /* ---------- barra de 1a camada (celular): fixa no rodape, SO durante a impressao ---------- */
+  .pc { display:none; position:fixed; left:0; right:0; bottom:0; z-index:60;
+        background:var(--glass); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+        border-top:1px solid var(--line); box-shadow:var(--elev2);
+        padding:10px 12px calc(10px + env(safe-area-inset-bottom)); }
+  .pc.on { display:block; animation:surge .3s ease both; }
+  .pc-top, .pc-body { max-width:720px; margin:0 auto; }
+  .pc-top { display:flex; align-items:center; gap:10px; }
+  .pc-info { flex:1; min-width:0; }
+  .pc-combo { font-size:.8rem; color:var(--mut); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .pc-off { font-size:1.6rem; font-weight:700; font-variant-numeric:tabular-nums; color:var(--txt); line-height:1.15; }
+  .pc-off small { font-size:.8rem; font-weight:400; color:var(--mut); }
+  .pc-x { min-width:44px; min-height:44px; border:0; border-radius:10px; background:var(--card2); color:var(--txt); font-size:1.1rem; }
+  .pc-body { margin-top:8px; }
+  .pc.min .pc-body { display:none; }
+  .pc-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+  .pc-grid button { min-height:58px; border:0; border-radius:10px; background:var(--card2); color:var(--txt);
+                    font-size:1.15rem; font-weight:700; font-variant-numeric:tabular-nums; touch-action:manipulation; }
+  .pc-grid button.neg { box-shadow:inset 0 -3px 0 var(--primary); }
+  .pc-grid button.pos { box-shadow:inset 0 -3px 0 var(--warn); }
+  .pc-grid button:active { transform:scale(.96); }
+  .pc-dica { font-size:.72rem; color:var(--mut); text-align:center; margin-top:6px; }
+  .pc-save { width:100%; min-height:54px; margin-top:8px; border:0; border-radius:10px;
+             background:var(--warn); color:#111; font-size:1rem; font-weight:700; touch-action:manipulation; }
+  .pc-save:disabled { opacity:.5; }
 </style>
 </head>
 <body>
@@ -913,6 +938,29 @@
 
 <h2><i data-ic="terminal"></i> CONSOLE AO VIVO</h2>
 <div id="console"></div>
+
+<!-- Barra de 1a camada (celular): aparece sozinha durante a impressao. Ajuste
+     ao vivo + Salvar direto na combinacao placa+material que o FATIADOR mandou. -->
+<div id="pc" class="pc" role="region" aria-label="Ajuste da primeira camada">
+  <div class="pc-top">
+    <div class="pc-info">
+      <div class="pc-combo" id="pc-combo">imprimindo…</div>
+      <div class="pc-off"><span id="pc-off">0.000</span> <small>mm</small></div>
+    </div>
+    <button id="pc-min" class="pc-x" aria-label="Minimizar/expandir">▾</button>
+  </div>
+  <div class="pc-body">
+    <div class="pc-grid">
+      <button class="neg" data-pc="-0.05">−0.05</button>
+      <button class="neg" data-pc="-0.01">−0.01</button>
+      <button class="pos" data-pc="0.01">+0.01</button>
+      <button class="pos" data-pc="0.05">+0.05</button>
+    </div>
+    <div class="pc-dica">falhas / não gruda → <b>−</b> &nbsp;·&nbsp; áspero / translúcido → <b>+</b> &nbsp;·&nbsp; liso e unido = salvar</div>
+    <button id="pc-save" class="pc-save">SALVAR NESTA PLACA + MATERIAL</button>
+    <div class="pc-dica" id="pc-saved"></div>
+  </div>
+</div>
 <div class="cmd-row">
   <input id="cmdin" placeholder="G-code (ex: M114) — Enter envia" autocomplete="off">
   <button id="cmdgo" title="Enviar comando"><i data-ic="terminal"></i></button>
@@ -1101,6 +1149,8 @@ function aplicaStatus(st){
   if (st.heater_bed) { if (st.heater_bed.temperature !== undefined) ultimo.bed = st.heater_bed.temperature; if (st.heater_bed.target !== undefined) ultimo.bedT = st.heater_bed.target; }
   if (st.extruder) { if (st.extruder.temperature !== undefined) ultimo.ext = st.extruder.temperature; if (st.extruder.target !== undefined) ultimo.extT = st.extruder.target; }
   if (st.idle_timeout && st.idle_timeout.state) ultimo.idle = st.idle_timeout.state;
+  if (st.print_stats && st.print_stats.state !== undefined) pcEstado(st.print_stats.state);
+  if (st.gcode_move && st.gcode_move.homing_origin) pcOffset(+st.gcode_move.homing_origin[2]);
   if (st.display_status && st.display_status.message) $("detalhe").textContent = st.display_status.message;
   if (st["output_pin LED"] && st["output_pin LED"].value !== undefined) pintaLuz(+st["output_pin LED"].value);
   if (st.toolhead) {
@@ -3393,6 +3443,81 @@ async function zcUsarPlacaAtual(){
   setStatus("Placa + material do fatiador", placaNome(slug) + " · " + matTxt, "ok");
 }
 $("zc-atual").onclick = () => { if (!ocupado) zcUsarPlacaAtual(); };
+// ---------- Barra de 1a camada (celular) ----------
+// Aparece sozinha com print_stats=printing/paused. Os ajustes vao DIRETO no
+// Klipper (sem roda/trava: nao trava o painel e aceita toques seguidos -
+// Z_ADJUST e aditivo, a ordem nao importa). Salvar grava zoff_<mat>_<placa> da
+// combinacao que o FATIADOR mandou (cur_placa/cur_mat), sem mexer em dropdown.
+const PC_LS = "pc:min";
+let pcOn = false, pcOff = 0;
+function pcAjustaPadding(){
+  document.body.style.paddingBottom = pcOn ? ($("pc").offsetHeight + 12) + "px" : "";
+}
+function pcCombo(){   // {slug, mat, ok}
+  const slug = zcPlacaAtualSlug(), m = zcMatAtual();
+  const mat = (typeof m === "string") ? m : $("zc-mat").value;
+  return {slug, mat, ok: !!slug && ZC_MATS.indexOf(mat) >= 0 && mat !== "default"};
+}
+function pcRender(){
+  if (!pcOn) return;
+  const c = pcCombo();
+  $("pc-combo").textContent = c.slug ? (placaNome(c.slug) + " · " + c.mat) : "placa do fatiador: aguardando o START_PRINT…";
+  const k = c.ok ? "zoff_" + c.mat.toLowerCase() + "_" + c.slug : null;
+  const salvo = (k && typeof zcVars[k] === "number") ? zcVars[k] : null;
+  $("pc-saved").textContent = salvo !== null ? "salvo p/ esta combinação: " + (salvo >= 0 ? "+" : "") + salvo.toFixed(3) + " mm" : (c.ok ? "nada salvo ainda p/ esta combinação" : "");
+  $("pc-save").disabled = !c.ok || !zcDispo;
+}
+function pcEstado(state){
+  const deve = state === "printing" || state === "paused";
+  if (deve === pcOn) return;
+  pcOn = deve;
+  $("pc").classList.toggle("on", pcOn);
+  if (pcOn){ zcLerSalvos().then(pcRender); pcRender(); }
+  requestAnimationFrame(pcAjustaPadding);
+}
+function pcOffset(v){
+  if (!isFinite(v)) return;
+  pcOff = v;
+  $("pc-off").textContent = (v >= 0 ? "+" : "") + v.toFixed(3);
+}
+document.querySelectorAll("#pc [data-pc]").forEach(b => b.onclick = async () => {
+  const d = +b.dataset.pc;
+  pcOffset(pcOff + d);   // otimista; o polling de 1 s confirma o valor real
+  try { await gcode("SET_GCODE_OFFSET Z_ADJUST=" + d + " MOVE=1", 1); logLinha("// 1a camada: Z " + (d > 0 ? "+" : "") + d); }
+  catch(e){ logLinha("!! ajuste Z: " + e.message); setStatus("Falha no ajuste Z", e.message, "err"); }
+});
+$("pc-min").onclick = () => {
+  const min = !$("pc").classList.contains("min");
+  $("pc").classList.toggle("min", min);
+  $("pc-min").textContent = min ? "▴" : "▾";
+  try { localStorage.setItem(PC_LS, min ? "1" : ""); } catch(e){}
+  pcAjustaPadding();
+};
+try { if (localStorage.getItem(PC_LS)) { $("pc").classList.add("min"); $("pc-min").textContent = "▴"; } } catch(e){}
+$("pc-save").onclick = async () => {
+  const c = pcCombo();
+  if (!c.ok || !zcDispo) return;
+  let v;
+  try {
+    const q = await rpc("printer.objects.query", {objects:{gcode_move:["homing_origin"]}});
+    v = +((((q.status.gcode_move || {}).homing_origin) || [0,0,0])[2]);
+  } catch(e){ setStatus("Falha ao ler o offset", e.message, "err"); return; }
+  if (!isFinite(v)) return;
+  const txt = (v >= 0 ? "+" : "") + v.toFixed(3) + " mm";
+  if (!confirm("Salvar " + txt + " para " + placaNome(c.slug) + " + " + c.mat + "?\n\nAs próximas impressões dessa combinação usam esse valor sozinhas.")) return;
+  const k = "zoff_" + c.mat.toLowerCase() + "_" + c.slug;
+  $("pc-save").disabled = true;
+  try {
+    await gcode("SAVE_VARIABLE VARIABLE=" + k + " VALUE=" + v.toFixed(3), 1);
+    $("zc-placa").value = c.slug; $("zc-mat").value = c.mat;   // card de cima coerente
+    logLinha("// 1a camada: salvo " + txt + " p/ " + zcNome(k));
+    setStatus("Offset salvo ✓", placaNome(c.slug) + " + " + c.mat + " = " + txt, "on");
+    await zcLerSalvos();
+  } catch(e){ setStatus("Falha ao salvar", e.message, "err"); }
+  pcRender();
+};
+window.addEventListener("resize", pcAjustaPadding);
+
 // releitura periodica: durante a impressao o START_PRINT grava a placa/material
 // do fatiador logo no inicio - relemos a cada 10 s pra Central ja selecionar a
 // combinacao certa enquanto voce calibra a 1a camada (sem recarregar a pagina).
@@ -3441,6 +3566,7 @@ async function zcLerSalvos(){
           '<button class="ghost" data-zc-ap="' + k + '" style="padding:2px 8px;font-size:.7rem">Aplicar agora</button> ' +
           '<button class="ghost" data-zc-rm="' + k + '" style="padding:2px 8px;font-size:.7rem">Limpar</button></div>').join("")
       : "offsets salvos: nenhum ainda — calibre acima e Salve pra combinação.";
+    if (typeof pcRender === "function") pcRender();
   } catch(e){
     $("zclist").textContent = "offsets salvos: sem leitura (" + e.message + ")";
   }
@@ -3794,7 +3920,8 @@ function objsSub(){
   const o = {
     heater_bed:["temperature","target"], extruder:["temperature","target"],
     idle_timeout:["state"], display_status:["message"], "output_pin LED":["value"],
-    toolhead:["position","homed_axes"]
+    toolhead:["position","homed_axes"],
+    print_stats:["state"], gcode_move:["homing_origin"]   // barra de 1a camada
   };
   SENSORES.forEach(s => { if (!o[s.obj]) o[s.obj] = null; });
   return o;
