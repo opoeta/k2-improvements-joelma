@@ -747,7 +747,7 @@
     <div class="dica" style="margin-top:14px"><b>Persistir por placa + material (recomendado).</b> O ajuste fino acima é <b>temporário</b>: zera no restart E o START_PRINT o re-seta a cada impressão. Aqui você grava o offset ATUAL pra combinação escolhida — o START_PRINT aplica <b>sozinho</b> em toda impressão dessa combinação, e o valor <b>sobrevive a restart</b>. Variações caem no material-base (PLA-CF usa o de PLA) e <b>default</b> vale como coringa pra qualquer material sem offset próprio. Não mexe no probe. <i>Não use junto com "Gravar offset no probe" pra mesma correção (somaria em dobro).</i></div>
     <div class="lin" style="gap:10px;flex-wrap:wrap">
       <label style="min-width:auto">Placa <select id="zc-placa"><option value="textured">Textured PEI</option><option value="smooth">Smooth PEI</option></select></label>
-      <button id="zc-atual" class="ghost" style="padding:4px 10px;font-size:.8rem"><i data-ic="refresh"></i> Usar placa da impressão</button>
+      <button id="zc-atual" class="ghost" style="padding:4px 10px;font-size:.8rem"><i data-ic="refresh"></i> Ler placa + material do fatiador</button>
       <label style="min-width:auto">Material <select id="zc-mat"></select></label>
       <button id="zcsave" class="salvar"><i data-ic="save"></i> Salvar offset atual p/ esta combinação</button>
     </div>
@@ -3352,26 +3352,51 @@ function zcPlacaAtualSlug(){
   const s = zcVars.cur_placa;   // ponteiro gravado pelo START_PRINT (nao "placa_*")
   return (typeof s === "string" && s.trim()) ? s.trim() : null;
 }
-function zcAtualizaPlacaAtual(auto, imprimindo){   // indicador + auto-selecao na 1a leitura
-  const slug = zcPlacaAtualSlug(), hint = $("zc-atual-hint");
-  if (!slug){ if (hint) hint.textContent = "placa da impressão: — (imprima uma vez pra registrar)"; return; }
-  if (!(slug in placaLabels)){ placaLabels[slug] = placaNome(slug); zcMontaPlacas(); }   // placa nova ainda nao no dropdown
-  if (auto){ $("zc-placa").value = slug; try { localStorage.setItem(ZC_LS, slug); } catch(e){} }
-  const sel = $("zc-placa").value === slug;
-  if (hint) hint.textContent = (imprimindo ? "placa da impressão atual: " : "placa da última impressão: ")
-    + placaNome(slug) + (sel ? " ✓ selecionada" : " — clique “Usar placa da impressão”");
+// material da impressao atual (cur_mat = material-base minusculo, gravado pelo
+// START_PRINT) -> opcao do select (ZC_MATS em maiusculo). null se fora da lista.
+function zcMatAtual(){
+  const m = zcVars.cur_mat;
+  if (typeof m !== "string" || !m.trim()) return null;
+  const up = m.trim().toUpperCase();
+  return ZC_MATS.indexOf(up) >= 0 ? up : {fora: up};
 }
-function zcUsarPlacaAtual(){
+let zcPonteiro = null;   // "placa|material" da ultima leitura: mudou = print novo
+let zcImprimindo = false;
+function zcSelecionaAtual(comMaterial){   // seleciona placa (+ material) vindos do fatiador
+  const slug = zcPlacaAtualSlug(), mat = zcMatAtual();
+  if (slug){
+    if (!(slug in placaLabels)){ placaLabels[slug] = placaNome(slug); zcMontaPlacas(); }   // placa nova ainda nao no dropdown
+    $("zc-placa").value = slug;
+    try { localStorage.setItem(ZC_LS, slug); } catch(e){}
+  }
+  if (comMaterial && typeof mat === "string") $("zc-mat").value = mat;
+}
+function zcAtualizaPlacaAtual(auto, imprimindo, autoMat){   // indicador + auto-selecao
+  const slug = zcPlacaAtualSlug(), mat = zcMatAtual(), hint = $("zc-atual-hint");
+  if (!slug){ if (hint) hint.textContent = "fatiador: — (inicie uma impressão pelo fatiador e clique “Ler placa + material do fatiador”)"; return; }
+  if (auto) zcSelecionaAtual(autoMat);
+  else if (!(slug in placaLabels)){ placaLabels[slug] = placaNome(slug); zcMontaPlacas(); }
+  const matTxt = !mat ? "material ?" : (typeof mat === "string" ? mat : mat.fora + " (fora da lista — escolha manual)");
+  const sel = $("zc-placa").value === slug && (typeof mat !== "string" || $("zc-mat").value === mat);
+  if (hint) hint.textContent = (imprimindo ? "fatiador (impressão atual): " : "fatiador (última impressão): ")
+    + placaNome(slug) + " · " + matTxt + (sel ? " ✓ selecionados" : " — clique “Ler placa + material do fatiador”");
+}
+async function zcUsarPlacaAtual(){
+  await zcLerSalvos();   // leitura AO VIVO: o START_PRINT acabou de gravar cur_placa/cur_mat
   const slug = zcPlacaAtualSlug();
-  if (!slug){ setStatus("Placa da impressão desconhecida", "imprima uma vez pra registrar (o START_PRINT grava)", "err"); return; }
-  if (!(slug in placaLabels)){ placaLabels[slug] = placaNome(slug); zcMontaPlacas(); }
-  $("zc-placa").value = slug;
-  try { localStorage.setItem(ZC_LS, slug); } catch(e){}
-  zcAtualizaPlacaAtual(false, false);
-  logLinha("placa da impressao selecionada: " + placaNome(slug));
-  setStatus("Placa selecionada", placaNome(slug), "ok");
+  if (!slug){ setStatus("Placa do fatiador desconhecida", "inicie a impressão pelo fatiador (o START_PRINT grava a placa) e clique de novo", "err"); return; }
+  zcSelecionaAtual(true);
+  zcAtualizaPlacaAtual(false, zcImprimindo);
+  const mat = zcMatAtual();
+  const matTxt = typeof mat === "string" ? mat : (mat ? mat.fora + " (fora da lista)" : "?");
+  logLinha("// fatiador -> placa " + placaNome(slug) + " · material " + matTxt);
+  setStatus("Placa + material do fatiador", placaNome(slug) + " · " + matTxt, "ok");
 }
 $("zc-atual").onclick = () => { if (!ocupado) zcUsarPlacaAtual(); };
+// releitura periodica: durante a impressao o START_PRINT grava a placa/material
+// do fatiador logo no inicio - relemos a cada 10 s pra Central ja selecionar a
+// combinacao certa enquanto voce calibra a 1a camada (sem recarregar a pagina).
+setInterval(() => { if (klipperOk && !ocupado) zcLerSalvos(); }, 10000);
 async function zcLerSalvos(){
   try {
     const q = await rpc("printer.objects.query", {objects:{save_variables:null, print_stats:["state"]}});
@@ -3397,7 +3422,17 @@ async function zcLerSalvos(){
     // sozinha "pra nao errar". Auto-seleciona na 1a leitura; depois so via o botao,
     // pra nao brigar com uma escolha manual do usuario no meio da sessao.
     const imprimindo = (((q.status.print_stats || {}).state) || "") === "printing";
-    zcAtualizaPlacaAtual(zcPrimeiraLeitura, imprimindo);
+    zcImprimindo = imprimindo;
+    // auto-seleciona na 1a leitura E quando o ponteiro placa|material muda (o
+    // START_PRINT de um print NOVO do fatiador gravou outra combinacao). Fora
+    // disso respeita a escolha manual - o botao "Ler placa + material" forca.
+    const ponteiro = String(zcVars.cur_placa || "") + "|" + String(zcVars.cur_mat || "");
+    const mudou = zcPonteiro !== null && ponteiro !== zcPonteiro;
+    // material: so com print novo ou Central aberta DURANTE um print - fora disso
+    // o material da ULTIMA impressao nao atropela o detectado do slot do CFS.
+    zcAtualizaPlacaAtual(zcPrimeiraLeitura || mudou, imprimindo, mudou || (zcPrimeiraLeitura && imprimindo));
+    if (mudou && zcPlacaAtualSlug()) logLinha("// fatiador mandou nova combinação: " + placaNome(zcPlacaAtualSlug()) + " · " + String(zcVars.cur_mat || "?").toUpperCase() + " (selecionada)");
+    zcPonteiro = ponteiro;
     zcPrimeiraLeitura = false;
     const ks = Object.keys(zcVars).filter(k => ZC_KEY_RE.test(k) && typeof zcVars[k] === "number" && isFinite(zcVars[k])).sort();
     $("zclist").innerHTML = ks.length
