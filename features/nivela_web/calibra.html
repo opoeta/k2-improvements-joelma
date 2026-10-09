@@ -420,9 +420,11 @@
   .pc-x { min-width:44px; min-height:44px; border:0; border-radius:10px; background:var(--card2); color:var(--txt); font-size:1.1rem; }
   .pc-body { margin-top:8px; }
   .pc.min .pc-body { display:none; }
-  .pc-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
-  .pc-grid button { min-height:58px; border:0; border-radius:10px; background:var(--card2); color:var(--txt);
-                    font-size:1.15rem; font-weight:700; font-variant-numeric:tabular-nums; touch-action:manipulation; }
+  .pc-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:6px; }
+  .pc-grid button { min-height:52px; padding:0 2px; border:0; border-radius:10px; background:var(--card2); color:var(--txt);
+                    font-size:1rem; font-weight:700; font-variant-numeric:tabular-nums; touch-action:manipulation; }
+  .pc-rot { font-size:.72rem; color:var(--mut); margin:6px 0 4px; }
+  .pc-rot:first-child { margin-top:0; }
   .pc-grid button.neg { box-shadow:inset 0 -3px 0 var(--primary); }
   .pc-grid button.pos { box-shadow:inset 0 -3px 0 var(--warn); }
   .pc-grid button:active { transform:scale(.96); }
@@ -950,13 +952,23 @@
     <button id="pc-min" class="pc-x" aria-label="Minimizar/expandir">▾</button>
   </div>
   <div class="pc-body">
+    <div class="pc-rot">baixar o bico <b>−</b> (falhas / não gruda)</div>
     <div class="pc-grid">
-      <button class="neg" data-pc="-0.05">−0.05</button>
+      <button class="neg" data-pc="-0.005">−0.005</button>
       <button class="neg" data-pc="-0.01">−0.01</button>
-      <button class="pos" data-pc="0.01">+0.01</button>
-      <button class="pos" data-pc="0.05">+0.05</button>
+      <button class="neg" data-pc="-0.02">−0.02</button>
+      <button class="neg" data-pc="-0.05">−0.05</button>
+      <button class="neg" data-pc="-0.1">−0.1</button>
     </div>
-    <div class="pc-dica">falhas / não gruda → <b>−</b> &nbsp;·&nbsp; áspero / translúcido → <b>+</b> &nbsp;·&nbsp; liso e unido = salvar</div>
+    <div class="pc-rot">subir o bico <b>+</b> (áspero / translúcido)</div>
+    <div class="pc-grid">
+      <button class="pos" data-pc="0.005">+0.005</button>
+      <button class="pos" data-pc="0.01">+0.01</button>
+      <button class="pos" data-pc="0.02">+0.02</button>
+      <button class="pos" data-pc="0.05">+0.05</button>
+      <button class="pos" data-pc="0.1">+0.1</button>
+    </div>
+    <div class="pc-dica">liso, linhas unidas, brilho fosco = salvar</div>
     <button id="pc-save" class="pc-save">SALVAR NESTA PLACA + MATERIAL</button>
     <div class="pc-dica" id="pc-saved"></div>
   </div>
