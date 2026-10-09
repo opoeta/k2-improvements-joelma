@@ -8,12 +8,12 @@
 #       porta 9999 - sem emulacao;
 #   (b) a Central de Calibracao ganhou o painel "Filament Box" (dados 100%
 #       stock: objeto box + filament_switch_sensor + Spoolman + edicao ao
-#       vivo pela 9999 via joelma_cfs_edit).
+#       vivo pela 9999 via k2_cfs_edit).
 # Menos uma camada de traducao sobre o blob = menos superficie de shutdown.
 #
 # Este script e IDEMPOTENTE: remove o modulo e a secao se existirem e sai
 # quieto se ja estiver limpo. A pasta continua no repo so por causa do
-# run_step do no-carto-joelma.sh.
+# run_step do no-carto-k2.sh.
 
 SCRIPT_DIR=$(readlink -f $(dirname $0))
 MUDOU=0

@@ -1,6 +1,6 @@
-# Joelma — Creality K2 Plus (fork k2-improvements-joelma)
+# K2 Plus — Creality K2 Plus (fork k2-improvements)
 
-Fork de melhorias para a K2 Plus "Joelma": Klipper + Moonraker upstream, **Central de Calibração**
+Fork de melhorias para a K2 Plus "K2 Plus": Klipper + Moonraker upstream, **Central de Calibração**
 web completa, integração CFS ↔ Spoolman.
 
 ## Como falar comigo
@@ -16,7 +16,7 @@ web completa, integração CFS ↔ Spoolman.
 
 ## Onde as coisas estão
 
-- **Joelma** (K2 Plus): `10.10.1.240` — firmware Creality **1.1.6.1**, placa `CR0CN240110C10`
+- **K2 Plus** (K2 Plus): `10.10.1.240` — firmware Creality **1.1.6.1**, placa `CR0CN240110C10`
   - Fluidd **:4408** · Moonraker **:7125** · API stock Creality **:80** e WebSocket **:9999**
   - Clone do repo na impressora: `/mnt/UDISK/k2-improvements-joelma`
   - Moonraker conf: `/usr/share/moonraker/moonraker.conf`
@@ -34,7 +34,7 @@ web completa, integração CFS ↔ Spoolman.
 
 ```powershell
 git add -A; git commit -m "..."; git push
-python $env:USERPROFILE\_update_joelma.py    # roda `joelma update` via SSH (~2 min)
+python $env:USERPROFILE\_update_k2.py    # roda `k2 update` via SSH (~2 min)
 ```
 
 As features rodam como `sh ${SCRIPT_DIR}/features/<nome>/install.sh`. Dentro do `install.sh`,
@@ -49,7 +49,7 @@ devem ser **idempotentes** (`grep -q` antes de acrescentar).
    (`NoneType &= int`) e o Klipper cai (`key171` + `key60`). Recupera com `FIRMWARE_RESTART`.
    **→ MITIGADO (jul/2026):** feature `macros/box_guard` intercepta o comando via
    `rename_existing` (ADDR/NUM vazios = no-op logado); a Central pede confirmação no botão
-   e mostra "Recuperar (FIRMWARE_RESTART)" se cair. Validar no 1º `joelma update`.
+   e mostra "Recuperar (FIRMWARE_RESTART)" se cair. Validar no 1º `k2 update`.
 2. **O daemon do Docker no NAS cai sozinho** (já caiu 2×). Quando cai, o Spoolman some e o
    Moonraker mostra `spoolman_connected: false`. Comando pra subir em `CLAUDE.local.md`.
 3. Containers `prometheus` e `PufferPanel` ficam em restart loop no NAS — fora de escopo.
@@ -58,7 +58,7 @@ devem ser **idempotentes** (`grep -q` antes de acrescentar).
    `[bed_mesh]` (5×5 = 25 pontos). O `BED_MESH_CALIBRATE` do KAMP adaptava pra 3×3 →
    `IndexError` na linha 1925 → `key60` + shutdown no meio do `START_PRINT ADAPTIVE=1`.
    **→ CORRIGIDO (jul/2026):** `Adaptive_Meshing.cfg` agora é **vendorado** em
-   `features/kamp-adaptive-purge/` com o "PATCH JOELMA": área continua adaptativa,
+   `features/kamp-adaptive-purge/` com o "PATCH K2": área continua adaptativa,
    contagem travada na do config (5×5 parcial foi validado em produção). Nunca voltar
    o download do upstream sem reaplicar o patch.
 
@@ -80,7 +80,7 @@ devem ser **idempotentes** (`grep -q` antes de acrescentar).
   "cPressureAdvance":P,"cBrandName":marca,"name":nome}}`. Cor em **ARGB** (`#FF`+RRGGBB),
   não o `0RRGGBB` do arquivo. Propaga pra tela/Orca **sem restart e sem 485**. Reler RFID
   de UM slot (seguro): `{"method":"set","params":{"cId":"TNN","cRFIDRefresh":1}}`.
-  Já implementado em `joelma_cfs_edit.py` (`_envia_9999()` + endpoint `/cfs/rfid`).
+  Já implementado em `k2_cfs_edit.py` (`_envia_9999()` + endpoint `/cfs/rfid`).
 - **Materiais:** `000001`=PLA `002001`=PETG `003001`=ABS `004001`=TPU `005001`=ASA
   `006001`=PA `007001`=PC
 - **Macros CFS:** `BOX_LOAD_MATERIAL TNN=T1A`, `BOX_QUIT_MATERIAL`, `BOX_INFO_REFRESH`,
@@ -90,7 +90,7 @@ devem ser **idempotentes** (`grep -q` antes de acrescentar).
 - **Luz da câmara:** `output_pin LED`, **`pwm: True`** → `SET_PIN PIN=LED VALUE=0.0..1.0`.
   É **dimerizável** (testado 0/0.25/0.5/1.0, exatos).
 - **Firmware da impressora:** lido via **`fw_printenv`** (U-Boot env), não de arquivo.
-  É o que o componente `joelma_info.py` faz.
+  É o que o componente `k2_info.py` faz.
 - **Spoolman:** a Central fala pelo **proxy do Moonraker** (`POST /server/spoolman/proxy`,
   body `{"request_method":"GET","path":"/v1/spool"}`) pra evitar CORS.
   O `extra.tag` do spool guarda o **TNN** do slot (ex. `"T1A"`) — é assim que slot casa com spool.
@@ -103,9 +103,9 @@ devem ser **idempotentes** (`grep -q` antes de acrescentar).
   `extruder`, `heater_bed`, `heater_generic *`, `temperature_fan *`, `temperature_sensor *`.
 - **Componentes próprios** (em `features/moonraker-upgrade/`, copiados pelo `install.sh`):
   - `spoolman_admin.py` → `/server/spoolman_admin/config` (GET/POST) e `/scan` (GET)
-  - `joelma_info.py` → `/server/joelma/info` → `{firmware, board, modelo, modelo_cod}`
-  - `joelma_resonances.py` → `/server/joelma/resonances` (lista os CSVs de
-    TEST_RESONANCES/SHAPER_CALIBRATE em `/tmp`) e `/server/joelma/resonances/csv?nome=X`
+  - `k2_info.py` → `/server/k2/info` → `{firmware, board, modelo, modelo_cod}`
+  - `k2_resonances.py` → `/server/k2/resonances` (lista os CSVs de
+    TEST_RESONANCES/SHAPER_CALIBRATE em `/tmp`) e `/server/k2/resonances/csv?nome=X`
     (colunas + dados) — a Central desenha os gráficos com isso.
 
 ## Verificação rápida
@@ -113,19 +113,19 @@ devem ser **idempotentes** (`grep -q` antes de acrescentar).
 ```powershell
 curl http://10.10.1.240:7125/printer/info                     # estado do Klipper
 curl -X POST http://10.10.1.240:7125/printer/firmware_restart # recuperar de shutdown
-curl http://10.10.1.240:7125/server/joelma/info               # firmware da impressora
+curl http://10.10.1.240:7125/server/k2/info               # firmware da impressora
 curl http://10.10.1.240:7125/server/spoolman/status           # Spoolman conectado?
 curl http://10.10.1.240:7125/server/spoolman_admin/scan       # achar Spoolman na rede
 ```
 
 ## Detalhes completos
 
-`docs/JOELMA-HANDOFF.md` — histórico dos commits, estrutura do objeto `box`, schema do Spoolman,
+`docs/K2-HANDOFF.md` — histórico dos commits, estrutura do objeto `box`, schema do Spoolman,
 pesquisa do CFS no OrcaSlicer, receitas de curl. **Leia sob demanda.**
 
 ## Pendências (nada de código bloqueado — tudo está no ar)
 
-- **Validar ao vivo no 1º `joelma update`:** (a) `box_guard` segura o RELER RFID — o console
+- **Validar ao vivo no 1º `k2 update`:** (a) `box_guard` segura o RELER RFID — o console
   da Central deve logar `BOX_SET_PRE_LOADING ignorado: ADDR/NUM vazios` e o Klipper seguir
   ready; se o boot reclamar do `rename_existing`, remover `[include box_guard.cfg]` de
   `custom/main.cfg`; (b) gráficos de ressonância após um TEST_RESONANCES;
@@ -135,7 +135,7 @@ pesquisa do CFS no OrcaSlicer, receitas de curl. **Leia sob demanda.**
   pelo **Filament Box da Central** (dados 100% stock) + **sync nativo do Orca pela porta
   9999** (fork Jacob/mainline — não precisa mais do objeto `mmu`). O `install.sh` da
   feature `macros/orca-filament-sync` virou **desinstalador idempotente** (remove
-  `klippy/extras/mmu.py`, `custom/mmu.cfg` e o include no próximo `joelma update`).
+  `klippy/extras/mmu.py`, `custom/mmu.cfg` e o include no próximo `k2 update`).
   Código antigo vive no histórico do git (até PR #35).
 - **Testar o "Teste do papel"** (novo, no card Nivelamento dos parafusos): move o bico pra
   cima de cada parafuso a Z=0,10 mm usando as coordenadas do `[screws_tilt_adjust]`; limpa o
@@ -149,7 +149,7 @@ pesquisa do CFS no OrcaSlicer, receitas de curl. **Leia sob demanda.**
   RFID "latcheados"), peso restante via Spoolman (`extra.tag` = TNN), **cadeia de runout
   calculada no cliente** (mesmo tipo+cor; o firmware faz a troca se `auto_refill=1`),
   Load (`BOX_LOAD_MATERIAL` com confirm + guarda) / Unload (`BOX_QUIT_MATERIAL`), RFID por
-  slot (`/server/joelma/cfs/rfid`) e **editor ao vivo** (`POST /server/joelma/cfs/edit` →
+  slot (`/server/k2/cfs/rfid`) e **editor ao vivo** (`POST /server/k2/cfs/edit` →
   porta 9999, sem restart). Encoder/buffer/clog do widget do Jacob **não existem no stock**
   (plugin fechado) — omitidos de propósito. `box.filament` é índice de seleção *stale*:
   "Loaded" só quando o sensor do printhead confirma.
@@ -172,7 +172,7 @@ pesquisa do CFS no OrcaSlicer, receitas de curl. **Leia sob demanda.**
   zera em restart E o `START_PRINT` o **re-seta a cada print** (`offset_<material>
   + offset_placa_<placa>`, todos 0 por padrão). Persistência: (a) **por
   placa+material** (recomendado) — Central grava `zoff_<material>_<placa>` via
-  `SAVE_VARIABLE` (`[save_variables]` → `joelma_vars.cfg`, instalado pelo
+  `SAVE_VARIABLE` (`[save_variables]` → `k2_vars.cfg`, instalado pelo
   start_print/install.sh com guarda anti-duplicata) e o `START_PRINT` dá
   **prioridade** a esse valor sobre a soma legada; "Limpar" grava `None` (o if
   ignora); ou (b) global — `Z_OFFSET_APPLY_PROBE` + `SAVE_CONFIG` (funde no
@@ -180,14 +180,14 @@ pesquisa do CFS no OrcaSlicer, receitas de curl. **Leia sob demanda.**
 - **Placas são auto-registradas (jul/2026).** `<placa>` agora é o **nome real**
   da placa do slicer "slugado" (`Textured PEI Plate` → `textured_pei_plate`), não
   mais o binário. Na 1ª impressão de cada placa o `START_PRINT` grava
-  `placa_<slug> = "<nome real>"` no `joelma_vars.cfg` (**grava-só-na-mudança**, pra
+  `placa_<slug> = "<nome real>"` no `k2_vars.cfg` (**grava-só-na-mudança**, pra
   poupar flash) e a Central **monta o dropdown de placas sozinha** lendo os
   `placa_*`. Cada placa física vira um offset próprio, sem hardcode. Mantém
   `PLACA_BIN` (textured/smooth) **só** pra soma legada `offset_placa_*` e como
   **fallback de compat** dos `zoff_*` binários salvos antes desta versão. O nome
   é sanitizado no Jinja (só `[a-z0-9 -]`) — evita `;`/`#`/`*` que o parser corta.
 - **Pressure Advance persistente por material (jul/2026).** Mesma mecânica do
-  Z-offset: a Central grava `pa_<material>` no `joelma_vars.cfg` e o `START_PRINT`
+  Z-offset: a Central grava `pa_<material>` no `k2_vars.cfg` e o `START_PRINT`
   reaplica `SET_PRESSURE_ADVANCE` a cada print (é transitório, zera no restart).
   Cadeia: material exato → material-BASE (PLA-CF cai em `pa_pla`) → `pa_default`.
   Só aplica se houver valor salvo; senão deixa o default do slicer. **Auto-PA por

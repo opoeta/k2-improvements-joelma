@@ -3,18 +3,18 @@
 # cartographer_preflight.sh - diagnostico READ-ONLY (nao muda NADA)
 #
 # Levanta tudo que a instalacao do Cartographer precisa saber para rodar
-# com seguranca no firmware 1.1.6.x da Joelma, ANTES de instalar entware
+# com seguranca no firmware 1.1.6.x da K2 Plus, ANTES de instalar entware
 # (que faz rm -rf /opt) ou aplicar patches no Klipper (rebaseados p/ 1.1.5.2).
 #
 # Uso na impressora:
 #   ssh root@10.10.1.240 "sh /mnt/UDISK/k2-improvements-joelma/scripts/cartographer_preflight.sh"
-# ou, apos joelma update, o arquivo estara no clone do repo.
+# ou, apos k2 update, o arquivo estara no clone do repo.
 #
 # Mande a saida completa pro Claude — com ela eu monto os passos exatos.
 # ============================================================
 
 echo "=================================================="
-echo " Cartographer preflight (Joelma) - SO LEITURA"
+echo " Cartographer preflight (K2 Plus) - SO LEITURA"
 echo "=================================================="
 
 sec(){ echo ""; echo "--- $1 ---"; }

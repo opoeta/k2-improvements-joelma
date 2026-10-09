@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Central de Calibração — Joelma</title>
+<title>Central de Calibração — K2 Plus</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -345,14 +345,6 @@
   .fb-tool b { font-weight:700; display:block; }
   .fb-tool small { color:var(--dim); font-size:.66rem; }
   .fb-tool .wb { font-size:.56rem; color:var(--warn); border:1px solid color-mix(in srgb, var(--warn) 45%, var(--line)); border-radius:6px; padding:1px 5px; margin-left:4px; }
-  /* card Auto-PA (APAX) */
-  .fb-apax { display:flex; gap:14px; align-items:flex-start; margin-top:12px; padding:14px 16px; border-radius:16px;
-             background:linear-gradient(135deg, color-mix(in srgb, var(--primary) 16%, var(--card)), var(--card) 70%);
-             border:1px solid color-mix(in srgb, var(--primary) 40%, var(--line)); }
-  .fb-apax .big { font-size:1.6rem; line-height:1; }
-  .fb-apax .ti { font-weight:800; font-size:.98rem; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-  .fb-apax .new { font-size:.56rem; font-weight:800; letter-spacing:.06em; background:var(--ok); color:#06220a; padding:2px 7px; border-radius:999px; }
-  .fb-apax p { margin:5px 0 9px; font-size:.76rem; color:var(--mut); line-height:1.4; }
   /* ---------- Spoolman (configurador) ---------- */
   #sp-found { margin-top:10px; display:flex; flex-direction:column; gap:6px; }
   .sp-hit { display:flex; align-items:center; gap:9px; padding:9px 11px; border-radius:8px;
@@ -413,6 +405,33 @@
   @media (max-width:400px) {
     .swatch { width:38px; height:38px; }
   }
+  /* ---------- barra de 1a camada (celular): fixa no rodape, SO durante a impressao ---------- */
+  .pc { display:none; position:fixed; left:0; right:0; bottom:0; z-index:60;
+        background:var(--glass); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+        border-top:1px solid var(--line); box-shadow:var(--elev2);
+        padding:10px 12px calc(10px + env(safe-area-inset-bottom)); }
+  .pc.on { display:block; animation:surge .3s ease both; }
+  .pc-top, .pc-body { max-width:720px; margin:0 auto; }
+  .pc-top { display:flex; align-items:center; gap:10px; }
+  .pc-info { flex:1; min-width:0; }
+  .pc-combo { font-size:.8rem; color:var(--mut); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .pc-off { font-size:1.6rem; font-weight:700; font-variant-numeric:tabular-nums; color:var(--txt); line-height:1.15; }
+  .pc-off small { font-size:.8rem; font-weight:400; color:var(--mut); }
+  .pc-x { min-width:44px; min-height:44px; border:0; border-radius:10px; background:var(--card2); color:var(--txt); font-size:1.1rem; }
+  .pc-body { margin-top:8px; }
+  .pc.min .pc-body { display:none; }
+  .pc-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:6px; }
+  .pc-grid button { min-height:52px; padding:0 2px; border:0; border-radius:10px; background:var(--card2); color:var(--txt);
+                    font-size:1rem; font-weight:700; font-variant-numeric:tabular-nums; touch-action:manipulation; }
+  .pc-rot { font-size:.72rem; color:var(--mut); margin:6px 0 4px; }
+  .pc-rot:first-child { margin-top:0; }
+  .pc-grid button.neg { box-shadow:inset 0 -3px 0 var(--primary); }
+  .pc-grid button.pos { box-shadow:inset 0 -3px 0 var(--warn); }
+  .pc-grid button:active { transform:scale(.96); }
+  .pc-dica { font-size:.72rem; color:var(--mut); text-align:center; margin-top:6px; }
+  .pc-save { width:100%; min-height:54px; margin-top:8px; border:0; border-radius:10px;
+             background:var(--warn); color:#111; font-size:1rem; font-weight:700; touch-action:manipulation; }
+  .pc-save:disabled { opacity:.5; }
 </style>
 </head>
 <body>
@@ -420,7 +439,7 @@
   <div class="appbar-title">
     <i data-ic="wrench"></i>
     <div style="min-width:0">
-      <div class="appbar-nome">Central de Calibração — <span id="nomeImpressora">Joelma</span></div>
+      <div class="appbar-nome">Central de Calibração — <span id="nomeImpressora">K2 Plus</span></div>
       <div class="sub">K2 Plus — vista de cima, a FRENTE da impressora é você (embaixo)</div>
     </div>
   </div>
@@ -539,14 +558,6 @@
   <button class="principal" id="fb-ex-go"><i data-ic="load"></i> Extrudar</button>
   <button class="ghost" id="fb-ex-ret"><i data-ic="eject"></i> Retrair</button>
 </div>
-<div class="fb-apax" id="fb-apax" style="display:none">
-  <span class="big">⚡</span>
-  <div style="flex:1">
-    <div class="ti">Auto-PA dinâmico (APAX)</div>
-    <p>O firmware tem detecção de Pressure Advance pela célula de carga (<code>AUTO_APAX</code>) — ajusta o PA sem calibrar no fatiador. Não aparece no changelog oficial, então começamos só com o teste de diagnóstico seguro (não altera a impressão). A integração no START_PRINT vem depois de validar.</p>
-    <button class="ghost" id="fb-apax-test">Testar Auto-PA (diagnóstico)</button>
-  </div>
-</div>
 <div id="fb-editor" style="display:none">
   <div class="lin" style="gap:8px;flex-wrap:wrap;align-items:end;margin-top:8px">
     <b id="fb-ed-tnn" style="min-width:38px">—</b>
@@ -602,7 +613,7 @@
 
 <h2><i data-ic="activity"></i> Rotina de calibração DXC2 + CFS</h2>
 <div class="dica" id="wiz-intro">Assistente <b>passo a passo</b> na ordem segura do DXC2 (ref. Tinman). Cada fase tem a instrução, o botão certo e a dica de direção. <b style="color:var(--warn)">Você dispara e assiste cada corte</b> — nada roda sozinho. Mantenha a mesa livre e fique na frente da máquina.</div>
-<div id="wiz-nostart" class="dica" style="display:none;color:var(--warn)">Plugin <code>joelma_dxc2</code> ausente — a rotina precisa dele.</div>
+<div id="wiz-nostart" class="dica" style="display:none;color:var(--warn)">Plugin <code>k2_dxc2</code> ausente — a rotina precisa dele.</div>
 <div id="wiz-box" style="border:1px solid var(--bd,#30363d);border-radius:8px;padding:12px;margin-top:6px">
   <div class="lin" style="justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
     <div id="wiz-steps" style="display:flex;gap:6px;flex-wrap:wrap"></div>
@@ -763,12 +774,25 @@
     <div class="dica" style="margin-top:14px"><b>Persistir por placa + material (recomendado).</b> O ajuste fino acima é <b>temporário</b>: zera no restart E o START_PRINT o re-seta a cada impressão. Aqui você grava o offset ATUAL pra combinação escolhida — o START_PRINT aplica <b>sozinho</b> em toda impressão dessa combinação, e o valor <b>sobrevive a restart</b>. Variações caem no material-base (PLA-CF usa o de PLA) e <b>default</b> vale como coringa pra qualquer material sem offset próprio. Não mexe no probe. <i>Não use junto com "Gravar offset no probe" pra mesma correção (somaria em dobro).</i></div>
     <div class="lin" style="gap:10px;flex-wrap:wrap">
       <label style="min-width:auto">Placa <select id="zc-placa"><option value="textured">Textured PEI</option><option value="smooth">Smooth PEI</option></select></label>
-      <button id="zc-atual" class="ghost" style="padding:4px 10px;font-size:.8rem"><i data-ic="refresh"></i> Usar placa da impressão</button>
+      <button id="zc-atual" class="ghost" style="padding:4px 10px;font-size:.8rem"><i data-ic="refresh"></i> Ler placa + material do fatiador</button>
       <label style="min-width:auto">Material <select id="zc-mat"></select></label>
       <button id="zcsave" class="salvar"><i data-ic="save"></i> Salvar offset atual p/ esta combinação</button>
     </div>
     <div id="zc-atual-hint" class="dica" style="margin-top:4px;font-size:.78rem;opacity:.85"></div>
     <div id="zclist" class="dica" style="margin-top:6px">offsets salvos: lendo…</div>
+
+    <div style="margin-top:14px;border-top:1px solid var(--bd,#30363d);padding-top:12px">
+      <b>🎯 Assistente de Z-offset por placa</b>
+      <div class="dica" style="margin-top:4px">Desenha um <b>patch de 1ª camada real</b> no centro (material e temperatura reais — reflete a placa de verdade), você ajusta ao vivo e salva na placa. <b>Precisa de filamento carregado</b> (pela tela) e bico quente. O patch anda um pouco a cada redesenho pra cair em mesa limpa.</div>
+      <div class="lin" style="gap:8px;align-items:flex-end;flex-wrap:wrap;margin-top:8px">
+        <label style="min-width:auto;font-size:.7rem;color:var(--mut)">Temp (°C)<br><input type="number" id="zw-temp" value="220" step="5" style="width:72px"></label>
+        <button class="principal" id="zw-start"><i data-ic="target"></i> Começar (home + patch)</button>
+        <button class="ghost" id="zw-redraw"><i data-ic="refresh"></i> Redesenhar</button>
+        <button class="salvar" id="zw-save"><i data-ic="save"></i> Salvar nesta placa</button>
+        <button class="ghost" id="zw-end"><i data-ic="eject"></i> Encerrar</button>
+      </div>
+      <div class="dica" style="margin-top:6px">Fluxo: <b>Começar</b> → observe o patch → ajuste com os botões <b>Offset Z</b> lá em cima → <b>Redesenhar</b> pra ver de novo → <b>Salvar nesta placa</b> quando perfeito. &nbsp; Linhas <b>separadas/translúcidas</b> = bico ALTO → mais <b>negativo</b>. &nbsp; <b>Áspero/arrastando</b> = bico BAIXO → mais <b>positivo</b>. Dica: clique <b>Aplicar agora</b> num offset salvo pra partir dele.</div>
+    </div>
   </div>
 </details>
 
@@ -789,7 +813,7 @@
 <details class="acc" id="acc-shaper">
   <summary><i data-ic="wave"></i> Input Shaper &amp; ressonância <span class="acc-tag vazio" id="tag-shaper">—</span></summary>
   <div class="acc-body">
-    <div class="dica">A Joelma tem acelerômetro <b>LIS2DW</b> no bico. O shaper mata o ringing (ghosting) nas paredes. Rode o teste de cada eixo e depois <b>SALVAR</b>.</div>
+    <div class="dica">A K2 Plus tem acelerômetro <b>LIS2DW</b> no bico. O shaper mata o ringing (ghosting) nas paredes. Rode o teste de cada eixo e depois <b>SALVAR</b>.</div>
     <div class="botoes">
       <button id="shapercal" class="principal"><i data-ic="wave"></i> CALIBRAR AUTOMÁTICO (X + Y, ~5 min)</button>
       <button id="resx">Testar eixo X</button>
@@ -844,13 +868,6 @@
     </div>
     <div id="palist" class="dica" style="margin-top:6px">PA salvos: lendo…</div>
 
-    <div class="dica" style="margin-top:14px"><b>Auto-PA por célula de carga (experimental).</b> Usa o sensor de força do bico (prtouch/CS1237, ~1280&nbsp;Hz) pra medir a <b>contrapressão</b> do filamento em várias vazões — <b>sem imprimir</b>. Primeiro confirma se o sinal sai do ruído (SNR); com sinal bom, dá pra derivar o PA e a <b>vazão volumétrica máx</b>. Solta um cordão curto no ar sobre o centro.</div>
-    <div class="lin" style="gap:10px;flex-wrap:wrap">
-      <label style="min-width:auto">Bico °C <input type="number" id="paf-temp" value="220" step="5" min="170" max="300" style="width:64px"></label>
-      <label style="min-width:auto">Vazões (mm³/s) <input type="text" id="paf-flows" value="3,5,8,11,14,18" style="width:150px"></label>
-      <button id="pafgo" class="principal"><i data-ic="activity"></i> Medir contrapressão</button>
-    </div>
-    <div id="pafout" class="dica" style="margin-top:6px;white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.78rem"></div>
   </div>
 </details>
 
@@ -923,13 +940,46 @@
 
 <h2><i data-ic="terminal"></i> CONSOLE AO VIVO</h2>
 <div id="console"></div>
+
+<!-- Barra de 1a camada (celular): aparece sozinha durante a impressao. Ajuste
+     ao vivo + Salvar direto na combinacao placa+material que o FATIADOR mandou. -->
+<div id="pc" class="pc" role="region" aria-label="Ajuste da primeira camada">
+  <div class="pc-top">
+    <div class="pc-info">
+      <div class="pc-combo" id="pc-combo">imprimindo…</div>
+      <div class="pc-off"><span id="pc-off">0.000</span> <small>mm</small></div>
+    </div>
+    <button id="pc-min" class="pc-x" aria-label="Minimizar/expandir">▾</button>
+  </div>
+  <div class="pc-body">
+    <div class="pc-rot">baixar o bico <b>−</b> (falhas / não gruda)</div>
+    <div class="pc-grid">
+      <button class="neg" data-pc="-0.005">−0.005</button>
+      <button class="neg" data-pc="-0.01">−0.01</button>
+      <button class="neg" data-pc="-0.02">−0.02</button>
+      <button class="neg" data-pc="-0.05">−0.05</button>
+      <button class="neg" data-pc="-0.1">−0.1</button>
+    </div>
+    <div class="pc-rot">subir o bico <b>+</b> (áspero / translúcido)</div>
+    <div class="pc-grid">
+      <button class="pos" data-pc="0.005">+0.005</button>
+      <button class="pos" data-pc="0.01">+0.01</button>
+      <button class="pos" data-pc="0.02">+0.02</button>
+      <button class="pos" data-pc="0.05">+0.05</button>
+      <button class="pos" data-pc="0.1">+0.1</button>
+    </div>
+    <div class="pc-dica">liso, linhas unidas, brilho fosco = salvar</div>
+    <button id="pc-save" class="pc-save">SALVAR NESTA PLACA + MATERIAL</button>
+    <div class="pc-dica" id="pc-saved"></div>
+  </div>
+</div>
 <div class="cmd-row">
   <input id="cmdin" placeholder="G-code (ex: M114) — Enter envia" autocomplete="off">
   <button id="cmdgo" title="Enviar comando"><i data-ic="terminal"></i></button>
 </div>
 
 <div class="aviso">
-  Cada card manda <b>SUBIR</b> ou <b>DESCER</b> o canto (medido pelo probe — sempre certo). Sentido (padrão Klipper CW-M4, confirmado na Joelma): <b>SUBIR = horário</b> • <b>DESCER = anti-horário</b>. Na dúvida gire um pouco e aperte RELER — se o desvio <b>aumentar</b>, inverta.<br>
+  Cada card manda <b>SUBIR</b> ou <b>DESCER</b> o canto (medido pelo probe — sempre certo). Sentido (padrão Klipper CW-M4, confirmado na K2 Plus): <b>SUBIR = horário</b> • <b>DESCER = anti-horário</b>. Na dúvida gire um pouco e aperte RELER — se o desvio <b>aumentar</b>, inverta.<br>
   Repita a medição até todos ✓ OK (≤ 18°). Após PID concluído, aperte SALVAR para gravar.
 </div>
 <script>
@@ -1111,6 +1161,8 @@ function aplicaStatus(st){
   if (st.heater_bed) { if (st.heater_bed.temperature !== undefined) ultimo.bed = st.heater_bed.temperature; if (st.heater_bed.target !== undefined) ultimo.bedT = st.heater_bed.target; }
   if (st.extruder) { if (st.extruder.temperature !== undefined) ultimo.ext = st.extruder.temperature; if (st.extruder.target !== undefined) ultimo.extT = st.extruder.target; }
   if (st.idle_timeout && st.idle_timeout.state) ultimo.idle = st.idle_timeout.state;
+  if (st.print_stats && st.print_stats.state !== undefined) pcEstado(st.print_stats.state);
+  if (st.gcode_move && st.gcode_move.homing_origin) pcOffset(+st.gcode_move.homing_origin[2]);
   if (st.display_status && st.display_status.message) $("detalhe").textContent = st.display_status.message;
   if (st["output_pin LED"] && st["output_pin LED"].value !== undefined) pintaLuz(+st["output_pin LED"].value);
   if (st.toolhead) {
@@ -1194,7 +1246,7 @@ function desenha(){
 // que pular aos olhos); depois o RUIDO de baixo nivel (protocolo serial/motor,
 // blobs hex, debug interno do firmware) vai pro cinza pra nao competir; por fim
 // as tarefas (gcode, calibracao, CFS, ventoinha). Baseado nos tipos de linha
-// reais do console ao vivo da Joelma (dump jul/2026).
+// reais do console ao vivo da K2 Plus (dump jul/2026).
 function logClasse(msg){
   if (msg.startsWith("!!")) return "e";                                        // erro
   if (msg.startsWith("$"))  return "cmd";                                      // voce digitou
@@ -1376,9 +1428,9 @@ async function render(){
 // Klipper `box` (T1.temperature/dry_and_humidity/material_type/color_value/
 // vender/remain_len), sensor `filament_switch_sensor filament_sensor` no
 // printhead, Spoolman (extra.tag = TNN) e edição ao vivo pela porta 9999
-// (joelma_cfs_edit). Encoder/buffer/clog não existem no stock — omitidos em
+// (k2_cfs_edit). Encoder/buffer/clog não existem no stock — omitidos em
 // vez de exibir "--" falso.
-// FONTE PRIMÁRIA = box.same_material (o firmware da Joelma resolve material +
+// FONTE PRIMÁRIA = box.same_material (o firmware da K2 Plus resolve material +
 // cor + NOME por TNN aqui; confirmado no dump jul/2026). Ex.:
 //   ["001601","0000000",["T1C"],"PLA"]  -> T1C = PLA, preto.
 // O material_type/color_value cru (codigo tipo "001601") e so fallback.
@@ -1484,17 +1536,17 @@ async function fbSyncSpoolman(tnn, o){
     extra: {tag: JSON.stringify(tnn)}});
   return {acao:"criado", spool: novo.id};
 }
-// MULTI-CFS. Fonte PRIMARIA: GET /server/joelma/cfs/edit -> material_box_info.json,
+// MULTI-CFS. Fonte PRIMARIA: GET /server/k2/cfs/edit -> material_box_info.json,
 // cujo box.Material.info[] e um ARRAY de caixas (T1..T4) com temperature/umidade/
 // state/version por unidade e materialType+color+pressure+remainLen por slot. E o
 // estado em disco que a tela da impressora usa -> autoritativo e multi-CFS de
 // verdade (confirmado no dump out/2026: 2 CFS = T1 + T2, slot cheio traz name/
-// color "#0RRGGBB"/pressure). FALLBACK: se o plugin joelma (moonraker-upgrade) nao
+// color "#0RRGGBB"/pressure). FALLBACK: se o plugin k2 (moonraker-upgrade) nao
 // existir, cai no objeto `box` do Klipper, que so expoe T1/same_material.
 async function fbAtualiza(){
   let norm = null;
   try {
-    const r = await fetch(base + "/server/joelma/cfs/edit");
+    const r = await fetch(base + "/server/k2/cfs/edit");
     if (r.ok) {
       const j = await r.json();
       const bx = (j.result || j).box;
@@ -1591,18 +1643,16 @@ function fbGauge(cor, pct){
 function fbHumClass(h){ const v = parseFloat(h); if (isNaN(v)) return ""; return v < 45 ? "hum-ok" : v <= 60 ? "hum-warn" : "hum-bad"; }
 function fbRender(boxes, meta){
   fbSlots = {};
-  const tools = $("fb-tools"), apax = $("fb-apax"), extr = $("fb-extrude");
+  const tools = $("fb-tools"), extr = $("fb-extrude");
   if (!boxes || !boxes.length) {
     $("fb-status").textContent = "CFS: desconectado";
     $("fb-clima").textContent = "🌡 — · 💧 —"; $("fb-path").textContent = "bico: —"; $("fb-runout").textContent = "";
     $("fb-grid").innerHTML = '<div class="det" style="grid-column:1/-1">nenhuma CFS conectada</div>';
     if (tools) tools.style.display = "none";
-    if (apax) apax.style.display = "none";
     if (extr) extr.style.display = "none";
     return;
   }
   if (tools) tools.style.display = "";
-  if (apax) apax.style.display = "";
   if (extr) { extr.style.display = ""; $("fb-ex-slot").textContent = meta.ativoTnn ? "carregado (" + meta.ativoTnn + ")" : "carregado"; }
   fbAtivoTnn = meta.ativoTnn || null;
   const multi = boxes.length > 1;
@@ -1683,7 +1733,7 @@ $("fb-grid").addEventListener("click", async ev => {
   } else if (b.dataset.fbRfid) {
     const tnn = b.dataset.fbRfid;
     try {
-      const r = await fetch(base + "/server/joelma/cfs/rfid", {method:"POST",
+      const r = await fetch(base + "/server/k2/cfs/rfid", {method:"POST",
         headers:{"Content-Type":"application/json"}, body:JSON.stringify({tnn})});
       const j = await r.json().catch(() => ({}));
       logLinha("// RFID " + tnn + ": " + ((j.result || j).ok ? "pedido enviado pela porta 9999" : "falhou"));
@@ -1717,7 +1767,7 @@ $("fb-ed-ok").onclick = async () => {
   const pa = $("fb-ed-pa").value.trim();
   if (pa) corpo.pressure = pa;
   try {
-    const r = await fetch(base + "/server/joelma/cfs/edit", {method:"POST",
+    const r = await fetch(base + "/server/k2/cfs/edit", {method:"POST",
       headers:{"Content-Type":"application/json"}, body:JSON.stringify(corpo)});
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error((j.error && j.error.message) || ("HTTP " + r.status));
@@ -1761,7 +1811,7 @@ $("fb-rfid-all").onclick = async () => {
   if (!tnns.length) { logLinha("// RFID: nenhum slot com filamento pra reler"); return; }
   logLinha("// RFID: relendo " + tnns.length + " slot(s) pela porta 9999...");
   for (const tnn of tnns) {
-    try { await fetch(base + "/server/joelma/cfs/rfid", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({tnn})}); }
+    try { await fetch(base + "/server/k2/cfs/rfid", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({tnn})}); }
     catch(e){ logLinha("!! RFID " + tnn + ": " + e.message); }
   }
   setTimeout(function(){ fbSpoolman().then(fbAtualiza); }, 3000);
@@ -1779,14 +1829,6 @@ $("fb-nozzle").onclick = async () => {
   if (!(await fbNaoImprimindo())) { logLinha("!! Limpar bico: impressão em andamento — abortado"); return; }
   if (!confirm("Limpar o bico? Vai AQUECER e mover a cabeça até a mesa.")) return;
   roda("CX_NOZZLE_CLEAR", "Limpando o bico", 6, function(){ fbAtualiza(); });
-};
-// Auto-PA (APAX) — SO o diagnostico seguro por enquanto (TEST_APAX). A
-// integracao do AUTO_APAX RUN_TYPE no START_PRINT fica para depois de validar.
-$("fb-apax-test").onclick = async () => {
-  if (ocupado) return;
-  if (!(await fbNaoImprimindo())) { logLinha("!! Auto-PA: impressão em andamento — abortado"); return; }
-  if (!confirm("Rodar o teste de Auto-PA (APAX)? Vai aquecer o bico e extrudar um pouco pra medir a contrapressão pela célula de carga. NÃO altera a impressão.")) return;
-  roda("TEST_APAX", "Testando Auto-PA (APAX)", 8, null);
 };
 // Extrusao manual — no filamento carregado no bico. Guarda de bico frio: o
 // Klipper recusa extrudar abaixo do min_extrude_temp; aqui barramos antes em
@@ -1815,12 +1857,12 @@ fbSpoolman().then(fbAtualiza);
 setInterval(fbAtualiza, 20000);
 setInterval(fbSpoolman, 90000);
 
-// ---------- DXC2 (perfil do box.cfg via plugin joelma_dxc2) ----------
+// ---------- DXC2 (perfil do box.cfg via plugin k2_dxc2) ----------
 let dxcVals = {};   // ultimos valores do [box] lidos (prefill da rotina de calibracao)
 let dxcAtivo = false, dxcPlugin = true;
 async function dxcAtualiza(){
   try {
-    const r = await fetch(base + "/server/joelma/dxc2");
+    const r = await fetch(base + "/server/k2/dxc2");
     if (!r.ok) { $("dxc-status").textContent = "DXC2: plugin ausente"; $("dxc-painel").style.display = "none"; dxcPlugin = false; if (typeof wizPoll === "function") wizPoll(); return; }
     const d = (await r.json()).result || {};
     const on = !!d.active, v = d.values || {};
@@ -1838,7 +1880,7 @@ async function dxcAtualiza(){
   } catch(e){ $("dxc-status").textContent = "DXC2: sem leitura"; }
 }
 async function dxcPost(body){
-  const r = await fetch(base + "/server/joelma/dxc2", {method:"POST",
+  const r = await fetch(base + "/server/k2/dxc2", {method:"POST",
     headers:{"Content-Type":"application/json"}, body: JSON.stringify(body)});
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error((j.error && j.error.message) || ("HTTP " + r.status));
@@ -2061,7 +2103,7 @@ $("wiz-body").addEventListener("click", async ev => {
 });
 wizRender();
 
-// ---------- Recursos avançados (toggle de arquivos do Klipper via joelma_features) ----------
+// ---------- Recursos avançados (toggle de arquivos do Klipper via k2_features) ----------
 // Liga/desliga, com backup, recursos que trocam .py do Klipper. O componente faz
 // o restart do Klipper em background; aqui so esperamos a impressora voltar.
 function featBadge(on){
@@ -2070,7 +2112,7 @@ function featBadge(on){
 }
 async function featAtualiza(){
   try {
-    const r = await fetch(base + "/server/joelma/features");
+    const r = await fetch(base + "/server/k2/features");
     if (!r.ok) { $("feat-status").textContent = "plugin ausente"; $("feat-lista").innerHTML = ""; return; }
     const d = (await r.json()).result || {};
     const fs = d.features || {};
@@ -2098,7 +2140,7 @@ $("feat-lista").addEventListener("click", async ev => {
   trava(true);
   setStatus((ativando ? "Ativando" : "Desativando") + " recurso", "reiniciando o Klipper...", "busy");
   try {
-    const r = await fetch(base + "/server/joelma/features", {method:"POST",
+    const r = await fetch(base + "/server/k2/features", {method:"POST",
       headers:{"Content-Type":"application/json"}, body: JSON.stringify({feature:key, action: ativando ? "enable" : "disable"})});
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error((j.error && j.error.message) || ("HTTP " + r.status));
@@ -2112,11 +2154,11 @@ $("feat-lista").addEventListener("click", async ev => {
 featAtualiza();
 setInterval(() => { if (!ocupado) featAtualiza(); }, 30000);
 
-// ---------- Parar Homing (feature abort_homing via joelma_abort) ----------
+// ---------- Parar Homing (feature abort_homing via k2_abort) ----------
 // SEM guarda de ocupado: o proposito e justamente interromper um homing em curso.
 $("parar-homing").onclick = async () => {
   try {
-    const r = await fetch(base + "/server/joelma/abort_homing", {method:"POST"});
+    const r = await fetch(base + "/server/k2/abort_homing", {method:"POST"});
     const j = await r.json().catch(() => ({}));
     if (r.ok) { logLinha("// Parar Homing: enviado"); setStatus("Homing abortado", "motores desligados", "on"); }
     else logLinha("!! Parar Homing: " + ((j.error && j.error.message) || ("HTTP " + r.status)) + " (feature abort_homing instalada?)");
@@ -2193,7 +2235,7 @@ async function spRender(){
     else if (conectado) { st.textContent = "Spoolman ✓"; btn.title = cfg.server + " — conectado, sync a cada " + (cfg.sync_rate||5) + "s"; st.style.color = "var(--ok)"; }
     else { st.textContent = "Spoolman ✗"; btn.title = cfg.server + " — sem resposta; o servidor esta ligado?"; st.style.color = "var(--bad)"; }
   } catch(e) {
-    st.textContent = "Spoolman ?"; btn.title = "componente spoolman_admin ausente (rode: joelma update)"; st.style.color = "var(--bad)";
+    st.textContent = "Spoolman ?"; btn.title = "componente spoolman_admin ausente (rode: k2 update)"; st.style.color = "var(--bad)";
   }
 }
 async function spScan(){
@@ -2901,9 +2943,14 @@ async function leCalib(){
     if (cfg && cfg.input_shaper) {
       const i = cfg.input_shaper;
       const tx = (i.shaper_type_x || "?").toUpperCase();
+      const ty = (i.shaper_type_y || "?").toUpperCase();
       const fx = i.shaper_freq_x ? Math.round(i.shaper_freq_x) : "?";
       const fy = i.shaper_freq_y ? Math.round(i.shaper_freq_y) : "?";
-      tag("tag-shaper", tx + " " + fx + "/" + fy + "Hz", true);
+      // mostra os dois tipos quando diferem (ex. "EI/MZV 39/41Hz"); se iguais,
+      // um so (ex. "MZV 39/41Hz") pra nao poluir. Antes so mostrava o X e o badge
+      // ficava "cego" pro shaper do Y.
+      const tipo = (tx === ty) ? tx : (tx + "/" + ty);
+      tag("tag-shaper", tipo + " " + fx + "/" + fy + "Hz", true);
     }
 
     // Mesh
@@ -3156,13 +3203,13 @@ function desenhaMesh2D(g, W, H, m, min, span){
 })();
 
 // ---------- Graficos de ressonancia (CSV do Klipper via REST) ----------
-// O Klipper grava os CSVs dos testes em /tmp; o componente joelma_resonances
-// (moonraker-upgrade) os expoe em /server/joelma/resonances[/csv].
+// O Klipper grava os CSVs dos testes em /tmp; o componente k2_resonances
+// (moonraker-upgrade) os expoe em /server/k2/resonances[/csv].
 const RES_CORES = ["#42a5f5","#66bb6a","#ffa726","#ef5350","#ab47bc","#26c6da","#d4e157","#8d6e63"];
 async function resLista(){
   const sel = $("ressel");
   try {
-    const r = await fetch(base + "/server/joelma/resonances");
+    const r = await fetch(base + "/server/k2/resonances");
     if (!r.ok) throw new Error("HTTP " + r.status);
     const d = await r.json();
     const arqs = (d.result || d).arquivos || [];
@@ -3180,13 +3227,13 @@ async function resLista(){
     });
     resDesenha(sel.value).catch(e => logLinha("!! grafico: " + e.message));
   } catch(e) {
-    sel.innerHTML = '<option value="">componente ausente — rode joelma update</option>';
+    sel.innerHTML = '<option value="">componente ausente — rode k2 update</option>';
     $("resmap").style.display = "none";
   }
 }
 async function resDesenha(nome){
   if (!nome) return;
-  const r = await fetch(base + "/server/joelma/resonances/csv?nome=" + encodeURIComponent(nome));
+  const r = await fetch(base + "/server/k2/resonances/csv?nome=" + encodeURIComponent(nome));
   if (!r.ok) throw new Error("HTTP " + r.status);
   const d = await r.json();
   const j = d.result || d;
@@ -3301,7 +3348,7 @@ $("zread").onclick = () => zLeAtual();
 // O ajuste fino (SET_GCODE_OFFSET) e temporario: zera no restart E o START_PRINT
 // o re-seta no comeco de cada print (soma material+placa, que era 0 -> "o offset
 // zera quando reinicia"). Aqui o offset ATUAL e gravado via SAVE_VARIABLE como
-// zoff_<material>_<placa> (joelma_vars.cfg, persistente) e o START_PRINT passa a
+// zoff_<material>_<placa> (k2_vars.cfg, persistente) e o START_PRINT passa a
 // aplicar ESSE valor sozinho em toda impressao da combinacao. "Limpar" grava
 // None -> o START_PRINT ignora e volta pra soma legada do overrides.
 const ZC_MATS = ["PLA","PETG","ABS","ASA","TPU","PC","PA","default"];
@@ -3316,7 +3363,24 @@ $("zc-mat").innerHTML = ZC_MATS.map(m => "<option>" + m + "</option>").join("");
 // slug da placa usa "_" (mesmo separador do START_PRINT) -> nome de variavel
 // [a-z0-9_], aceito por qualquer Klipper no SAVE_VARIABLE
 const PLACA_KEY_RE = /^placa_([a-z0-9_]+)$/;
-const PLACA_DEFAULTS = {textured:"Textured PEI", smooth:"Smooth PEI"};
+// Placas pre-cadastradas: o VALUE e o slug que o START_PRINT calcula do
+// curr_bed_type (minusculo, nao-alfanum -> "_"). CONFIRMADOS nos slices do
+// usuario: textured_pei_plate, high_temp_plate, customized_plate. Os demais
+// usam o nome canonico padrao Orca/Creality — se um slice registrar um slug
+// diferente (auto-registro do START_PRINT), esse e o autoritativo. "textured"/
+// "smooth" ficam como fallback binario (PLACA_BIN) do START_PRINT.
+const PLACA_DEFAULTS = {
+  textured_pei_plate:   "PEI Texturizada (Textured PEI Plate)",
+  high_temp_plate:      "PEI Lisa / Alta Temp (High Temp Plate)",
+  customized_plate:     "Personalizada (Customized Plate)",
+  epoxy_resin_plate:    "Resina Epóxi (Epoxy Resin Plate)",
+  cool_plate:           "Fria Lisa (Cool Plate)",
+  textured_cool_plate:  "Fria Texturizada (Textured Cool Plate)",
+  engineering_plate:    "Engenharia (Engineering Plate)",
+  cool_plate_supertack: "Fria SuperTack (Cool Plate SuperTack)",
+  textured:             "— genérica texturizada —",
+  smooth:               "— genérica lisa —",
+};
 let placaLabels = Object.assign({}, PLACA_DEFAULTS);   // slug -> label amigavel
 function escHtml(s){ return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]); }
 function placaNome(slug){   // label do variables, senao prettifica o slug
@@ -3350,26 +3414,126 @@ function zcPlacaAtualSlug(){
   const s = zcVars.cur_placa;   // ponteiro gravado pelo START_PRINT (nao "placa_*")
   return (typeof s === "string" && s.trim()) ? s.trim() : null;
 }
-function zcAtualizaPlacaAtual(auto, imprimindo){   // indicador + auto-selecao na 1a leitura
-  const slug = zcPlacaAtualSlug(), hint = $("zc-atual-hint");
-  if (!slug){ if (hint) hint.textContent = "placa da impressão: — (imprima uma vez pra registrar)"; return; }
-  if (!(slug in placaLabels)){ placaLabels[slug] = placaNome(slug); zcMontaPlacas(); }   // placa nova ainda nao no dropdown
-  if (auto){ $("zc-placa").value = slug; try { localStorage.setItem(ZC_LS, slug); } catch(e){} }
-  const sel = $("zc-placa").value === slug;
-  if (hint) hint.textContent = (imprimindo ? "placa da impressão atual: " : "placa da última impressão: ")
-    + placaNome(slug) + (sel ? " ✓ selecionada" : " — clique “Usar placa da impressão”");
+// material da impressao atual (cur_mat = material-base minusculo, gravado pelo
+// START_PRINT) -> opcao do select (ZC_MATS em maiusculo). null se fora da lista.
+function zcMatAtual(){
+  const m = zcVars.cur_mat;
+  if (typeof m !== "string" || !m.trim()) return null;
+  const up = m.trim().toUpperCase();
+  return ZC_MATS.indexOf(up) >= 0 ? up : {fora: up};
 }
-function zcUsarPlacaAtual(){
+let zcPonteiro = null;   // "placa|material" da ultima leitura: mudou = print novo
+let zcImprimindo = false;
+function zcSelecionaAtual(comMaterial){   // seleciona placa (+ material) vindos do fatiador
+  const slug = zcPlacaAtualSlug(), mat = zcMatAtual();
+  if (slug){
+    if (!(slug in placaLabels)){ placaLabels[slug] = placaNome(slug); zcMontaPlacas(); }   // placa nova ainda nao no dropdown
+    $("zc-placa").value = slug;
+    try { localStorage.setItem(ZC_LS, slug); } catch(e){}
+  }
+  if (comMaterial && typeof mat === "string") $("zc-mat").value = mat;
+}
+function zcAtualizaPlacaAtual(auto, imprimindo, autoMat){   // indicador + auto-selecao
+  const slug = zcPlacaAtualSlug(), mat = zcMatAtual(), hint = $("zc-atual-hint");
+  if (!slug){ if (hint) hint.textContent = "fatiador: — (inicie uma impressão pelo fatiador e clique “Ler placa + material do fatiador”)"; return; }
+  if (auto) zcSelecionaAtual(autoMat);
+  else if (!(slug in placaLabels)){ placaLabels[slug] = placaNome(slug); zcMontaPlacas(); }
+  const matTxt = !mat ? "material ?" : (typeof mat === "string" ? mat : mat.fora + " (fora da lista — escolha manual)");
+  const sel = $("zc-placa").value === slug && (typeof mat !== "string" || $("zc-mat").value === mat);
+  if (hint) hint.textContent = (imprimindo ? "fatiador (impressão atual): " : "fatiador (última impressão): ")
+    + placaNome(slug) + " · " + matTxt + (sel ? " ✓ selecionados" : " — clique “Ler placa + material do fatiador”");
+}
+async function zcUsarPlacaAtual(){
+  await zcLerSalvos();   // leitura AO VIVO: o START_PRINT acabou de gravar cur_placa/cur_mat
   const slug = zcPlacaAtualSlug();
-  if (!slug){ setStatus("Placa da impressão desconhecida", "imprima uma vez pra registrar (o START_PRINT grava)", "err"); return; }
-  if (!(slug in placaLabels)){ placaLabels[slug] = placaNome(slug); zcMontaPlacas(); }
-  $("zc-placa").value = slug;
-  try { localStorage.setItem(ZC_LS, slug); } catch(e){}
-  zcAtualizaPlacaAtual(false, false);
-  logLinha("placa da impressao selecionada: " + placaNome(slug));
-  setStatus("Placa selecionada", placaNome(slug), "ok");
+  if (!slug){ setStatus("Placa do fatiador desconhecida", "inicie a impressão pelo fatiador (o START_PRINT grava a placa) e clique de novo", "err"); return; }
+  zcSelecionaAtual(true);
+  zcAtualizaPlacaAtual(false, zcImprimindo);
+  const mat = zcMatAtual();
+  const matTxt = typeof mat === "string" ? mat : (mat ? mat.fora + " (fora da lista)" : "?");
+  logLinha("// fatiador -> placa " + placaNome(slug) + " · material " + matTxt);
+  setStatus("Placa + material do fatiador", placaNome(slug) + " · " + matTxt, "ok");
 }
 $("zc-atual").onclick = () => { if (!ocupado) zcUsarPlacaAtual(); };
+// ---------- Barra de 1a camada (celular) ----------
+// Aparece sozinha com print_stats=printing/paused. Os ajustes vao DIRETO no
+// Klipper (sem roda/trava: nao trava o painel e aceita toques seguidos -
+// Z_ADJUST e aditivo, a ordem nao importa). Salvar grava zoff_<mat>_<placa> da
+// combinacao que o FATIADOR mandou (cur_placa/cur_mat), sem mexer em dropdown.
+const PC_LS = "pc:min";
+let pcOn = false, pcOff = 0;
+function pcAjustaPadding(){
+  document.body.style.paddingBottom = pcOn ? ($("pc").offsetHeight + 12) + "px" : "";
+}
+function pcCombo(){   // {slug, mat, ok}
+  const slug = zcPlacaAtualSlug(), m = zcMatAtual();
+  const mat = (typeof m === "string") ? m : $("zc-mat").value;
+  return {slug, mat, ok: !!slug && ZC_MATS.indexOf(mat) >= 0 && mat !== "default"};
+}
+function pcRender(){
+  if (!pcOn) return;
+  const c = pcCombo();
+  $("pc-combo").textContent = c.slug ? (placaNome(c.slug) + " · " + c.mat) : "placa do fatiador: aguardando o START_PRINT…";
+  const k = c.ok ? "zoff_" + c.mat.toLowerCase() + "_" + c.slug : null;
+  const salvo = (k && typeof zcVars[k] === "number") ? zcVars[k] : null;
+  $("pc-saved").textContent = salvo !== null ? "salvo p/ esta combinação: " + (salvo >= 0 ? "+" : "") + salvo.toFixed(3) + " mm" : (c.ok ? "nada salvo ainda p/ esta combinação" : "");
+  $("pc-save").disabled = !c.ok || !zcDispo;
+}
+function pcEstado(state){
+  const deve = state === "printing" || state === "paused";
+  if (deve === pcOn) return;
+  pcOn = deve;
+  $("pc").classList.toggle("on", pcOn);
+  if (pcOn){ zcLerSalvos().then(pcRender); pcRender(); }
+  requestAnimationFrame(pcAjustaPadding);
+}
+function pcOffset(v){
+  if (!isFinite(v)) return;
+  pcOff = v;
+  $("pc-off").textContent = (v >= 0 ? "+" : "") + v.toFixed(3);
+}
+document.querySelectorAll("#pc [data-pc]").forEach(b => b.onclick = async () => {
+  const d = +b.dataset.pc;
+  pcOffset(pcOff + d);   // otimista; o polling de 1 s confirma o valor real
+  try { await gcode("SET_GCODE_OFFSET Z_ADJUST=" + d + " MOVE=1", 1); logLinha("// 1a camada: Z " + (d > 0 ? "+" : "") + d); }
+  catch(e){ logLinha("!! ajuste Z: " + e.message); setStatus("Falha no ajuste Z", e.message, "err"); }
+});
+$("pc-min").onclick = () => {
+  const min = !$("pc").classList.contains("min");
+  $("pc").classList.toggle("min", min);
+  $("pc-min").textContent = min ? "▴" : "▾";
+  try { localStorage.setItem(PC_LS, min ? "1" : ""); } catch(e){}
+  pcAjustaPadding();
+};
+try { if (localStorage.getItem(PC_LS)) { $("pc").classList.add("min"); $("pc-min").textContent = "▴"; } } catch(e){}
+$("pc-save").onclick = async () => {
+  const c = pcCombo();
+  if (!c.ok || !zcDispo) return;
+  let v;
+  try {
+    const q = await rpc("printer.objects.query", {objects:{gcode_move:["homing_origin"]}});
+    v = +((((q.status.gcode_move || {}).homing_origin) || [0,0,0])[2]);
+  } catch(e){ setStatus("Falha ao ler o offset", e.message, "err"); return; }
+  if (!isFinite(v)) return;
+  const txt = (v >= 0 ? "+" : "") + v.toFixed(3) + " mm";
+  if (!confirm("Salvar " + txt + " para " + placaNome(c.slug) + " + " + c.mat + "?\n\nAs próximas impressões dessa combinação usam esse valor sozinhas.")) return;
+  const k = "zoff_" + c.mat.toLowerCase() + "_" + c.slug;
+  $("pc-save").disabled = true;
+  try {
+    await gcode("SAVE_VARIABLE VARIABLE=" + k + " VALUE=" + v.toFixed(3), 1);
+    $("zc-placa").value = c.slug; $("zc-mat").value = c.mat;   // card de cima coerente
+    logLinha("// 1a camada: salvo " + txt + " p/ " + zcNome(k));
+    setStatus("Offset salvo ✓", placaNome(c.slug) + " + " + c.mat + " = " + txt, "on");
+    await zcLerSalvos();
+  } catch(e){ setStatus("Falha ao salvar", e.message, "err"); }
+  pcRender();
+};
+window.addEventListener("resize", pcAjustaPadding);
+
+// releitura periodica: durante a impressao o START_PRINT grava a placa/material
+// do fatiador logo no inicio - relemos a cada 10 s pra Central ja selecionar a
+// combinacao certa enquanto voce calibra a 1a camada (sem recarregar a pagina).
+setInterval(() => { if (klipperOk && !ocupado) zcLerSalvos(); }, 10000);
 async function zcLerSalvos(){
   try {
     const q = await rpc("printer.objects.query", {objects:{save_variables:null, print_stats:["state"]}});
@@ -3378,7 +3542,7 @@ async function zcLerSalvos(){
     // com a persistencia inexistente e o Salvar quebraria com erro criptico.
     if (!q || !q.status || !("save_variables" in q.status)) {
       zcDispo = false;
-      $("zclist").textContent = "persistência indisponível — rode o update da Joelma (instala o [save_variables]) e reinicie o Klipper";
+      $("zclist").textContent = "persistência indisponível — rode o update da K2 Plus (instala o [save_variables]) e reinicie o Klipper";
       return;
     }
     zcDispo = true;
@@ -3395,7 +3559,17 @@ async function zcLerSalvos(){
     // sozinha "pra nao errar". Auto-seleciona na 1a leitura; depois so via o botao,
     // pra nao brigar com uma escolha manual do usuario no meio da sessao.
     const imprimindo = (((q.status.print_stats || {}).state) || "") === "printing";
-    zcAtualizaPlacaAtual(zcPrimeiraLeitura, imprimindo);
+    zcImprimindo = imprimindo;
+    // auto-seleciona na 1a leitura E quando o ponteiro placa|material muda (o
+    // START_PRINT de um print NOVO do fatiador gravou outra combinacao). Fora
+    // disso respeita a escolha manual - o botao "Ler placa + material" forca.
+    const ponteiro = String(zcVars.cur_placa || "") + "|" + String(zcVars.cur_mat || "");
+    const mudou = zcPonteiro !== null && ponteiro !== zcPonteiro;
+    // material: so com print novo ou Central aberta DURANTE um print - fora disso
+    // o material da ULTIMA impressao nao atropela o detectado do slot do CFS.
+    zcAtualizaPlacaAtual(zcPrimeiraLeitura || mudou, imprimindo, mudou || (zcPrimeiraLeitura && imprimindo));
+    if (mudou && zcPlacaAtualSlug()) logLinha("// fatiador mandou nova combinação: " + placaNome(zcPlacaAtualSlug()) + " · " + String(zcVars.cur_mat || "?").toUpperCase() + " (selecionada)");
+    zcPonteiro = ponteiro;
     zcPrimeiraLeitura = false;
     const ks = Object.keys(zcVars).filter(k => ZC_KEY_RE.test(k) && typeof zcVars[k] === "number" && isFinite(zcVars[k])).sort();
     $("zclist").innerHTML = ks.length
@@ -3404,6 +3578,7 @@ async function zcLerSalvos(){
           '<button class="ghost" data-zc-ap="' + k + '" style="padding:2px 8px;font-size:.7rem">Aplicar agora</button> ' +
           '<button class="ghost" data-zc-rm="' + k + '" style="padding:2px 8px;font-size:.7rem">Limpar</button></div>').join("")
       : "offsets salvos: nenhum ainda — calibre acima e Salve pra combinação.";
+    if (typeof pcRender === "function") pcRender();
   } catch(e){
     $("zclist").textContent = "offsets salvos: sem leitura (" + e.message + ")";
   }
@@ -3429,8 +3604,8 @@ $("zclist").addEventListener("click", async ev => {
 });
 async function zcSalvar(){
   if (!zcDispo) {
-    logLinha("!! persistencia indisponivel - rode o update da Joelma ([save_variables]) e recarregue a Central");
-    setStatus("Persistência indisponível", "rode o update da Joelma e recarregue", "err");
+    logLinha("!! persistencia indisponivel - rode o update da K2 Plus ([save_variables]) e recarregue a Central");
+    setStatus("Persistência indisponível", "rode o update da K2 Plus e recarregue", "err");
     zcLerSalvos();
     return;
   }
@@ -3446,6 +3621,46 @@ async function zcSalvar(){
   roda("SAVE_VARIABLE VARIABLE=" + k + " VALUE=" + v.toFixed(3), "Salvando offset " + v.toFixed(3) + "mm p/ " + zcNome(k), 2, () => zcLerSalvos());
 }
 $("zcsave").onclick = () => { if (!ocupado) zcSalvar(); };
+
+// ---------- Assistente de Z-offset por placa (patch de 1a camada real) ----------
+// Desenha um patch real no centro (material/temp reais) pra julgar o squish ao
+// vivo. O ajuste usa os botoes de Offset Z (SET_GCODE_OFFSET MOVE=1); o salvar
+// reusa o zcSalvar (grava zoff_<mat>_<placa>). Cada patch anda em Y pra cair em
+// mesa limpa. Exige filamento carregado (pela tela) e bico quente (M109).
+let zwN = 0;
+function zwPatch(){
+  const dy = ((zwN++ % 5) - 2) * 10;   // -20..+20 mm em passos de 10, perto do centro
+  const y = 165 + dy, x0 = 155, x1 = 195;
+  let g = "M83\nG90\nG1 Z3 F600\n";
+  g += "G1 X" + x0 + " Y" + y + " F9000\n";
+  g += "G1 Z0.2 F600\nG1 E3 F300\n";   // desce e purga um fio
+  let yy = y;
+  for (let i = 0; i < 5; i++) {
+    g += "G1 X" + (i % 2 === 0 ? x1 : x0) + " E1.5 F1200\n";
+    if (i < 4) { yy += 2; g += "G1 Y" + yy + " E0.08 F1200\n"; }
+  }
+  g += "G1 E-1 F1800\nG1 Z3 F600\nG90\n";
+  return g;
+}
+$("zw-start").onclick = async () => {
+  if (ocupado) return;
+  if (!(await fbNaoImprimindo())) { logLinha("!! Z-offset: impressão em andamento — abortado"); return; }
+  const t = parseFloat($("zw-temp").value);
+  if (!(t >= 150 && t <= 300)) { logLinha("!! temp inválida (150–300°C)"); return; }
+  if (!fbAtivoTnn && !confirm("Nenhum filamento detectado carregado. Carregue pela tela antes.\n\nComeçar mesmo assim?")) return;
+  const ph = await prefixoHome();
+  if (ph) logLinha("// sem home — G28 antes do patch");
+  roda(ph + "M109 S" + t + "\n" + zwPatch(), "Z-offset: aquecendo + desenhando patch", 8, () => leCalib());
+};
+$("zw-redraw").onclick = () => {
+  if (ocupado) return;
+  roda(zwPatch(), "Z-offset: redesenhando patch", 5, () => leCalib());
+};
+$("zw-save").onclick = () => { if (!ocupado) zcSalvar(); };
+$("zw-end").onclick = () => {
+  if (ocupado) return;
+  roda("G91\nG1 Z10 F600\nG90\nM104 S0", "Encerrando assistente (bico levantado, aquecedor off)", 3, () => leCalib());
+};
 // material auto-detectado do slot CARREGADO do CFS (box.T1.filament + same_material);
 // o select continua manual — auto so pre-seleciona quando reconhece. Retry cobre o
 // boot (Moonraker/Klipper ainda subindo). A leitura da LISTA de offsets nao mora
@@ -3565,7 +3780,7 @@ async function paLinha(){
 $("palprint").onclick = () => { if (!ocupado) paLinha(); };
 
 // ---------- PA salvo por material (START_PRINT aplica SET_PRESSURE_ADVANCE sozinho) ----------
-// Espelha a persistencia do Z-offset: grava pa_<material> no joelma_vars.cfg e o
+// Espelha a persistencia do Z-offset: grava pa_<material> no k2_vars.cfg e o
 // START_PRINT reaplica a cada print (SET_PRESSURE_ADVANCE zera no restart). Cadeia
 // no macro: material exato -> material-BASE -> default. "Limpar" grava None.
 const PA_MATS = ["PLA","PETG","ABS","ASA","TPU","PC","PA","default"];
@@ -3578,7 +3793,7 @@ async function paLerSalvos(){
     const q = await rpc("printer.objects.query", {objects:{save_variables:null}});
     if (!q || !q.status || !("save_variables" in q.status)) {
       paDispo = false;
-      $("palist").textContent = "persistência indisponível — rode o update da Joelma ([save_variables]) e reinicie o Klipper";
+      $("palist").textContent = "persistência indisponível — rode o update da K2 Plus ([save_variables]) e reinicie o Klipper";
       return;
     }
     paDispo = true;
@@ -3607,7 +3822,7 @@ $("palist").addEventListener("click", ev => {
   }
 });
 async function paSalvar(){
-  if (!paDispo) { setStatus("Persistência indisponível", "rode o update da Joelma e recarregue", "err"); paLerSalvos(); return; }
+  if (!paDispo) { setStatus("Persistência indisponível", "rode o update da K2 Plus e recarregue", "err"); paLerSalvos(); return; }
   const mat = $("pa-mat").value, v = +$("pa-val").value;
   if (!isFinite(v) || v < 0 || v > 1) { setStatus("PA inválido", "informe um valor entre 0 e 1", "err"); return; }
   const k = "pa_" + mat.toLowerCase();
@@ -3616,66 +3831,6 @@ async function paSalvar(){
 }
 $("pasave").onclick = () => { if (!ocupado) paSalvar(); };
 
-// ---------- Auto-PA por celula de carga (experimental): varredura READ_PRES ----------
-// Le a forca (prtouch/CS1237) via READ_PRES pela API do Moonraker (gcode_store),
-// mede a contrapressao em varias vazoes e diz se o sinal sai do ruido (SNR). Nao
-// seta PA: e MEDICAO. Mesma logica do pa_tuner.py, agora no navegador.
-const PAF_INFO_RE = /\[PRES_DATA_CH0_INFO\]\[CFG=\S+\s+MIN=(-?\d+)\s+MAX=(-?\d+)\s+DIF=(\d+)\s+AVG=(-?\d+)\]/;
-async function pafReadPres(){
-  await gcode("READ_PRES", 1);
-  await new Promise(r => setTimeout(r, 450));
-  const d = await rpc("server.gcode_store", {count: 80});
-  const msgs = (d.gcode_store || []).map(m => m.message);
-  for (let i = msgs.length - 1; i >= 0; i--) {
-    const m = msgs[i].match(PAF_INFO_RE);
-    if (m) return { min:+m[1], max:+m[2], dif:+m[3], avg:+m[4] };
-  }
-  throw new Error("READ_PRES não retornou [PRES_DATA_CH0_INFO] (comando existe nesta cabeça?)");
-}
-async function pafMedir(){
-  const temp = Math.max(170, Math.min(300, +$("paf-temp").value || 220));
-  const flows = ($("paf-flows").value || "").split(",").map(s => parseFloat(s.trim())).filter(x => isFinite(x) && x > 0);
-  if (!flows.length) { setStatus("Vazões inválidas", "ex.: 3,5,8,11,14,18", "err"); return; }
-  if (!confirm("Medir contrapressão em " + flows.length + " vazões?\n\nConfirme: FILAMENTO carregado. Bico vai a " + temp + "C e solta um cordão curto no ar sobre o centro (X175 Y175, Z30).")) return;
-  const AREA = Math.PI * Math.pow(1.75 / 2, 2), DUR = 4.0;   // ~4s de extrusao por vazao
-  trava(true); setStatus("Auto-PA: medindo contrapressão", "aquecendo e varrendo vazões — acompanhe abaixo", "busy");
-  const out = $("pafout"); out.textContent = "";
-  const log = s => { out.textContent += s + "\n"; };
-  try {
-    await gcode("G90", 1);
-    await gcode("G1 Z30 F1200", 2);
-    await gcode("G1 X175 Y175 F6000", 2);
-    log("aquecendo bico " + temp + "C...");
-    await gcode("M104 S" + temp, 1);
-    await gcode("M109 S" + temp, 6);
-    await gcode("M83", 1);
-    const idle = await pafReadPres();   // ruído REAL de repouso (bico parado) = piso p/ o SNR
-    log("ruído de repouso (DIF) = " + idle.dif + " counts");
-    const rows = [];
-    for (const q of flows) {
-      const v = q / AREA, feed = v * 60, length = Math.max(2, v * DUR);
-      const base = await pafReadPres();
-      await gcode("G1 E" + length.toFixed(2) + " F" + feed.toFixed(1), 5);
-      const load = await pafReadPres();
-      await gcode("G1 E-2 F1800", 1);
-      await new Promise(r => setTimeout(r, 1200));
-      const sig = load.avg - base.avg;
-      rows.push({ q, feed, sig, dif: load.dif });
-      log("q=" + q.toFixed(1) + " mm3/s  feed=" + feed.toFixed(0) + "  sinal=" + (sig >= 0 ? "+" : "") + sig + " counts  (ruído=" + load.dif + ")");
-    }
-    await gcode("M104 S0", 1);
-    // piso de ruído = DIF de REPOUSO (nao o DIF durante extrusao, que e a propria
-    // pressao variando). Sinal = |load - base| por vazao.
-    const noise = Math.max(idle.dif, 1);
-    const big = Math.max.apply(null, rows.map(r => Math.abs(r.sig)));
-    log("\nsinal máx=" + big + "  ruído repouso=" + noise + "  SNR~" + (big / noise).toFixed(0) + "x");
-    if (big > 3 * noise) { log("VEREDITO: SNR ÓTIMO → auto-PA destravado. Manda esta saída pro Claude derivar o K."); setStatus("Auto-PA: SNR ótimo", "sinal bem acima do ruído", "on"); }
-    else if (big > noise) { log("VEREDITO: SNR marginal → dá com média/repetição. Manda pro Claude."); setStatus("Auto-PA: SNR marginal", "dá, com cuidado", "on"); }
-    else { log("VEREDITO: sinal PERDIDO no ruído → load-cell não compensa nesta cabeça. Use o teste de linha."); setStatus("Auto-PA: sem sinal", "use o teste de linha", "err"); }
-  } catch(e){ log("\nFALHOU: " + e.message); setStatus("FALHOU: auto-PA", e.message, "err"); logLinha("!! " + e.message); try { await gcode("M104 S0", 1); } catch(_){} }
-  finally { trava(false); }
-}
-$("pafgo").onclick = () => { if (!ocupado) pafMedir(); };
 // extrusora
 $("ext100").onclick = () => roda(
   "M109 S220\nG91\nG1 E100 F60\nG90", "Extrudando 100mm a 220C (leva ~2 min)", 8);
@@ -3777,7 +3932,8 @@ function objsSub(){
   const o = {
     heater_bed:["temperature","target"], extruder:["temperature","target"],
     idle_timeout:["state"], display_status:["message"], "output_pin LED":["value"],
-    toolhead:["position","homed_axes"]
+    toolhead:["position","homed_axes"],
+    print_stats:["state"], gcode_move:["homing_origin"]   // barra de 1a camada
   };
   SENSORES.forEach(s => { if (!o[s.obj]) o[s.obj] = null; });
   return o;
@@ -3852,7 +4008,7 @@ function renderSensores(){
 async function pintaNome(){
   try {
     const r = await fetch(base + "/server/database/item?namespace=fluidd&key=uiSettings.general.instanceName");
-    if (!r.ok) return;                          // sem nome configurado: mantem "Joelma"
+    if (!r.ok) return;                          // sem nome configurado: mantem "K2 Plus"
     const nome = (await r.json()).result.value;
     if (nome && typeof nome === "string") {
       $("nomeImpressora").textContent = nome;
@@ -3966,9 +4122,9 @@ async function pintaSistema(){
              ? d.moonraker_version.split("-")[0] : null;
     $("fwMoon").textContent = mv || ("API " + (d.api_version_string || "?"));
   } catch(e) { $("fwMoon").textContent = "?"; }
-  // Firmware da impressora (componente joelma_info)
+  // Firmware da impressora (componente k2_info)
   try {
-    const r = await fetch(base + "/server/joelma/info");
+    const r = await fetch(base + "/server/k2/info");
     const d = (await r.json()).result;
     $("fwPrinter").textContent = d.firmware || "?";
     $("fwModelo").textContent = d.modelo || "impressora";
@@ -4013,7 +4169,7 @@ pintaIcones();
 pintaTema();
 pintaNome();
 // carimbo no console: data da COPIA servida em /usr/share/fluidd — diagnostica
-// na hora se um "joelma update" realmente trocou a pagina
+// na hora se um "k2 update" realmente trocou a pagina
 logLinha("// Central de Calibracao — pagina copiada em " + document.lastModified);
 descobreSensores();
 pintaSistema();

@@ -1,10 +1,10 @@
-# joelma_abort.py - expoe o endpoint Klipper force_stop_homing (feature
+# k2_abort.py - expoe o endpoint Klipper force_stop_homing (feature
 # abort_homing) via REST, pra a Central disparar o "Parar Homing". Usa o MESMO
 # caminho interno do emergency_stop do Moonraker (_send_klippy_request). Faz
-# parte do fork k2-improvements-joelma.
+# parte do fork k2-improvements.
 #
 # Endpoint:
-#   POST /server/joelma/abort_homing  -> chama force_stop_homing no Klipper
+#   POST /server/k2/abort_homing  -> chama force_stop_homing no Klipper
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Dict
@@ -16,11 +16,11 @@ if TYPE_CHECKING:
     from ..common import WebRequest
 
 
-class JoelmaAbort:
+class K2Abort:
     def __init__(self, config: "ConfigHelper") -> None:
         self.server = config.get_server()
         self.server.register_endpoint(
-            "/server/joelma/abort_homing",
+            "/server/k2/abort_homing",
             RequestType.POST,
             self._handle,
         )
@@ -35,5 +35,5 @@ class JoelmaAbort:
         return {"ok": True}
 
 
-def load_component(config: "ConfigHelper") -> JoelmaAbort:
-    return JoelmaAbort(config)
+def load_component(config: "ConfigHelper") -> K2Abort:
+    return K2Abort(config)

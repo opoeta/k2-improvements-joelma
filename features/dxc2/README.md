@@ -8,7 +8,7 @@ o kit DXC2 instalado.
 - `dxc2.cfg` — overrides de T0–T7 (2 CFS), BOX_CUT_MATERIAL (double-cut),
   BOX_RETRUDE_MATERIAL (retry watchdog), QUIT_MATERIAL_RETRUDE_MATERIAL e o
   DXC2_END_UNLOAD com recuperação. **Inerte** até ser incluído pelo toggle.
-- **NÃO** está no `no-carto-joelma.sh` (não é instalado por padrão).
+- **NÃO** está no `no-carto-k2.sh` (não é instalado por padrão).
 
 ## Ativar/Desativar (a construir)
 Como o `[box]` é seção única no `box.cfg`, o toggle **edita o box.cfg** (com
@@ -25,7 +25,7 @@ backup) trocando o perfil de valores:
 E inclui/remove este `dxc2.cfg` no `custom/main.cfg`, depois `FIRMWARE_RESTART`.
 
 ## Falta fazer
-1. Plugin Moonraker `joelma_dxc2`: ler/gravar chaves do `[box]` (backup + whitelist),
+1. Plugin Moonraker `k2_dxc2`: ler/gravar chaves do `[box]` (backup + whitelist),
    toggle de perfil, include/remove do dxc2.cfg, restart.
 2. Painel DXC2 na Central (calibra.html): interruptor + calibrar corte
    (`CALIBRATE_CUT_POS`) + ajuste de valores + troca/unload.

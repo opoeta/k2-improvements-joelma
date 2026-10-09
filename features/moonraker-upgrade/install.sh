@@ -56,7 +56,7 @@ fi
 #  1. REMOVE [update_manager fluidd] — o updater web do Moonraker exige um path
 #     gravavel e gerencia a pasta inteira; /usr/share/fluidd e caminho de sistema
 #     ("path is not writable") e um update pela UI apagaria a nossa calibra.html.
-#     Atualizacao do Fluidd fica por conta da feature fluidd-upstream (joelma update).
+#     Atualizacao do Fluidd fica por conta da feature fluidd-upstream (k2 update).
 #  2. [machine] provider: none — silencia "Unable to find DBus PolKit Interface"
 #     (OpenWrt nao tem PolKit; sem systemd nao ha service action API mesmo).
 #  3. [update_manager] enable_system_updates: False — silencia "Unable to
@@ -126,73 +126,73 @@ if [ -f "${FEAT_DIR}/spoolman_admin.py" ]; then
     cp "${FEAT_DIR}/spoolman_admin.py" /usr/share/moonraker/components/spoolman_admin.py
     echo "I: componente spoolman_admin.py copiado"
 fi
-if [ -f "${FEAT_DIR}/joelma_info.py" ]; then
-    cp "${FEAT_DIR}/joelma_info.py" /usr/share/moonraker/components/joelma_info.py
-    echo "I: componente joelma_info.py copiado"
+if [ -f "${FEAT_DIR}/k2_info.py" ]; then
+    cp "${FEAT_DIR}/k2_info.py" /usr/share/moonraker/components/k2_info.py
+    echo "I: componente k2_info.py copiado"
 fi
-# joelma_resonances: expoe os CSVs de TEST_RESONANCES/SHAPER_CALIBRATE (/tmp)
+# k2_resonances: expoe os CSVs de TEST_RESONANCES/SHAPER_CALIBRATE (/tmp)
 # via REST para a Central desenhar os graficos de ressonancia no navegador.
-if [ -f "${FEAT_DIR}/joelma_resonances.py" ]; then
-    cp "${FEAT_DIR}/joelma_resonances.py" /usr/share/moonraker/components/joelma_resonances.py
-    echo "I: componente joelma_resonances.py copiado"
+if [ -f "${FEAT_DIR}/k2_resonances.py" ]; then
+    cp "${FEAT_DIR}/k2_resonances.py" /usr/share/moonraker/components/k2_resonances.py
+    echo "I: componente k2_resonances.py copiado"
 fi
-if ! grep -q '^\[joelma_resonances\]' ${CONF}; then
+if ! grep -q '^\[k2_resonances\]' ${CONF}; then
     cat >> ${CONF} <<'JRES'
 
-[joelma_resonances]
+[k2_resonances]
 JRES
     MUDOU=1
-    echo "I: [joelma_resonances] ativado (graficos de ressonancia via REST)"
+    echo "I: [k2_resonances] ativado (graficos de ressonancia via REST)"
 fi
-# joelma_cfs_edit: edita material/cor de slot do CFS gravando nos JSONs do
+# k2_cfs_edit: edita material/cor de slot do CFS gravando nos JSONs do
 # firmware (os mesmos que a tela usa) — sincroniza tela/Creality Print/Orca.
-if [ -f "${FEAT_DIR}/joelma_cfs_edit.py" ]; then
-    cp "${FEAT_DIR}/joelma_cfs_edit.py" /usr/share/moonraker/components/joelma_cfs_edit.py
-    echo "I: componente joelma_cfs_edit.py copiado"
+if [ -f "${FEAT_DIR}/k2_cfs_edit.py" ]; then
+    cp "${FEAT_DIR}/k2_cfs_edit.py" /usr/share/moonraker/components/k2_cfs_edit.py
+    echo "I: componente k2_cfs_edit.py copiado"
 fi
-if ! grep -q '^\[joelma_cfs_edit\]' ${CONF}; then
+if ! grep -q '^\[k2_cfs_edit\]' ${CONF}; then
     cat >> ${CONF} <<'JCFS'
 
-[joelma_cfs_edit]
+[k2_cfs_edit]
 JCFS
     MUDOU=1
-    echo "I: [joelma_cfs_edit] ativado (edicao de slot gravada no firmware)"
+    echo "I: [k2_cfs_edit] ativado (edicao de slot gravada no firmware)"
 fi
-if ! grep -q '^\[joelma_info\]' ${CONF}; then
+if ! grep -q '^\[k2_info\]' ${CONF}; then
     cat >> ${CONF} <<'JINFO'
 
-[joelma_info]
+[k2_info]
 JINFO
     MUDOU=1
-    echo "I: [joelma_info] ativado (versao do firmware da impressora)"
+    echo "I: [k2_info] ativado (versao do firmware da impressora)"
 fi
-# joelma_dxc2: ativa/desativa o perfil DXC2 no [box] do box.cfg (stock<->DXC2,
+# k2_dxc2: ativa/desativa o perfil DXC2 no [box] do box.cfg (stock<->DXC2,
 # com backup) e edita chaves de calibracao. Gerencia o include do dxc2.cfg.
-if [ -f "${FEAT_DIR}/joelma_dxc2.py" ]; then
-    cp "${FEAT_DIR}/joelma_dxc2.py" /usr/share/moonraker/components/joelma_dxc2.py
-    echo "I: componente joelma_dxc2.py copiado"
+if [ -f "${FEAT_DIR}/k2_dxc2.py" ]; then
+    cp "${FEAT_DIR}/k2_dxc2.py" /usr/share/moonraker/components/k2_dxc2.py
+    echo "I: componente k2_dxc2.py copiado"
 fi
-if ! grep -q '^\[joelma_dxc2\]' ${CONF}; then
+if ! grep -q '^\[k2_dxc2\]' ${CONF}; then
     cat >> ${CONF} <<'JDXC2'
 
-[joelma_dxc2]
+[k2_dxc2]
 JDXC2
     MUDOU=1
-    echo "I: [joelma_dxc2] ativado (toggle do perfil DXC2 no box.cfg)"
+    echo "I: [k2_dxc2] ativado (toggle do perfil DXC2 no box.cfg)"
 fi
-# joelma_abort: expoe o endpoint force_stop_homing (feature abort_homing) via
+# k2_abort: expoe o endpoint force_stop_homing (feature abort_homing) via
 # REST, pra a Central disparar o "Parar Homing".
-if [ -f "${FEAT_DIR}/joelma_abort.py" ]; then
-    cp "${FEAT_DIR}/joelma_abort.py" /usr/share/moonraker/components/joelma_abort.py
-    echo "I: componente joelma_abort.py copiado"
+if [ -f "${FEAT_DIR}/k2_abort.py" ]; then
+    cp "${FEAT_DIR}/k2_abort.py" /usr/share/moonraker/components/k2_abort.py
+    echo "I: componente k2_abort.py copiado"
 fi
-if ! grep -q '^\[joelma_abort\]' ${CONF}; then
+if ! grep -q '^\[k2_abort\]' ${CONF}; then
     cat >> ${CONF} <<'JABRT'
 
-[joelma_abort]
+[k2_abort]
 JABRT
     MUDOU=1
-    echo "I: [joelma_abort] ativado (Parar Homing via REST)"
+    echo "I: [k2_abort] ativado (Parar Homing via REST)"
 fi
 if ! grep -q '^\[spoolman_admin\]' ${CONF}; then
     cat >> ${CONF} <<'SPADM'
@@ -202,27 +202,27 @@ SPADM
     MUDOU=1
     echo "I: [spoolman_admin] ativado (config + scan de rede pela interface)"
 fi
-# joelma_features: liga/desliga pela Central os recursos avancados que TROCAM
+# k2_features: liga/desliga pela Central os recursos avancados que TROCAM
 # arquivo do Klipper (axis_twist, save-config-restart) - com backup, status e
 # restart automatico. Zero SSH. Precisa saber a raiz do repo p/ achar os .py
 # fonte: FEAT_DIR e features/moonraker-upgrade -> repo = dois niveis acima.
-if [ -f "${FEAT_DIR}/joelma_features.py" ]; then
-    DST=/usr/share/moonraker/components/joelma_features.py
-    if ! cmp -s "${FEAT_DIR}/joelma_features.py" "$DST" 2>/dev/null; then
-        cp "${FEAT_DIR}/joelma_features.py" "$DST"
+if [ -f "${FEAT_DIR}/k2_features.py" ]; then
+    DST=/usr/share/moonraker/components/k2_features.py
+    if ! cmp -s "${FEAT_DIR}/k2_features.py" "$DST" 2>/dev/null; then
+        cp "${FEAT_DIR}/k2_features.py" "$DST"
         MUDOU=1
-        echo "I: componente joelma_features.py copiado/atualizado"
+        echo "I: componente k2_features.py copiado/atualizado"
     fi
 fi
 REPO_ROOT=$(readlink -f "${FEAT_DIR}/../..")
-if ! grep -q '^\[joelma_features\]' ${CONF}; then
+if ! grep -q '^\[k2_features\]' ${CONF}; then
     cat >> ${CONF} <<JFEAT
 
-[joelma_features]
+[k2_features]
 repo: ${REPO_ROOT}
 JFEAT
     MUDOU=1
-    echo "I: [joelma_features] ativado (toggle de recursos avancados pela Central, repo=${REPO_ROOT})"
+    echo "I: [k2_features] ativado (toggle de recursos avancados pela Central, repo=${REPO_ROOT})"
 else
     # mantem o repo: em dia caso o caminho do clone tenha mudado
     python3 - "$CONF" "$REPO_ROOT" <<'PYEOF'
@@ -236,7 +236,7 @@ def sub_repo(m):
     else:
         body = body.rstrip('\n') + '\nrepo: ' + repo + '\n'
     return body
-s = re.sub(r'(?ms)^\[joelma_features\][ \t]*\n(?:(?!^\[).*\n?)*', sub_repo, s, count=1)
+s = re.sub(r'(?ms)^\[k2_features\][ \t]*\n(?:(?!^\[).*\n?)*', sub_repo, s, count=1)
 if s != orig:
     open(p, 'w').write(s); print('repo atualizado')
 PYEOF
@@ -261,9 +261,9 @@ else:
     raise SystemExit("E: moonraker nao subiu em 60s - rode o restore se necessario")
 try:
     req = urllib.request.Request(
-        "http://127.0.0.1:7125/server/webcams/item?name=Joelma", method="DELETE")
+        "http://127.0.0.1:7125/server/webcams/item?name=K2 Plus", method="DELETE")
     urllib.request.urlopen(req, timeout=5)
-    print("I: registro antigo 'Joelma' (webrtc-creality) removido do DB")
+    print("I: registro antigo 'K2 Plus' (webrtc-creality) removido do DB")
 except Exception:
     pass
 print("I: moonraker upstream ativo - camera no Fluidd via [webcam Default]")
