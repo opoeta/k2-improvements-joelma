@@ -634,6 +634,14 @@
 </div>
 <div id="feat-lista"></div>
 
+<h2><i data-ic="settings"></i> Purga no início do print</h2>
+<div class="dica"><b>Inteligente</b> (recomendado): só faz a purga cheia (90 mm em 3 bolinhas) quando o print <b>trocou de filamento</b>. Com o mesmo filamento já no bico, só limpa o bico — a linha de purga na mesa (LINE_PURGE) faz o resto. Precisa do <b>DXC2 ativo</b>; sem ele, purga sempre. <b>Sempre</b>: volta ao comportamento antigo — use se notar cor velha sangrando.</div>
+<div class="lin" style="gap:10px;align-items:center;flex-wrap:wrap">
+  <span class="acc-tag" id="purga-status">—</span>
+  <button id="purga-smart" class="ghost">Inteligente</button>
+  <button id="purga-sempre" class="ghost">Sempre</button>
+</div>
+
 <h2><i data-ic="settings"></i> Tensão das correias (X/Y)</h2>
 <div class="dica">Tensor de correia motorizado do K2 (<code>BELT_MDL_*</code>). Stock ≈ <b>140 N</b> — a comunidade costuma baixar (ex. ~35 N). <b style="color:var(--warn)">Mudança mecânica:</b> valor errado = passo perdido ou correia frouxa. Leia antes, mude com cautela e <b>re-home depois</b>.</div>
 <div class="lin" style="gap:8px;align-items:flex-end;flex-wrap:wrap">
@@ -3530,6 +3538,29 @@ $("pc-save").onclick = async () => {
 };
 window.addEventListener("resize", pcAjustaPadding);
 
+// ---------- Purga no inicio do print (save_variables purga_sempre) ----------
+// O _BOX_PURGE_ON_CHANGE (start_print.cfg) le purga_sempre: 1 = purga cheia em
+// todo print; 0/ausente = inteligente (so com troca real de filamento, sinalizada
+// pelo CODEX_CFS_SELECT do dxc2.cfg). Sem DXC2 o macro purga sempre de qualquer jeito.
+function purgaRender(){
+  if (!zcDispo) { $("purga-status").textContent = "persistência indisponível"; return; }
+  const sempre = +zcVars.purga_sempre === 1;
+  const st = $("purga-status");
+  st.textContent = sempre ? "SEMPRE (90 mm todo print)" : (dxcAtivo ? "INTELIGENTE — ativo" : "INTELIGENTE — sem DXC2, purga sempre");
+  st.style.background = sempre ? "var(--warn)" : (dxcAtivo ? "var(--ok)" : "var(--mut)");
+  st.style.color = sempre ? "#111" : "#fff";
+  $("purga-smart").classList.toggle("salvar", !sempre);
+  $("purga-sempre").classList.toggle("salvar", sempre);
+}
+function purgaSet(v){
+  if (ocupado || !zcDispo) return;
+  roda("SAVE_VARIABLE VARIABLE=purga_sempre VALUE=" + v,
+       v ? "Purga: sempre (90 mm todo print)" : "Purga: inteligente (só quando troca filamento)", 1,
+       () => zcLerSalvos());
+}
+$("purga-smart").onclick  = () => purgaSet(0);
+$("purga-sempre").onclick = () => purgaSet(1);
+
 // releitura periodica: durante a impressao o START_PRINT grava a placa/material
 // do fatiador logo no inicio - relemos a cada 10 s pra Central ja selecionar a
 // combinacao certa enquanto voce calibra a 1a camada (sem recarregar a pagina).
@@ -3579,6 +3610,7 @@ async function zcLerSalvos(){
           '<button class="ghost" data-zc-rm="' + k + '" style="padding:2px 8px;font-size:.7rem">Limpar</button></div>').join("")
       : "offsets salvos: nenhum ainda — calibre acima e Salve pra combinação.";
     if (typeof pcRender === "function") pcRender();
+    if (typeof purgaRender === "function") purgaRender();
   } catch(e){
     $("zclist").textContent = "offsets salvos: sem leitura (" + e.message + ")";
   }
