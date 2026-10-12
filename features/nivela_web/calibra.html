@@ -642,6 +642,17 @@
   <button id="purga-sempre" class="ghost">Sempre</button>
 </div>
 
+<h2><i data-ic="settings"></i> Purga na troca de cor (multicolor)</h2>
+<div class="dica">O Creality Print manda no mínimo <b>90 mm</b> por troca, mesmo com a matriz menor. O firmware da K2 considera <b>70 mm</b> suficientes (caminho do bico ≈ 76 mm). Com o <b>piso</b> ligado, a impressora purga o piso nas trocas comuns e <b>respeita o fatiador</b> quando a matriz pedir mais (pares difíceis, ex. preto → branco). <b>Fatiador</b>: purga exatamente o que o fatiador mandou. Só vale com o <b>G-code de troca de filamento</b> que chama o <code>K2_FLUSH</code> colado no perfil.</div>
+<div class="lin" style="gap:10px;align-items:center;flex-wrap:wrap">
+  <span class="acc-tag" id="troca-status">—</span>
+  <button id="troca-70" class="ghost">Piso 70 mm</button>
+  <button id="troca-fat" class="ghost">Fatiador (90)</button>
+  <label style="min-width:auto;font-size:.75rem;color:var(--mut)">outro piso (mm)
+    <input type="number" id="troca-mm" min="40" max="150" step="5" style="width:70px"></label>
+  <button id="troca-ok" class="ghost">Aplicar</button>
+</div>
+
 <h2><i data-ic="settings"></i> Tensão das correias (X/Y)</h2>
 <div class="dica">Tensor de correia motorizado do K2 (<code>BELT_MDL_*</code>). Stock ≈ <b>140 N</b> — a comunidade costuma baixar (ex. ~35 N). <b style="color:var(--warn)">Mudança mecânica:</b> valor errado = passo perdido ou correia frouxa. Leia antes, mude com cautela e <b>re-home depois</b>.</div>
 <div class="lin" style="gap:8px;align-items:flex-end;flex-wrap:wrap">
@@ -3558,6 +3569,28 @@ function purgaSet(v){
        v ? "Purga: sempre (90 mm todo print)" : "Purga: inteligente (só quando troca filamento)", 1,
        () => zcLerSalvos());
 }
+// ---------- Purga na troca de cor (save_variables purga_piso, lido pelo K2_FLUSH) ----------
+function trocaRender(){
+  const st = $("troca-status");
+  if (!zcDispo) { st.textContent = "persistência indisponível"; return; }
+  const piso = +zcVars.purga_piso || 0;
+  st.textContent = piso > 0 ? ("PISO " + piso + " mm (acima disso, o fatiador)") : "FATIADOR (90 mm por troca)";
+  st.style.background = piso > 0 ? "var(--ok)" : "var(--mut)";
+  st.style.color = "#fff";
+  $("troca-70").classList.toggle("salvar", piso === 70);
+  $("troca-fat").classList.toggle("salvar", piso === 0);
+  if (document.activeElement !== $("troca-mm")) $("troca-mm").value = piso > 0 ? piso : "";
+}
+function trocaSet(mm){
+  if (ocupado || !zcDispo) return;
+  if (mm !== 0 && !(mm >= 40 && mm <= 150)) { setStatus("Piso inválido", "use entre 40 e 150 mm", "err"); return; }
+  roda("SAVE_VARIABLE VARIABLE=purga_piso VALUE=" + mm,
+       mm ? ("Purga na troca: piso " + mm + " mm") : "Purga na troca: o que o fatiador mandar", 1,
+       () => zcLerSalvos());
+}
+$("troca-70").onclick  = () => trocaSet(70);
+$("troca-fat").onclick = () => trocaSet(0);
+$("troca-ok").onclick  = () => trocaSet(Math.round(+$("troca-mm").value));
 $("purga-smart").onclick  = () => purgaSet(0);
 $("purga-sempre").onclick = () => purgaSet(1);
 
@@ -3611,6 +3644,7 @@ async function zcLerSalvos(){
       : "offsets salvos: nenhum ainda — calibre acima e Salve pra combinação.";
     if (typeof pcRender === "function") pcRender();
     if (typeof purgaRender === "function") purgaRender();
+    if (typeof trocaRender === "function") trocaRender();
   } catch(e){
     $("zclist").textContent = "offsets salvos: sem leitura (" + e.message + ")";
   }
