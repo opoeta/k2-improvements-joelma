@@ -635,7 +635,7 @@
 <div id="feat-lista"></div>
 
 <h2><i data-ic="settings"></i> Purga no início do print</h2>
-<div class="dica"><b>Inteligente</b> (recomendado): só faz a purga cheia (90 mm em 3 bolinhas) quando o print <b>trocou de filamento</b>. Com o mesmo filamento já no bico, só limpa o bico — a linha de purga na mesa (LINE_PURGE) faz o resto. Precisa do <b>DXC2 ativo</b>; sem ele, purga sempre. <b>Sempre</b>: volta ao comportamento antigo — use se notar cor velha sangrando.</div>
+<div class="dica"><b>Inteligente</b>: pula a purga cheia (90 mm em 3 bolinhas) <b>só quando o macro do T (DXC2) confirma</b> que o filamento no bico é o mesmo. <b>Atenção:</b> em impressões mandadas pelo fatiador, o firmware da Creality troca o filamento sozinho e esse macro nem roda — aí ele <b>purga sempre</b>, por segurança (não dá pra saber se trocou a cor). <b>Sempre</b>: purga cheia em todo print.</div>
 <div class="lin" style="gap:10px;align-items:center;flex-wrap:wrap">
   <span class="acc-tag" id="purga-status">—</span>
   <button id="purga-smart" class="ghost">Inteligente</button>
