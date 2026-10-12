@@ -107,6 +107,8 @@ Process tab (right panel) → **Quality → Advanced** → toggle **Label object
 
 Printer settings (gear next to printer profile) → Machine G-code → Machine start G-code → paste the contents of [`slicer-templates/orca-machine-start.gcode`](slicer-templates/orca-machine-start.gcode).
 
+**Change filament G-code (Orca):** Printer settings → Machine G-code → Change filament G-code → paste [`slicer-templates/orca-change-filament.gcode`](slicer-templates/orca-change-filament.gcode). It keeps Creality's M8200 cut/load sequence and hands the purge to the `K2_FLUSH` macro (floor set in the Central, e.g. 70 mm). Keep "Purge in prime tower" OFF.
+
 **Unverified:** the exact `bed_type` strings in the template depend on the bed types defined in your Orca K2 Plus profile. Slice each plate type once and grep the output `.gcode` for `; bed_type =` to see the literal string Orca emits, then adjust the conditional in the template if needed.
 
 ### Verification (both slicers)

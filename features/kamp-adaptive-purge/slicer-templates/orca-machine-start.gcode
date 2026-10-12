@@ -1,30 +1,16 @@
-; Orca / OrcaSlicer machine start gcode for K2 Plus with kamp-adaptive-purge.
-;
-; UNVERIFIED: the exact bed_type strings depend on the bed types defined in
-; your Orca K2 Plus profile. Slice each plate type once and grep the output
-; .gcode for `; bed_type =` to confirm the literal string Orca emits, then
-; adjust the conditional below to match.
-;
-; Companion to features/kamp-adaptive-purge. Requires:
-;   1. Process tab → Quality → Advanced → Label objects (ON)
-;   2. KAMP installed on the printer (sh install.sh from this feature dir)
-;   3. k2-improvements START_PRINT macro (installed by the macros feature)
-;
-; The blocking M109 before LINE_PURGE is required — START_PRINT only sets
-; the warm-up temp via M104 (non-blocking). Without M109, LINE_PURGE can
-; fire while the nozzle is still heating.
-
-{if bed_type=="Custom"}
+; OrcaSlicer - G-code inicial da maquina - K2 Plus + k2-improvements
+; Requisitos no Orca:
+;   - Processo -> Outros -> "Etiquetar objetos" (Label objects / exclude_object) LIGADO
+;     (a mesh adaptativa e o LINE_PURGE dependem disso)
+;   - Impressora -> Geral -> "Usar distancias E relativas" LIGADO
+; START_PRINT: preaquece, Z_TILT, mesh adaptativa so da area da peca, Z-offset
+; salvo por placa+material, PA salvo. Depois o T carrega o 1o slot do CFS (o
+; firmware cuida da carga), _BOX_PURGE_ON_CHANGE purga e LINE_PURGE faz a linha.
+; PLATE=<nome> no fim da linha do START_PRINT = Z-offset de uma placa propria.
 START_PRINT EXTRUDER_TEMP=[nozzle_temperature_initial_layer] BED_TEMP=[bed_temperature_initial_layer_single] CHAMBER_TEMP=[chamber_temperature] MATERIAL={filament_type[initial_extruder]} CURR_BED_TYPE="{curr_bed_type}" ADAPTIVE=1
-{else}
-START_PRINT EXTRUDER_TEMP=[nozzle_temperature_initial_layer] BED_TEMP=[bed_temperature_initial_layer_single] CHAMBER_TEMP=[chamber_temperature] MATERIAL={filament_type[initial_extruder]} CURR_BED_TYPE="{curr_bed_type}" ADAPTIVE=1
-{endif}
-
 T[initial_extruder]
 M204 S2000
 M83
 M109 S[nozzle_temperature_initial_layer]
-; flush + limpeza do bico (incondicional) apos carregar o filamento inicial, pra
-; comecar sem sujeira nem cor velha. Tune purge_mm no macro (start_print.cfg).
 _BOX_PURGE_ON_CHANGE
 LINE_PURGE
