@@ -405,6 +405,23 @@
   @media (max-width:400px) {
     .swatch { width:38px; height:38px; }
   }
+  /* ---------- abas da Central (curadoria: uso diario / calibrar / ajustes / diagnostico) ---------- */
+  .abas { display:flex; gap:6px; margin:12px 0 4px; }
+  .abas button { flex:1; display:flex; align-items:center; justify-content:center; gap:6px; padding:11px 6px;
+                 border:0; border-radius:8px; background:var(--card); color:var(--mut); font-size:.84rem;
+                 font-weight:600; letter-spacing:.02em; box-shadow:var(--elev); cursor:pointer; }
+  .abas button.ativa { background:var(--primary); color:#fff; }
+  .abas button .ic { width:16px; height:16px; }
+  .aba { display:none; }
+  .aba.on { display:block; animation:surge .25s ease both; }
+  .acc-num { display:inline-flex; align-items:center; justify-content:center; min-width:22px; height:22px;
+             border-radius:11px; background:var(--primary-soft); color:var(--primary); font-size:.78rem; margin-right:4px; }
+  .dica.longa:not(.aberta) { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .dica-mais { display:inline-block; margin:2px 0 6px; color:var(--primary); font-size:.75rem; text-decoration:none; cursor:pointer; }
+  @media (max-width:640px) {
+    .abas { gap:4px; }
+    .abas button { flex-direction:column; gap:3px; padding:8px 2px; font-size:.7rem; }
+  }
   /* ---------- barra de 1a camada (celular): fixa no rodape, SO durante a impressao ---------- */
   .pc { display:none; position:fixed; left:0; right:0; bottom:0; z-index:60;
         background:var(--glass); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
@@ -418,6 +435,7 @@
   .pc-off { font-size:1.6rem; font-weight:700; font-variant-numeric:tabular-nums; color:var(--txt); line-height:1.15; }
   .pc-off small { font-size:.8rem; font-weight:400; color:var(--mut); }
   .pc-x { min-width:44px; min-height:44px; border:0; border-radius:10px; background:var(--card2); color:var(--txt); font-size:1.1rem; }
+  .pc-ler { font-size:.78rem; font-weight:600; padding:0 10px; line-height:1.15; }
   .pc-body { margin-top:8px; }
   .pc.min .pc-body { display:none; }
   .pc-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:6px; }
@@ -455,10 +473,30 @@
   <button id="recuperar" class="perigo" style="display:none;flex:none;padding:9px 12px;font-size:.78rem"><i data-ic="restart"></i> Recuperar (FIRMWARE_RESTART)</button>
 </div>
 
-<div class="sysbar" id="sysbar">
-  <span><i data-ic="chip"></i> <b id="fwModelo">—</b> fw <b id="fwPrinter">—</b></span>
-  <span><i data-ic="terminal"></i> Klipper <b id="fwKlipper">—</b></span>
-  <span><i data-ic="server"></i> Moonraker <b id="fwMoon">—</b></span>
+<nav class="abas" id="abas" role="tablist" aria-label="Seções da Central">
+  <button type="button" role="tab" data-aba="imprimir"><i data-ic="flame"></i> Imprimir</button>
+  <button type="button" role="tab" data-aba="calibrar"><i data-ic="target"></i> Calibrar</button>
+  <button type="button" role="tab" data-aba="ajustes"><i data-ic="settings"></i> Ajustes</button>
+  <button type="button" role="tab" data-aba="diag"><i data-ic="activity"></i> Diagnóstico</button>
+</nav>
+
+<div class="aba" data-aba="imprimir" role="tabpanel">
+<h2><i data-ic="flame"></i> AQUECIMENTO</h2>
+<div class="painel">
+  <div class="lin">
+    <label>Bico</label>
+    <input type="number" id="tbico" step="5" min="0" max="320" placeholder="0">
+    <button id="tbicoset" class="salvar">Definir</button>
+    <label style="min-width:auto">Mesa</label>
+    <input type="number" id="tmesa" step="5" min="0" max="110" placeholder="0">
+    <button id="tmesaset" class="salvar">Definir</button>
+  </div>
+  <div class="chips">
+    <button data-pre="210,60">PLA 210/60</button>
+    <button data-pre="240,70">PETG 240/70</button>
+    <button data-pre="250,100">ABS 250/100</button>
+    <button data-pre="0,0">Desligar</button>
+  </div>
 </div>
 
 <h2><i data-ic="move"></i> MOVIMENTO</h2>
@@ -485,37 +523,6 @@
       </div>
     </div>
   </div>
-</div>
-
-<h2><i data-ic="flame"></i> AQUECIMENTO</h2>
-<div class="painel">
-  <div class="lin">
-    <label>Bico</label>
-    <input type="number" id="tbico" step="5" min="0" max="320" placeholder="0">
-    <button id="tbicoset" class="salvar">Definir</button>
-    <label style="min-width:auto">Mesa</label>
-    <input type="number" id="tmesa" step="5" min="0" max="110" placeholder="0">
-    <button id="tmesaset" class="salvar">Definir</button>
-  </div>
-  <div class="chips">
-    <button data-pre="210,60">PLA 210/60</button>
-    <button data-pre="240,70">PETG 240/70</button>
-    <button data-pre="250,100">ABS 250/100</button>
-    <button data-pre="0,0">Desligar</button>
-  </div>
-</div>
-
-<h2><i data-ic="thermo"></i> TEMPERATURAS (10 min)</h2>
-<canvas id="grafico" width="800" height="180"></canvas>
-<div class="sensores" id="sensores"></div>
-
-<h2><i data-ic="camera"></i> CÂMERA</h2>
-<video id="cam" autoplay playsinline muted style="width:100%;border-radius:12px;background:#000;max-height:340px"></video>
-<div id="camst" class="det" style="text-align:center;margin-top:4px">conectando câmera...</div>
-<div class="luz-bar">
-  <button id="luztog" class="ghost"><i data-ic="bulb"></i> <span id="luztxt">Luz</span></button>
-  <input type="range" id="luzdim" min="0" max="100" step="5" value="0">
-  <span class="luz-pct" id="luzpct">0%</span>
 </div>
 
 <h2><i data-ic="cube"></i> FILAMENT BOX (CFS)</h2>
@@ -578,82 +585,23 @@
   <div class="dica" style="margin-top:4px">Grava no CFS e sincroniza <b>ao vivo</b> pela porta 9999 (tela + Orca, sem restart). Slot com tag RFID: a tag manda — use RFID pra reler.</div>
 </div>
 
-<h2><i data-ic="wrench"></i> DXC2 — Extrusor duplo + corte</h2>
-<div class="dica" id="dxc-intro">Perfil do <code>box.cfg</code> para o kit <b>DXC2</b> (extrusor dual-drive + guilhotina). <b>Ativar</b> troca os valores do <code>[box]</code> (com backup) e reinicia o firmware; <b>Desativar</b> volta ao stock. Só ligue depois de instalar o hardware do DXC2.</div>
-<div class="lin" style="gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
-  <button class="principal" id="dxc-toggle">Ativar DXC2</button>
-  <span class="acc-tag" id="dxc-status">—</span>
-  <button class="ghost" id="dxc-reload" title="Atualizar" style="padding:4px 10px"><i data-ic="refresh"></i></button>
-</div>
-<div id="dxc-painel" style="display:none">
-  <div class="dica" style="margin-top:6px"><b>Calibração do corte</b> — roda <code>CALIBRATE_CUT_POS</code> (grava <code>cut_pos_x</code>). <b style="color:var(--warn)">Assista a faca.</b> Nunca copie <code>cut_pos_x</code> de outra máquina.</div>
-  <div class="lin" style="gap:8px;align-items:flex-end;flex-wrap:wrap">
-    <button class="principal" id="dxc-cut"><i data-ic="target"></i> Calibrar corte</button>
-    <label style="min-width:auto;font-size:.7rem;color:var(--mut)">check_x_min<br><input type="number" id="dxc-cmin" step="0.5" style="width:78px"></label>
-    <label style="min-width:auto;font-size:.7rem;color:var(--mut)">check_x_max<br><input type="number" id="dxc-cmax" step="0.5" style="width:78px"></label>
-    <button class="salvar" id="dxc-save-cut"><i data-ic="save"></i> Salvar janela</button>
-  </div>
-  <div class="dica" style="margin-top:10px"><b>Handoff CFS→DXC2 e retração</b> — ajuste de 1–2 mm assistindo o load (no 1.1.6.x+, menor = avança mais).</div>
-  <div class="lin" style="gap:8px;align-items:flex-end;flex-wrap:wrap">
-    <label style="min-width:auto;font-size:.7rem;color:var(--mut)">buffer_empty_len<br><input type="number" id="dxc-buf" step="0.25" style="width:88px"></label>
-    <label style="min-width:auto;font-size:.7rem;color:var(--mut)">Tn_retrude<br><input type="number" id="dxc-ret" step="1" style="width:78px"></label>
-    <label style="min-width:auto;font-size:.7rem;color:var(--mut)">Tn_extrude_temp<br><input type="number" id="dxc-temp" step="5" style="width:88px"></label>
-    <button class="salvar" id="dxc-save-handoff"><i data-ic="save"></i> Salvar handoff</button>
-  </div>
-  <div class="dica" style="margin-top:10px"><b>Troca e unload</b> — cada ação move o hardware (confirmação + só com a impressora parada).</div>
-  <div class="botoes" id="dxc-tools" style="flex-wrap:wrap">
-    <button data-dxc-tool="T0">T0</button><button data-dxc-tool="T1">T1</button>
-    <button data-dxc-tool="T2">T2</button><button data-dxc-tool="T3">T3</button>
-    <button data-dxc-tool="T4">T4</button><button data-dxc-tool="T5">T5</button>
-    <button data-dxc-tool="T6">T6</button><button data-dxc-tool="T7">T7</button>
-    <button data-dxc-tool="BOX_CUT_MATERIAL">Cortar</button>
-    <button data-dxc-tool="DXC2_END_UNLOAD">Unload (DXC2)</button>
-  </div>
+<h2><i data-ic="camera"></i> CÂMERA</h2>
+<video id="cam" autoplay playsinline muted style="width:100%;border-radius:12px;background:#000;max-height:340px"></video>
+<div id="camst" class="det" style="text-align:center;margin-top:4px">conectando câmera...</div>
+<div class="luz-bar">
+  <button id="luztog" class="ghost"><i data-ic="bulb"></i> <span id="luztxt">Luz</span></button>
+  <input type="range" id="luzdim" min="0" max="100" step="5" value="0">
+  <span class="luz-pct" id="luzpct">0%</span>
 </div>
 
-<h2><i data-ic="activity"></i> Rotina de calibração DXC2 + CFS</h2>
-<div class="dica" id="wiz-intro">Assistente <b>passo a passo</b> na ordem segura do DXC2 (ref. Tinman). Cada fase tem a instrução, o botão certo e a dica de direção. <b style="color:var(--warn)">Você dispara e assiste cada corte</b> — nada roda sozinho. Mantenha a mesa livre e fique na frente da máquina.</div>
-<div id="wiz-nostart" class="dica" style="display:none;color:var(--warn)">Plugin <code>k2_dxc2</code> ausente — a rotina precisa dele.</div>
-<div id="wiz-box" style="border:1px solid var(--bd,#30363d);border-radius:8px;padding:12px;margin-top:6px">
-  <div class="lin" style="justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
-    <div id="wiz-steps" style="display:flex;gap:6px;flex-wrap:wrap"></div>
-    <span class="acc-tag" id="wiz-pos">—</span>
-  </div>
-  <div id="wiz-body" style="margin-top:10px;min-height:60px"></div>
-  <div class="lin" style="gap:8px;margin-top:12px">
-    <button class="ghost" id="wiz-prev">← Anterior</button>
-    <button class="principal" id="wiz-next">Próximo →</button>
-  </div>
 </div>
 
-<h2><i data-ic="chip"></i> Recursos avançados</h2>
-<div class="dica" id="feat-intro">Liga/desliga recursos que <b>trocam arquivos do Klipper</b> (com backup automático). Cada troca <b>reinicia o Klipper sozinho</b> — espere ~30 s e a tela voltar. Tudo por aqui: <b>nenhum SSH</b>. O estado abaixo é lido ao vivo da impressora.</div>
-<div class="lin" style="gap:10px;align-items:center;margin-bottom:6px">
-  <span class="acc-tag" id="feat-status">—</span>
-  <button class="ghost" id="feat-reload" title="Atualizar" style="padding:4px 10px"><i data-ic="refresh"></i></button>
-</div>
-<div id="feat-lista"></div>
+<div class="aba" data-aba="calibrar" role="tabpanel">
+<div class="dica">Calibre <b>na ordem</b>. <b>1–6</b> são da máquina: faça uma vez (e de novo se mexer na mecânica). <b>7–9</b> são por filamento/perfil: refaça a cada filamento novo. O Z-offset fino de cada placa você acerta imprimindo, pela barra que aparece embaixo.</div>
 
-<h2><i data-ic="settings"></i> Purga no início do print</h2>
-<div class="dica"><b>Inteligente</b>: pula a purga cheia (90 mm em 3 bolinhas) <b>só quando o macro do T (DXC2) confirma</b> que o filamento no bico é o mesmo. <b>Atenção:</b> em impressões mandadas pelo fatiador, o firmware da Creality troca o filamento sozinho e esse macro nem roda — aí ele <b>purga sempre</b>, por segurança (não dá pra saber se trocou a cor). <b>Sempre</b>: purga cheia em todo print.</div>
-<div class="lin" style="gap:10px;align-items:center;flex-wrap:wrap">
-  <span class="acc-tag" id="purga-status">—</span>
-  <button id="purga-smart" class="ghost">Inteligente</button>
-  <button id="purga-sempre" class="ghost">Sempre</button>
-</div>
-
-<h2><i data-ic="settings"></i> Purga na troca de cor (multicolor)</h2>
-<div class="dica">O Creality Print manda no mínimo <b>90 mm</b> por troca, mesmo com a matriz menor. O firmware da K2 considera <b>70 mm</b> suficientes (caminho do bico ≈ 76 mm). Com o <b>piso</b> ligado, a impressora purga o piso nas trocas comuns e <b>respeita o fatiador</b> quando a matriz pedir mais (pares difíceis, ex. preto → branco). <b>Fatiador</b>: purga exatamente o que o fatiador mandou. Só vale com o <b>G-code de troca de filamento</b> que chama o <code>K2_FLUSH</code> colado no perfil.</div>
-<div class="lin" style="gap:10px;align-items:center;flex-wrap:wrap">
-  <span class="acc-tag" id="troca-status">—</span>
-  <button id="troca-70" class="ghost">Piso 70 mm</button>
-  <button id="troca-fat" class="ghost">Fatiador (90)</button>
-  <label style="min-width:auto;font-size:.75rem;color:var(--mut)">outro piso (mm)
-    <input type="number" id="troca-mm" min="40" max="150" step="5" style="width:70px"></label>
-  <button id="troca-ok" class="ghost">Aplicar</button>
-</div>
-
-<h2><i data-ic="settings"></i> Tensão das correias (X/Y)</h2>
+<details class="acc">
+  <summary><i data-ic="settings"></i> <b class="acc-num">1</b> Tensão das correias (X/Y)</summary>
+  <div class="acc-body">
 <div class="dica">Tensor de correia motorizado do K2 (<code>BELT_MDL_*</code>). Stock ≈ <b>140 N</b> — a comunidade costuma baixar (ex. ~35 N). <b style="color:var(--warn)">Mudança mecânica:</b> valor errado = passo perdido ou correia frouxa. Leia antes, mude com cautela e <b>re-home depois</b>.</div>
 <div class="lin" style="gap:8px;align-items:flex-end;flex-wrap:wrap">
   <button id="belt-read" class="ghost"><i data-ic="refresh"></i> Ler X e Y</button>
@@ -662,11 +610,46 @@
   <button id="belt-set" class="salvar"><i data-ic="check"></i> Aplicar</button>
 </div>
 <div class="dica" id="belt-out" style="margin-top:4px"></div>
+  </div>
+</details>
 
-<h2><i data-ic="settings"></i> CALIBRAÇÕES</h2>
+<details class="acc" id="acc-shaper">
+  <summary><i data-ic="wave"></i> <b class="acc-num">2</b> Input Shaper &amp; ressonância <span class="acc-tag vazio" id="tag-shaper">—</span></summary>
+  <div class="acc-body">
+    <div class="dica">A K2 Plus tem acelerômetro <b>LIS2DW</b> no bico. O shaper mata o ringing (ghosting) nas paredes. Rode o teste de cada eixo e depois <b>SALVAR</b>.</div>
+    <div class="botoes">
+      <button id="shapercal" class="principal"><i data-ic="wave"></i> CALIBRAR AUTOMÁTICO (X + Y, ~5 min)</button>
+      <button id="resx">Testar eixo X</button>
+      <button id="resy">Testar eixo Y</button>
+      <button id="accq"><i data-ic="activity"></i> Testar acelerômetro</button>
+      <button id="axnoise">Medir ruído dos eixos</button>
+    </div>
+    <div class="lin" style="margin-top:12px">
+      <label>Gráfico</label>
+      <select id="ressel" style="flex:1;min-width:180px;padding:9px 10px;border-radius:4px;border:1px solid var(--line);background:var(--card2);color:var(--txt);font-size:.8rem"></select>
+      <button id="resref" class="ghost"><i data-ic="refresh"></i> Atualizar</button>
+    </div>
+    <canvas id="resmap" width="600" height="260"></canvas>
+    <div class="mesh-leg" id="resleg"></div>
+  </div>
+</details>
 
-<details class="acc" open>
-  <summary><i data-ic="screw"></i> Nivelamento dos parafusos <span class="acc-tag vazio" id="tag-nivel">—</span></summary>
+<details class="acc">
+  <summary><i data-ic="thermo"></i> <b class="acc-num">3</b> PID dos aquecedores</summary>
+  <div class="acc-body">
+    <div class="dica">Ajusta a resposta térmica. Rode um de cada vez (~10 min) e depois <b>SALVAR</b>. A K2 Plus tem aquecedor de câmara — vale calibrar também.</div>
+    <div class="botoes">
+      <button id="pidmesa">Mesa @60°C</button>
+      <button id="pidmesa100">Mesa @100°C</button>
+      <button id="pidbico">Bico @220°C</button>
+      <button id="pidbico260">Bico @260°C</button>
+      <button id="pidcamara">Câmara @50°C</button>
+    </div>
+  </div>
+</details>
+
+<details class="acc">
+  <summary><i data-ic="screw"></i> <b class="acc-num">4</b> Nivelamento dos parafusos <span class="acc-tag vazio" id="tag-nivel">—</span></summary>
   <div class="acc-body">
     <div class="dica">Mede os 4 cantos com o probe e diz quanto girar cada knob. <b>MEDIR</b> aquece <b>bico 140°C</b> (ele É o sensor) + mesa 60°C, alinha os fusos e faz <b>2–3 passes</b> — o card mostra a <b>repetibilidade</b> de cada canto. Depois de girar um knob use <b>Re-medir</b> (1 passe rápido, sem re-alinhar os fusos — mesma referência). Repita até todos <b>✓ OK</b> (≤ 18°).</div>
     <div class="botoes">
@@ -748,7 +731,7 @@
 </details>
 
 <details class="acc">
-  <summary><i data-ic="grid"></i> Mesh da mesa <span class="acc-tag vazio" id="tag-mesh">—</span></summary>
+  <summary><i data-ic="grid"></i> <b class="acc-num">5</b> Mesh da mesa <span class="acc-tag vazio" id="tag-mesh">—</span></summary>
   <div class="acc-body">
     <div class="dica">Mapa de altura da mesa. O <b>mesh</b> compensa as ondulações que os parafusos não corrigem — nivele os parafusos <i>antes</i> de criar o mesh.</div>
     <canvas id="meshmap" width="600" height="300"></canvas>
@@ -768,7 +751,7 @@
 </details>
 
 <details class="acc">
-  <summary><i data-ic="target"></i> Probe &amp; Z-offset <span class="acc-tag vazio" id="tag-zoff">—</span></summary>
+  <summary><i data-ic="target"></i> <b class="acc-num">6</b> Z-offset por placa <span class="acc-tag vazio" id="tag-zoff">—</span></summary>
   <div class="acc-body">
     <div class="dica">Ajuste fino da 1ª camada. <b>Negativo</b> = bico mais perto da mesa. Ajuste ao vivo e depois <b>grave</b>.</div>
     <div class="lin" style="flex-wrap:wrap;gap:6px">
@@ -816,42 +799,7 @@
 </details>
 
 <details class="acc">
-  <summary><i data-ic="thermo"></i> PID dos aquecedores</summary>
-  <div class="acc-body">
-    <div class="dica">Ajusta a resposta térmica. Rode um de cada vez (~10 min) e depois <b>SALVAR</b>. A K2 Plus tem aquecedor de câmara — vale calibrar também.</div>
-    <div class="botoes">
-      <button id="pidmesa">Mesa @60°C</button>
-      <button id="pidmesa100">Mesa @100°C</button>
-      <button id="pidbico">Bico @220°C</button>
-      <button id="pidbico260">Bico @260°C</button>
-      <button id="pidcamara">Câmara @50°C</button>
-    </div>
-  </div>
-</details>
-
-<details class="acc" id="acc-shaper">
-  <summary><i data-ic="wave"></i> Input Shaper &amp; ressonância <span class="acc-tag vazio" id="tag-shaper">—</span></summary>
-  <div class="acc-body">
-    <div class="dica">A K2 Plus tem acelerômetro <b>LIS2DW</b> no bico. O shaper mata o ringing (ghosting) nas paredes. Rode o teste de cada eixo e depois <b>SALVAR</b>.</div>
-    <div class="botoes">
-      <button id="shapercal" class="principal"><i data-ic="wave"></i> CALIBRAR AUTOMÁTICO (X + Y, ~5 min)</button>
-      <button id="resx">Testar eixo X</button>
-      <button id="resy">Testar eixo Y</button>
-      <button id="accq"><i data-ic="activity"></i> Testar acelerômetro</button>
-      <button id="axnoise">Medir ruído dos eixos</button>
-    </div>
-    <div class="lin" style="margin-top:12px">
-      <label>Gráfico</label>
-      <select id="ressel" style="flex:1;min-width:180px;padding:9px 10px;border-radius:4px;border:1px solid var(--line);background:var(--card2);color:var(--txt);font-size:.8rem"></select>
-      <button id="resref" class="ghost"><i data-ic="refresh"></i> Atualizar</button>
-    </div>
-    <canvas id="resmap" width="600" height="260"></canvas>
-    <div class="mesh-leg" id="resleg"></div>
-  </div>
-</details>
-
-<details class="acc">
-  <summary><i data-ic="gauge"></i> Pressure Advance <span class="acc-tag vazio" id="tag-pa">—</span></summary>
+  <summary><i data-ic="gauge"></i> <b class="acc-num">7</b> Pressure Advance <span class="acc-tag vazio" id="tag-pa">—</span></summary>
   <div class="acc-body">
     <div class="dica">Compensa a pressão no bico nos cantos e no fim das linhas. Direct drive costuma ficar entre <b>0.02 e 0.05</b>. Vale por filamento.</div>
     <div class="lin">
@@ -891,7 +839,7 @@
 </details>
 
 <details class="acc">
-  <summary><i data-ic="load"></i> Extrusora &amp; fluxo</summary>
+  <summary><i data-ic="load"></i> <b class="acc-num">8</b> Extrusora &amp; fluxo</summary>
   <div class="acc-body">
     <div class="dica">Marque 120mm no filamento, mande extrudar 100mm, meça o que sobrou. Se sumiu ≠ 100mm, corrija o <b>rotation_distance</b>.</div>
     <div class="lin">
@@ -914,7 +862,7 @@
 </details>
 
 <details class="acc">
-  <summary><i data-ic="zap"></i> Velocidade &amp; aceleração <span class="acc-tag vazio" id="tag-vel">—</span></summary>
+  <summary><i data-ic="zap"></i> <b class="acc-num">9</b> Velocidade &amp; aceleração <span class="acc-tag vazio" id="tag-vel">—</span></summary>
   <div class="acc-body">
     <div class="dica">Limites em tempo real (não gravam no config). Útil pra testar antes de mexer no perfil do slicer.</div>
     <div class="lin">
@@ -933,6 +881,97 @@
   </div>
 </details>
 
+</div>
+
+<div class="aba" data-aba="ajustes" role="tabpanel">
+<h2><i data-ic="settings"></i> Purga na troca de cor (multicolor)</h2>
+<div class="dica">O Creality Print manda no mínimo <b>90 mm</b> por troca, mesmo com a matriz menor. O firmware da K2 considera <b>70 mm</b> suficientes (caminho do bico ≈ 76 mm). Com o <b>piso</b> ligado, a impressora purga o piso nas trocas comuns e <b>respeita o fatiador</b> quando a matriz pedir mais (pares difíceis, ex. preto → branco). <b>Fatiador</b>: purga exatamente o que o fatiador mandou. Só vale com o <b>G-code de troca de filamento</b> que chama o <code>K2_FLUSH</code> colado no perfil.</div>
+<div class="lin" style="gap:10px;align-items:center;flex-wrap:wrap">
+  <span class="acc-tag" id="troca-status">—</span>
+  <button id="troca-70" class="ghost">Piso 70 mm</button>
+  <button id="troca-fat" class="ghost">Fatiador (90)</button>
+  <label style="min-width:auto;font-size:.75rem;color:var(--mut)">outro piso (mm)
+    <input type="number" id="troca-mm" min="40" max="150" step="5" style="width:70px"></label>
+  <button id="troca-ok" class="ghost">Aplicar</button>
+</div>
+
+<h2><i data-ic="settings"></i> Purga no início do print</h2>
+<div class="dica"><b>Inteligente</b>: pula a purga cheia (90 mm em 3 bolinhas) <b>só quando o macro do T (DXC2) confirma</b> que o filamento no bico é o mesmo. <b>Atenção:</b> em impressões mandadas pelo fatiador, o firmware da Creality troca o filamento sozinho e esse macro nem roda — aí ele <b>purga sempre</b>, por segurança (não dá pra saber se trocou a cor). <b>Sempre</b>: purga cheia em todo print.</div>
+<div class="lin" style="gap:10px;align-items:center;flex-wrap:wrap">
+  <span class="acc-tag" id="purga-status">—</span>
+  <button id="purga-smart" class="ghost">Inteligente</button>
+  <button id="purga-sempre" class="ghost">Sempre</button>
+</div>
+
+<h2><i data-ic="wrench"></i> DXC2 — Extrusor duplo + corte</h2>
+<div class="dica" id="dxc-intro">Perfil do <code>box.cfg</code> para o kit <b>DXC2</b> (extrusor dual-drive + guilhotina). <b>Ativar</b> troca os valores do <code>[box]</code> (com backup) e reinicia o firmware; <b>Desativar</b> volta ao stock. Só ligue depois de instalar o hardware do DXC2.</div>
+<div class="lin" style="gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
+  <button class="principal" id="dxc-toggle">Ativar DXC2</button>
+  <span class="acc-tag" id="dxc-status">—</span>
+  <button class="ghost" id="dxc-reload" title="Atualizar" style="padding:4px 10px"><i data-ic="refresh"></i></button>
+</div>
+<div id="dxc-painel" style="display:none">
+  <div class="dica" style="margin-top:6px"><b>Calibração do corte</b> — roda <code>CALIBRATE_CUT_POS</code> (grava <code>cut_pos_x</code>). <b style="color:var(--warn)">Assista a faca.</b> Nunca copie <code>cut_pos_x</code> de outra máquina.</div>
+  <div class="lin" style="gap:8px;align-items:flex-end;flex-wrap:wrap">
+    <button class="principal" id="dxc-cut"><i data-ic="target"></i> Calibrar corte</button>
+    <label style="min-width:auto;font-size:.7rem;color:var(--mut)">check_x_min<br><input type="number" id="dxc-cmin" step="0.5" style="width:78px"></label>
+    <label style="min-width:auto;font-size:.7rem;color:var(--mut)">check_x_max<br><input type="number" id="dxc-cmax" step="0.5" style="width:78px"></label>
+    <button class="salvar" id="dxc-save-cut"><i data-ic="save"></i> Salvar janela</button>
+  </div>
+  <div class="dica" style="margin-top:10px"><b>Handoff CFS→DXC2 e retração</b> — ajuste de 1–2 mm assistindo o load (no 1.1.6.x+, menor = avança mais).</div>
+  <div class="lin" style="gap:8px;align-items:flex-end;flex-wrap:wrap">
+    <label style="min-width:auto;font-size:.7rem;color:var(--mut)">buffer_empty_len<br><input type="number" id="dxc-buf" step="0.25" style="width:88px"></label>
+    <label style="min-width:auto;font-size:.7rem;color:var(--mut)">Tn_retrude<br><input type="number" id="dxc-ret" step="1" style="width:78px"></label>
+    <label style="min-width:auto;font-size:.7rem;color:var(--mut)">Tn_extrude_temp<br><input type="number" id="dxc-temp" step="5" style="width:88px"></label>
+    <button class="salvar" id="dxc-save-handoff"><i data-ic="save"></i> Salvar handoff</button>
+  </div>
+  <div class="dica" style="margin-top:10px"><b>Troca e unload</b> — cada ação move o hardware (confirmação + só com a impressora parada).</div>
+  <div class="botoes" id="dxc-tools" style="flex-wrap:wrap">
+    <button data-dxc-tool="T0">T0</button><button data-dxc-tool="T1">T1</button>
+    <button data-dxc-tool="T2">T2</button><button data-dxc-tool="T3">T3</button>
+    <button data-dxc-tool="T4">T4</button><button data-dxc-tool="T5">T5</button>
+    <button data-dxc-tool="T6">T6</button><button data-dxc-tool="T7">T7</button>
+    <button data-dxc-tool="BOX_CUT_MATERIAL">Cortar</button>
+    <button data-dxc-tool="DXC2_END_UNLOAD">Unload (DXC2)</button>
+  </div>
+</div>
+
+<h2><i data-ic="activity"></i> Rotina de calibração DXC2 + CFS</h2>
+<div class="dica" id="wiz-intro">Assistente <b>passo a passo</b> na ordem segura do DXC2 (ref. Tinman). Cada fase tem a instrução, o botão certo e a dica de direção. <b style="color:var(--warn)">Você dispara e assiste cada corte</b> — nada roda sozinho. Mantenha a mesa livre e fique na frente da máquina.</div>
+<div id="wiz-nostart" class="dica" style="display:none;color:var(--warn)">Plugin <code>k2_dxc2</code> ausente — a rotina precisa dele.</div>
+<div id="wiz-box" style="border:1px solid var(--bd,#30363d);border-radius:8px;padding:12px;margin-top:6px">
+  <div class="lin" style="justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+    <div id="wiz-steps" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+    <span class="acc-tag" id="wiz-pos">—</span>
+  </div>
+  <div id="wiz-body" style="margin-top:10px;min-height:60px"></div>
+  <div class="lin" style="gap:8px;margin-top:12px">
+    <button class="ghost" id="wiz-prev">← Anterior</button>
+    <button class="principal" id="wiz-next">Próximo →</button>
+  </div>
+</div>
+
+<h2><i data-ic="chip"></i> Recursos avançados</h2>
+<div class="dica" id="feat-intro">Liga/desliga recursos que <b>trocam arquivos do Klipper</b> (com backup automático). Cada troca <b>reinicia o Klipper sozinho</b> — espere ~30 s e a tela voltar. Tudo por aqui: <b>nenhum SSH</b>. O estado abaixo é lido ao vivo da impressora.</div>
+<div class="lin" style="gap:10px;align-items:center;margin-bottom:6px">
+  <span class="acc-tag" id="feat-status">—</span>
+  <button class="ghost" id="feat-reload" title="Atualizar" style="padding:4px 10px"><i data-ic="refresh"></i></button>
+</div>
+<div id="feat-lista"></div>
+
+</div>
+
+<div class="aba" data-aba="diag" role="tabpanel">
+<div class="sysbar" id="sysbar">
+  <span><i data-ic="chip"></i> <b id="fwModelo">—</b> fw <b id="fwPrinter">—</b></span>
+  <span><i data-ic="terminal"></i> Klipper <b id="fwKlipper">—</b></span>
+  <span><i data-ic="server"></i> Moonraker <b id="fwMoon">—</b></span>
+</div>
+
+<h2><i data-ic="thermo"></i> TEMPERATURAS (10 min)</h2>
+<canvas id="grafico" width="800" height="180"></canvas>
+<div class="sensores" id="sensores"></div>
+
 <details class="acc">
   <summary><i data-ic="activity"></i> Diagnóstico</summary>
   <div class="acc-body">
@@ -948,7 +987,7 @@
   </div>
 </details>
 
-
+</div>
 
 <div class="barra-global">
   <button id="salvar" class="salvar" style="display:none"><i data-ic="save"></i> SALVAR (SAVE_CONFIG — reinicia)</button>
@@ -968,6 +1007,7 @@
       <div class="pc-combo" id="pc-combo">imprimindo…</div>
       <div class="pc-off"><span id="pc-off">0.000</span> <small>mm</small></div>
     </div>
+    <button id="pc-ler" class="pc-x pc-ler" aria-label="Ler placa e material do fatiador">↻ placa<br>material</button>
     <button id="pc-min" class="pc-x" aria-label="Minimizar/expandir">▾</button>
   </div>
   <div class="pc-body">
@@ -3548,6 +3588,7 @@ $("pc-save").onclick = async () => {
   pcRender();
 };
 window.addEventListener("resize", pcAjustaPadding);
+$("pc-ler").onclick = async () => { await zcUsarPlacaAtual(); pcRender(); };
 
 // ---------- Purga no inicio do print (save_variables purga_sempre) ----------
 // O _BOX_PURGE_ON_CHANGE (start_print.cfg) le purga_sempre: 1 = purga cheia em
@@ -4240,6 +4281,44 @@ logLinha("// Central de Calibracao — pagina copiada em " + document.lastModifi
 descobreSensores();
 pintaSistema();
 ligaCamera();
+// ---------- Abas da Central ----------
+// Curadoria: a pagina era uma lista corrida de 15 blocos. Agora 4 abas: uso
+// diario, calibracoes numeradas na ordem do roteiro, ajustes raros e
+// diagnostico. Status, emergencia, barra global, console e a barra de 1a camada
+// ficam fora das abas (sempre visiveis). Os graficos medem clientWidth, que e 0
+// em aba escondida - redesenha ao abrir a aba.
+const ABA_LS = "central:aba";
+function abaMostra(nome){
+  if (!document.querySelector('.aba[data-aba="' + nome + '"]')) nome = "imprimir";
+  document.querySelectorAll(".aba").forEach(a => a.classList.toggle("on", a.dataset.aba === nome));
+  document.querySelectorAll("#abas button").forEach(b => {
+    const on = b.dataset.aba === nome;
+    b.classList.toggle("ativa", on);
+    b.setAttribute("aria-selected", on ? "true" : "false");
+  });
+  try { localStorage.setItem(ABA_LS, nome); } catch(e){}
+  requestAnimationFrame(() => {
+    try {
+      if (nome === "diag") desenha();
+      if (nome === "calibrar") {
+        if (meshBM) desenhaMesh(meshBM);
+        const rs = $("ressel");
+        if (rs && rs.value) resDesenha(rs.value).catch(() => {});
+      }
+    } catch(e){}
+  });
+}
+document.querySelectorAll("#abas button").forEach(b => b.onclick = () => abaMostra(b.dataset.aba));
+(() => { let ini = "imprimir"; try { ini = localStorage.getItem(ABA_LS) || ini; } catch(e){} abaMostra(ini); })();
+// textos longos das dicas: mostra 2 linhas + "ver mais" (so dicas estaticas, sem id)
+document.querySelectorAll(".aba .dica:not([id])").forEach(d => {
+  if (d.textContent.trim().length < 170 || d.parentElement.classList.contains("lin")) return;
+  d.classList.add("longa");
+  const a = document.createElement("a");
+  a.href = "#"; a.className = "dica-mais"; a.textContent = "ver mais";
+  a.onclick = ev => { ev.preventDefault(); const ab = d.classList.toggle("aberta"); a.textContent = ab ? "ver menos" : "ver mais"; };
+  d.after(a);
+});
 conectaWS();
 render().catch(()=>{});
 leCalib();
