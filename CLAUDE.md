@@ -223,7 +223,9 @@ pesquisa do CFS no OrcaSlicer, receitas de curl. **Leia sob demanda.**
 ## Referências externas (memória — de onde puxar quando chegar a hora)
 
 Repos de terceiros que **não** copiamos inteiros, mas são a fonte de referência
-para tarefas específicas. Avaliados em out/2026.
+para tarefas específicas. Avaliados em out/2026. **Lista mestra completa (o que já
+trouxemos, o que falta, riscos): [`docs/REFERENCIAS-EXTERNAS.md`](docs/REFERENCIAS-EXTERNAS.md)
+— atualize-a a cada repo novo avaliado.**
 
 - **Cartographer → `Rcpilot33/k2-improvements`.** Quando o usuário for instalar o
   Cartographer ou falar de Cartographer, **as referências vêm daqui.** É outro fork
@@ -243,6 +245,7 @@ para tarefas específicas. Avaliados em out/2026.
   com `confirm()` + guarda de impressão, como já fazemos no painel do CFS.
 - **Firmware aberta / auto-PA → `Jacob10383/k2-plus-custom-firmware`.** Firmware
   alternativa completa (Kalico) com `prtouch.py` e `box_*.py` **abertos**. Só interessa
-  se um dia for atacar auto-PA por fora do stock — mas o stock 1.1.7.0 já tem `AUTO_APAX`
-  (PA dinâmico pela célula de carga; não documentado no changelog), então essa é a via
-  preferida antes de trocar de firmware.
+  se um dia for atacar auto-PA por fora do stock. **`TEST_APAX`/`AUTO_APAX` do stock foram
+  testados e não fazem nada útil** (só esfriam o bico) — removidos da Central. Via
+  preferida p/ PA automático agora: **câmera do bico + visão computacional**
+  (`undingen/PressureAdvanceCamera`, ver a lista mestra).
