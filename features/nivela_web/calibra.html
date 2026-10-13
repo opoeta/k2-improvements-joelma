@@ -417,6 +417,17 @@
   .acc-num { display:inline-flex; align-items:center; justify-content:center; min-width:22px; height:22px;
              border-radius:11px; background:var(--primary-soft); color:var(--primary); font-size:.78rem; margin-right:4px; }
   .dica.longa:not(.aberta) { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .sensores.topo { margin-top:10px; }
+  @media (max-width:640px) {
+    .sensores.topo { display:flex; overflow-x:auto; gap:8px; padding-bottom:4px; scrollbar-width:thin; }
+    .sensores.topo .sens { flex:0 0 auto; min-width:122px; }
+  }
+  .rot-passo { display:flex; gap:10px; align-items:flex-start; margin:10px 0; line-height:1.6; }
+  .rot-passo > div { flex:1; }
+  .rot-nota { color:var(--mut); font-size:.76rem; margin-left:6px; }
+  .rot-res { margin:12px 0 10px; padding:10px 12px; border-radius:8px; background:var(--card2); font-size:.9rem; }
+  .rot-res.ok { border-left:4px solid var(--ok); } .rot-res.warn { border-left:4px solid var(--warn); } .rot-res.err { border-left:4px solid var(--bad); }
+  .rot-uso { margin-top:10px; font-size:.85rem; }
   .dica-mais { display:inline-block; margin:2px 0 6px; color:var(--primary); font-size:.75rem; text-decoration:none; cursor:pointer; }
   @media (max-width:640px) {
     .abas { gap:4px; }
@@ -472,6 +483,15 @@
   </div>
   <button id="recuperar" class="perigo" style="display:none;flex:none;padding:9px 12px;font-size:.78rem"><i data-ic="restart"></i> Recuperar (FIRMWARE_RESTART)</button>
 </div>
+
+<!-- Sempre visivel (fora das abas): versoes + temperaturas ao vivo. O grafico
+     de 10 min continua na aba Diagnostico. -->
+<div class="sysbar" id="sysbar">
+  <span><i data-ic="chip"></i> <b id="fwModelo">—</b> fw <b id="fwPrinter">—</b></span>
+  <span><i data-ic="terminal"></i> Klipper <b id="fwKlipper">—</b></span>
+  <span><i data-ic="server"></i> Moonraker <b id="fwMoon">—</b></span>
+</div>
+<div class="sensores topo" id="sensores"></div>
 
 <nav class="abas" id="abas" role="tablist" aria-label="Seções da Central">
   <button type="button" role="tab" data-aba="imprimir"><i data-ic="flame"></i> Imprimir</button>
@@ -841,23 +861,20 @@
 <details class="acc">
   <summary><i data-ic="load"></i> <b class="acc-num">8</b> Extrusora &amp; fluxo</summary>
   <div class="acc-body">
-    <div class="dica">Marque 120mm no filamento, mande extrudar 100mm, meça o que sobrou. Se sumiu ≠ 100mm, corrija o <b>rotation_distance</b>.</div>
-    <div class="lin">
-      <label>Rot. dist.</label>
-      <span class="val" id="rotval">—</span>
-      <button id="ext100"><i data-ic="load"></i> Extrudar 100mm (aquece 220°C)</button>
+    <div class="dica">Confere se o extrusor empurra <b>exatamente</b> o que o fatiador pede. Extrudando a mais = bico escorrendo e superfície de baixo grossa.</div>
+    <div class="rot-passo"><b class="acc-num">1</b><div>Solte o tubo PTFE na entrada de cima da cabeça e faça uma marca no filamento a
+      <input type="number" id="rot-marca" value="120" min="105" max="200" step="1" style="width:68px"> mm da borda da entrada.</div></div>
+    <div class="rot-passo"><b class="acc-num">2</b><div><button id="ext100"><i data-ic="load"></i> Extrudar 100 mm</button>
+      <span class="rot-nota">aquece a 220 °C · ~2 min</span></div></div>
+    <div class="rot-passo"><b class="acc-num">3</b><div>Meça com a régua quanto <b>sobrou</b> da marca até a entrada:
+      <input type="number" id="rot-sobra" step="0.5" min="0" placeholder="ex: 20" style="width:76px"> mm</div></div>
+    <div id="rot-res" class="rot-res">Faça os passos 1 a 3 — o resultado aparece aqui.</div>
+    <div class="lin" style="gap:8px;flex-wrap:wrap">
+      <button id="rotset" class="salvar" disabled><i data-ic="check"></i> Aplicar e salvar</button>
+      <button id="rot-fab" class="ghost">Voltar ao de fábrica</button>
     </div>
-    <div class="lin">
-      <label>Extrudiu</label>
-      <input type="number" id="extreal" step="0.1" placeholder="ex: 97.5">
-      <span style="color:var(--mut);font-size:.78rem">mm reais</span>
-      <button id="extcalc">Calcular novo valor</button>
-    </div>
-    <div class="lin">
-      <label>Novo valor</label>
-      <input type="number" id="rotnovo" step="0.001" placeholder="—">
-      <button id="rotset" class="salvar">Aplicar</button>
-    </div>
+    <div class="rot-uso">Em uso: <b class="val" id="rotval">—</b> <span id="rot-origem"></span></div>
+    <div class="rot-nota">Depois de aplicar, recoloque e trave o tubo. Para conferir, repita: a sobra deve dar a marca − 100 (ex. 20 mm) ±1.</div>
   </div>
 </details>
 
@@ -962,15 +979,11 @@
 </div>
 
 <div class="aba" data-aba="diag" role="tabpanel">
-<div class="sysbar" id="sysbar">
-  <span><i data-ic="chip"></i> <b id="fwModelo">—</b> fw <b id="fwPrinter">—</b></span>
-  <span><i data-ic="terminal"></i> Klipper <b id="fwKlipper">—</b></span>
-  <span><i data-ic="server"></i> Moonraker <b id="fwMoon">—</b></span>
-</div>
+
 
 <h2><i data-ic="thermo"></i> TEMPERATURAS (10 min)</h2>
 <canvas id="grafico" width="800" height="180"></canvas>
-<div class="sensores" id="sensores"></div>
+
 
 <details class="acc">
   <summary><i data-ic="activity"></i> Diagnóstico</summary>
@@ -2996,7 +3009,8 @@ async function leCalib(){
     // rotation_distance do extruder (do config)
     const cfg = s.configfile && s.configfile.settings;
     if (cfg && cfg.extruder && cfg.extruder.rotation_distance) {
-      $("rotval").textContent = (+cfg.extruder.rotation_distance).toFixed(3);
+      rotFab = +cfg.extruder.rotation_distance;   // valor do printer.cfg (fabrica)
+      rotRender();
     }
     // Input shaper (do config)
     if (cfg && cfg.input_shaper) {
@@ -3686,6 +3700,7 @@ async function zcLerSalvos(){
     if (typeof pcRender === "function") pcRender();
     if (typeof purgaRender === "function") purgaRender();
     if (typeof trocaRender === "function") trocaRender();
+    if (typeof rotRender === "function") rotRender();
   } catch(e){
     $("zclist").textContent = "offsets salvos: sem leitura (" + e.message + ")";
   }
@@ -3939,22 +3954,62 @@ async function paSalvar(){
 $("pasave").onclick = () => { if (!ocupado) paSalvar(); };
 
 // extrusora
+// ---------- rotation_distance guiado (card 8) ----------
+// O usuario so mede a SOBRA com a regua; a Central faz a conta e grava em
+// save_variables (rot_dist). _K2_ROT_APLICA (start_print.cfg) reaplica no boot e
+// em todo print - o SET_EXTRUDER_ROTATION_DISTANCE sozinho sumiria no restart e o
+// SAVE_CONFIG nao grava esse valor.
+let rotFab = null;                 // [extruder] rotation_distance do printer.cfg
+let rotNovo = null;                // valor calculado pela ultima medicao
+function rotEmUso(){
+  const sv = zcVars && zcVars.rot_dist;
+  return (typeof sv === "number" && isFinite(sv)) ? {v: sv, salvo: true} : {v: rotFab, salvo: false};
+}
+function rotRender(){
+  const u = rotEmUso();
+  $("rotval").textContent = u.v ? u.v.toFixed(3) : "—";
+  $("rot-origem").textContent = !u.v ? "" : (u.salvo
+    ? "· calibrado e salvo (reaplicado em todo boot e print)" + (rotFab ? " · fábrica " + rotFab.toFixed(3) : "")
+    : "· de fábrica (printer.cfg)");
+  $("rot-fab").style.display = u.salvo ? "" : "none";
+  rotCalcula();
+}
+function rotCalcula(){
+  const res = $("rot-res"), marca = parseFloat($("rot-marca").value), sobra = parseFloat($("rot-sobra").value);
+  const u = rotEmUso();
+  rotNovo = null; $("rotset").disabled = true; res.className = "rot-res";
+  if (!isFinite(sobra)) { res.textContent = "Faça os passos 1 a 3 — o resultado aparece aqui."; return; }
+  if (!(marca > 100) || sobra < 0 || sobra >= marca) { res.className = "rot-res err"; res.textContent = "Confira os números: a sobra precisa ser menor que a marca (" + marca + " mm)."; return; }
+  const entrou = marca - sobra, dif = entrou - 100;
+  if (entrou < 70 || entrou > 130) { res.className = "rot-res err"; res.textContent = "Entrou " + entrou.toFixed(1) + " mm de 100 — diferença grande demais. Confira se a marca estava a " + marca + " mm e se o tubo não puxou o filamento; repita o teste."; return; }
+  if (!u.v) { res.textContent = "Lendo o valor atual da impressora…"; return; }
+  const novo = u.v * entrou / 100;
+  if (Math.abs(dif) <= 1) {
+    res.className = "rot-res ok";
+    res.innerHTML = "✓ Entrou <b>" + entrou.toFixed(1) + " mm</b> de 100 — está certo (diferença de " + Math.abs(dif).toFixed(1) + " mm). Não precisa mudar.";
+    return;
+  }
+  rotNovo = novo; $("rotset").disabled = false;
+  res.className = "rot-res warn";
+  res.innerHTML = "Entrou <b>" + entrou.toFixed(1) + " mm</b> de 100 pedidos → está extrudando <b>" + Math.abs(dif).toFixed(1) + "% a " + (dif > 0 ? "mais" : "menos") +
+    "</b>.<br>Novo valor: <b>" + novo.toFixed(3) + "</b> (em uso: " + u.v.toFixed(3) + "). Toque em <b>Aplicar e salvar</b>.";
+}
+["rot-marca", "rot-sobra"].forEach(id => $(id).addEventListener("input", rotCalcula));
 $("ext100").onclick = () => roda(
   "M109 S220\nG91\nG1 E100 F60\nG90", "Extrudando 100mm a 220C (leva ~2 min)", 8);
-$("extcalc").onclick = () => {
-  const atual = parseFloat($("rotval").textContent);
-  const real = parseFloat($("extreal").value);
-  if (!atual || !real) { logLinha("!! preencha quanto extrudiu de verdade"); return; }
-  const novo = atual * (real / 100);
-  $("rotnovo").value = novo.toFixed(3);
-  logLinha("[CALIB] rotation_distance: " + atual.toFixed(3) + " -> " + novo.toFixed(3) +
-           " (pediu 100mm, saiu " + real + "mm)");
-};
 $("rotset").onclick = () => {
-  const v = parseFloat($("rotnovo").value);
-  if (!v) { logLinha("!! calcule o novo valor primeiro"); return; }
-  roda("SET_EXTRUDER_ROTATION_DISTANCE EXTRUDER=extruder DISTANCE=" + v.toFixed(3),
-       "Aplicando rotation_distance " + v.toFixed(3), 3, () => { leCalib(); $("salvar").style.display = ""; });
+  if (!rotNovo || ocupado) return;
+  if (!(rotNovo >= 5 && rotNovo <= 9)) { setStatus("Valor fora da faixa segura (5–9)", "repita o teste", "err"); return; }
+  const v = rotNovo.toFixed(3), u = rotEmUso();
+  if (!confirm("Aplicar rotation_distance " + v + " (em uso: " + (u.v ? u.v.toFixed(3) : "?") + ")?\n\nFica salvo e é reaplicado sozinho em todo boot e início de print.")) return;
+  roda("SET_EXTRUDER_ROTATION_DISTANCE EXTRUDER=extruder DISTANCE=" + v + "\nSAVE_VARIABLE VARIABLE=rot_dist VALUE=" + v,
+       "Aplicando e salvando rotation_distance " + v, 2, () => { $("rot-sobra").value = ""; zcLerSalvos(); leCalib(); });
+};
+$("rot-fab").onclick = () => {
+  if (ocupado || !rotFab) return;
+  if (!confirm("Voltar ao rotation_distance de fábrica (" + rotFab.toFixed(3) + ")?")) return;
+  roda("SAVE_VARIABLE VARIABLE=rot_dist VALUE=None\nSET_EXTRUDER_ROTATION_DISTANCE EXTRUDER=extruder DISTANCE=" + rotFab.toFixed(3),
+       "rotation_distance de fábrica " + rotFab.toFixed(3), 2, () => { zcLerSalvos(); leCalib(); });
 };
 // velocidade
 $("velset").onclick = () => {
