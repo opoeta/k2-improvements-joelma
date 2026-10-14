@@ -418,6 +418,25 @@
              border-radius:11px; background:var(--primary-soft); color:var(--primary); font-size:.78rem; margin-right:4px; }
   .dica.longa:not(.aberta) { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
   .sensores.topo { margin-top:10px; }
+  .cfs-alerta { margin-top:10px; padding:10px 12px; border-radius:10px; border:1px solid var(--bad);
+    background:color-mix(in srgb, var(--bad) 16%, var(--card)); font-size:.85rem; line-height:1.45;
+    display:flex; gap:10px; align-items:flex-start; }
+  .cfs-alerta[hidden] { display:none; }
+  .cfs-alerta .tx { flex:1; }
+  .cfs-alerta button { padding:4px 10px; flex:none; }
+  .fb-nfat { font-weight:400; opacity:.8; }
+  .fb-conf { margin-top:12px; padding:10px 12px; border:1px solid var(--line); border-radius:12px; background:var(--card); }
+  .fb-conf-tit { font-weight:700; font-size:.85rem; margin-bottom:8px; }
+  .fb-conf select { min-width:0; padding:9px 10px; border-radius:8px; border:1px solid var(--line);
+    background:var(--card2); color:var(--txt); font-size:.85rem; }
+  @media (max-width:640px) { .cfs-alerta { flex-wrap:wrap; } .cfs-alerta .tx { flex:1 1 calc(100% - 30px); } }
+  .fb-cr { display:flex; align-items:center; gap:8px; font-size:.8rem; padding:6px 8px; border-radius:8px; margin-top:6px;
+    background:color-mix(in srgb, var(--txt) 5%, transparent); }
+  .fb-cr.erro { background:color-mix(in srgb, var(--bad) 18%, transparent); }
+  .fb-cr.aviso { background:color-mix(in srgb, var(--warn) 18%, transparent); }
+  .fb-cr .sw { width:14px; height:14px; border-radius:50%; flex:none; border:1px dashed var(--mut); }
+  .fb-cr .sw.c { border:1px solid rgba(0,0,0,.35); }
+  .fb-cr-res { font-weight:700; font-size:.82rem; margin-top:8px; }
   @media (max-width:640px) {
     .sensores.topo { display:flex; overflow-x:auto; gap:8px; padding-bottom:4px; scrollbar-width:thin; }
     .sensores.topo .sens { flex:0 0 auto; min-width:122px; }
@@ -492,6 +511,8 @@
   <span><i data-ic="server"></i> Moonraker <b id="fwMoon">—</b></span>
 </div>
 <div class="sensores topo" id="sensores"></div>
+<div class="cfs-alerta" id="cfs-alerta" role="alert" hidden><span>⚠️</span><span class="tx" id="cfs-alerta-tx"></span>
+  <button class="ghost" id="cfs-alerta-ver">Ver CFS</button><button class="ghost" id="cfs-alerta-x" aria-label="Fechar aviso">✕</button></div>
 
 <nav class="abas" id="abas" role="tablist" aria-label="Seções da Central">
   <button type="button" role="tab" data-aba="imprimir"><i data-ic="flame"></i> Imprimir</button>
@@ -571,6 +592,18 @@
 </dialog>
 <div class="fb-grid" id="fb-grid"><div class="det" style="grid-column:1/-1">lendo o CFS…</div></div>
 <div class="det" id="fb-runout" style="margin-top:4px"></div>
+<div class="fb-conf" id="fb-conf">
+  <div class="fb-conf-tit">🧭 Conferir arquivo × CFS <span class="det" style="font-weight:400">— o arquivo pede algum slot vazio?</span></div>
+  <div class="lin" style="gap:8px;flex-wrap:wrap;align-items:center">
+    <select id="fb-arq" style="flex:1 1 220px"><option value="">carregando arquivos…</option></select>
+    <button class="principal" id="fb-arq-ok"><i data-ic="search"></i> Conferir</button>
+  </div>
+  <div id="fb-arq-res"></div>
+  <div class="det" style="margin-top:8px">O <b>nº</b> em cada slot é a posição do filamento na lista do fatiador:
+    1–4 = CFS 1 (A–D), 5–8 = CFS 2 (A–D). Vale para envio direto (Orca, Fluidd, esta Central).
+    Se você escolher o mapeamento na tela da impressora ou no Creality Print, vale o que escolher lá.
+    Quando uma impressão começa, a Central confere sozinha e avisa no topo.</div>
+</div>
 <div class="fb-tools" id="fb-tools" style="display:none">
   <button class="fb-tool" id="fb-rfid-all"><span class="ic">🔄</span><span><b>Reler RFID (todos)</b><small>atualiza material/cor de todos os slots</small></span></button>
   <button class="fb-tool" id="fb-cut"><span class="ic">✂️</span><span><b>Calibrar corte</b><small>CALIBRATE_CUT_POS <span class="wb">move o hardware</span></small></span></button>
@@ -1234,6 +1267,7 @@ function aplicaStatus(st){
   if (st.extruder) { if (st.extruder.temperature !== undefined) ultimo.ext = st.extruder.temperature; if (st.extruder.target !== undefined) ultimo.extT = st.extruder.target; }
   if (st.idle_timeout && st.idle_timeout.state) ultimo.idle = st.idle_timeout.state;
   if (st.print_stats && st.print_stats.state !== undefined) pcEstado(st.print_stats.state);
+  if (st.print_stats) fbAutoConfere(st.print_stats);
   if (st.gcode_move && st.gcode_move.homing_origin) pcOffset(+st.gcode_move.homing_origin[2]);
   if (st.display_status && st.display_status.message) $("detalhe").textContent = st.display_status.message;
   if (st["output_pin LED"] && st["output_pin LED"].value !== undefined) pintaLuz(+st["output_pin LED"].value);
@@ -1631,8 +1665,39 @@ async function fbAtualiza(){
       norm = fbNormKlipper(q.status.box || null);
     } catch(e){ $("fb-status").textContent = "CFS: sem leitura"; return; }
   }
+  // Presenca FISICA pelo objeto box do Klipper (o que o firmware usa na hora
+  // de carregar): o material_box_info.json pode manter material/cor "latcheados"
+  // de um carretel que ja saiu (out/2026: T1C com vender/remain_len = -1 e
+  // material 001601 -> o print parou pedindo CFS). Fail-open: sem leitura, nao
+  // marca nada como vazio.
+  try {
+    const q = await rpc("printer.objects.query", {objects:{box:null}});
+    fbFisico = fbFisicoDe(q.status.box || null);
+  } catch(e){ fbFisico = {}; }
+  norm.boxes.forEach(function(b){ b.slots.forEach(function(s){
+    if (s.present && fbFisico[s.tnn] === false) { s.present = false; s.active = false; }
+  }); });
   fbUlt = norm;
   fbRender(norm.boxes, norm.meta);
+}
+// TNN -> true/false. Regra anti-fantasma (CLAUDE.md): presenca = vender OU
+// remain_len validos; nunca cor/material (RFID latcheado).
+function fbFisicoDe(box){
+  const out = {};
+  if (!box) return out;
+  Object.keys(box).forEach(function(k){
+    const bx = box[k];
+    if (!/^T[1-9]$/.test(k) || !bx || typeof bx !== "object") return;
+    const vd = bx.vender, rl = bx.remain_len;
+    if (!Array.isArray(vd) && !Array.isArray(rl)) return;
+    FB_SLOTS.forEach(function(L, i){
+      const v = String((vd || [])[i] ?? ""), r = String((rl || [])[i] ?? "");
+      const vOk = v !== "" && v !== "-1" && v !== "none" && v !== "None";
+      const rOk = r !== "" && r !== "-1";
+      out[k + L] = vOk || rOk;
+    });
+  });
+  return out;
 }
 // --- normaliza o endpoint /edit (multi-CFS real, ate 4 caixas) ---
 function fbNormEndpoint(bx){
@@ -1744,7 +1809,7 @@ function fbRender(boxes, meta){
       const pct = sp && sp.total > 0 ? Math.max(0, Math.min(100, Math.round(100 * sp.resta / sp.total))) : (s.remain != null ? s.remain : null);
       if (!s.present) {
         html += '<div class="fb-slot vazio" style="--fc:var(--dim)">'
-          + '<div class="fb-top"><span class="fb-tnn">' + s.tnn + '</span><span class="fb-state vazio">vazio</span></div>'
+          + '<div class="fb-top"><span class="fb-tnn" title="' + fbNfatTit(s.tnn) + '">' + s.tnn + fbNfat(s.tnn) + '</span><span class="fb-state vazio">vazio</span></div>'
           + '<div class="fb-vz">' + fbGauge(null, null) + '<span>sem filamento</span></div>'
           + '<div class="acts"><button class="ghost" data-fb-edit="' + s.tnn + '">Atribuir</button>'
           + '<button class="ghost" data-fb-rfid="' + s.tnn + '" title="Reler a tag RFID deste slot">RFID</button></div></div>';
@@ -1756,7 +1821,7 @@ function fbRender(boxes, meta){
       if (s.pa) m.push("PA " + s.pa);
       if (sp && sp.resta != null) m.push(Math.round(sp.resta) + "g");
       html += '<div class="fb-slot cheio' + (s.active ? " on" : "") + '" style="--fc:' + (s.cor || "#888") + '">'
-        + '<div class="fb-top"><span class="fb-tnn">' + s.tnn + '</span>' + est + '</div>'
+        + '<div class="fb-top"><span class="fb-tnn" title="' + fbNfatTit(s.tnn) + '">' + s.tnn + fbNfat(s.tnn) + '</span>' + est + '</div>'
         + '<div class="fb-id">' + fbGauge(s.cor, pct) + '<div><div class="fb-mat">' + (s.type || "—") + '</div>'
         + (s.name && s.name !== s.type ? '<div class="fb-name">' + s.name + '</div>' : '') + '</div></div>'
         + (m.length ? '<div class="fb-meta">' + m.map(function(x){ return '<span>' + x + '</span>'; }).join("") + '</div>' : "")
@@ -1925,6 +1990,127 @@ $("fb-ex-heat").onclick = () => {
 };
 $("fb-ex-go").onclick = () => fbExtrudar(1);
 $("fb-ex-ret").onclick = () => fbExtrudar(-1);
+// ---------- Conferir arquivo x CFS ----------
+// Sem mapeamento (envio pelo Orca/Fluidd/Central) o firmware usa o indice de
+// ferramenta do G-code direto como slot: n -> CFS (n/4)+1, slot ABCD[n%4]
+// (log out/2026: "M8200 P S2" -> last_cmd T1C). Se o slot estiver vazio, o print
+// so para pedindo CFS DEPOIS do preparo inteiro (~8 min de mesa/tilt/mesh).
+let fbFisico = {};
+let fbConfAuto = null, fbPsArq = "", fbPsEst = "", fbConfTok = 0;
+function fbIdxTnn(n){ return "T" + (Math.floor(n / 4) + 1) + FB_SLOTS[n % 4]; }
+function fbTnnIdx(tnn){ return (parseInt(tnn.slice(1), 10) - 1) * 4 + FB_SLOTS.indexOf(tnn.slice(-1)); }
+function fbNfat(tnn){ const i = fbTnnIdx(tnn); return i >= 0 ? ' <span class="fb-nfat">· nº' + (i + 1) + '</span>' : ""; }
+function fbNfatTit(tnn){ const i = fbTnnIdx(tnn); return "filamento nº " + (i + 1) + " na lista do fatiador (T" + i + " no G-code)"; }
+function fbMatCompat(a, b){
+  a = String(a || "").toUpperCase().replace(/[^A-Z]/g, ""); b = String(b || "").toUpperCase().replace(/[^A-Z]/g, "");
+  return !a || !b || b.indexOf(a) >= 0 || a.indexOf(b) >= 0;
+}
+async function fbListaArquivos(){
+  const sel = $("fb-arq");
+  try {
+    const r = await fetch(base + "/server/files/list?root=gcodes");
+    const l = ((await r.json()).result || []).filter(function(f){ return /\.gcode$/i.test(f.path); });
+    l.sort(function(a, b){ return (b.modified || 0) - (a.modified || 0); });
+    const atual = sel.value;
+    sel.innerHTML = l.slice(0, 25).map(function(f){
+      return '<option value="' + escHtml(f.path) + '">' + escHtml(f.path) + '</option>'; }).join("")
+      || '<option value="">nenhum arquivo na impressora</option>';
+    if (atual && l.some(function(f){ return f.path === atual; })) sel.value = atual;
+  } catch(e){ sel.innerHTML = '<option value="">não consegui listar os arquivos</option>'; }
+}
+// le o G-code inteiro em streaming e guarda so: indices de ferramenta usados
+// (T<n>, M8200 P S<n>, M8200 L I<n> - o "M8200 C S0" do corte NAO conta) e o
+// "; filament_type = A;B;C" do bloco de config do fatiador.
+async function fbLeArquivo(path, prog){
+  const r = await fetch(base + "/server/files/gcodes/" + path.split("/").map(encodeURIComponent).join("/"));
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  const tot = parseInt(r.headers.get("Content-Length") || "0", 10);
+  const ordem = [], vistos = {}; let tipos = null, resto = "", lido = 0;
+  const re = /^(?:T(\d+)|M8200\s+P\s+S(\d+)|M8200\s+L\s+I(\d+))\s*(?:;|$)/;
+  function linha(l){
+    l = l.trim();
+    if (!l) return;
+    const m = re.exec(l);
+    if (m) { const n = parseInt(m[1] || m[2] || m[3], 10); if (!vistos[n]) { vistos[n] = 1; ordem.push(n); } return; }
+    if (l.indexOf("; filament_type =") === 0) tipos = l.slice(l.indexOf("=") + 1).split(";").map(function(x){ return x.trim(); });
+  }
+  const rd = r.body.getReader(), dec = new TextDecoder();
+  for (;;) {
+    const c = await rd.read();
+    if (c.done) break;
+    lido += c.value.length;
+    resto += dec.decode(c.value, {stream:true});
+    const ls = resto.split("\n"); resto = ls.pop(); ls.forEach(linha);
+    if (prog && tot) prog(Math.round(100 * lido / tot));
+  }
+  linha(resto);
+  return {ordem: ordem, tipos: tipos};
+}
+function fbAvalia(ordem, tipos){
+  return ordem.map(function(n){
+    const tnn = n <= 15 ? fbIdxTnn(n) : "T?" , s = fbSlots[tnn], mat = tipos && tipos[n] ? tipos[n] : null;
+    let nivel = "ok", msg;
+    if (n > 15) { nivel = "erro"; msg = "índice T" + n + " não existe no CFS"; }
+    else if (!s) { nivel = "erro"; msg = "CFS " + (Math.floor(n / 4) + 1) + " não está conectado"; }
+    else if (!s.present) { nivel = "erro"; msg = "slot VAZIO — a impressão vai parar pedindo CFS"; }
+    else if (mat && s.type && !fbMatCompat(mat, s.type)) { nivel = "aviso"; msg = "o arquivo pede " + mat + ", o slot tem " + s.type; }
+    else msg = (s.type || "filamento") + (mat ? " (arquivo: " + mat + ")" : "") + " ✓";
+    return {n: n, tnn: tnn, nivel: nivel, msg: msg, cor: s && s.present ? s.cor : null};
+  });
+}
+async function fbConfere(path, auto){
+  const res = $("fb-arq-res"), tok = ++fbConfTok;
+  if (!path) { res.innerHTML = '<div class="det">escolha um arquivo</div>'; return; }
+  res.innerHTML = '<div class="det">lendo ' + escHtml(path) + '…</div>';
+  let lido;
+  try {
+    if (!Object.keys(fbSlots).length) await fbAtualiza();
+    lido = await fbLeArquivo(path, function(pc){ if (tok === fbConfTok) res.innerHTML = '<div class="det">lendo ' + escHtml(path) + '… ' + pc + '%</div>'; });
+  } catch(e){
+    if (tok === fbConfTok) res.innerHTML = '<div class="det">não consegui ler o arquivo (' + escHtml(e.message) + ')</div>';
+    return;
+  }
+  if (tok !== fbConfTok) return;
+  const it = fbAvalia(lido.ordem, lido.tipos);
+  const erros = it.filter(function(x){ return x.nivel === "erro"; });
+  const avisos = it.filter(function(x){ return x.nivel === "aviso"; });
+  let h = '<div class="fb-cr-res">' + escHtml(path) + ': ' + (!it.length
+    ? "não pede slot do CFS (usa o filamento que já está no bico)"
+    : erros.length ? "❌ " + erros.length + " slot(s) com problema"
+    : avisos.length ? "⚠️ confira o material" : "✓ tudo certo — " + it.length + " slot(s) com filamento") + '</div>';
+  it.forEach(function(x){
+    h += '<div class="fb-cr ' + x.nivel + '"><span class="sw' + (x.cor ? ' c" style="background:' + x.cor : '') + '"></span>'
+      + '<span><b>nº ' + (x.n + 1) + '</b> no fatiador → <b>' + (x.n <= 15 ? 'CFS ' + (Math.floor(x.n / 4) + 1) + ' slot ' + FB_SLOTS[x.n % 4] : '?') + '</b> (' + x.tnn + ') — ' + escHtml(x.msg) + '</span></div>';
+  });
+  res.innerHTML = h;
+  logLinha("// CFS x arquivo " + path + ": " + (it.length ? it.map(function(x){ return x.tnn + "=" + x.nivel; }).join(" ") : "sem slots"));
+  if (auto) {
+    if (erros.length) {
+      $("cfs-alerta-tx").innerHTML = "<b>CFS:</b> este print pede "
+        + erros.map(function(x){ return "<b>" + x.tnn + "</b> (nº " + (x.n + 1) + " no fatiador)"; }).join(", ")
+        + " — <b>" + (erros.length > 1 ? "vazios" : "vazio") + "</b>. Vai parar pedindo CFS no fim do preparo: carregue pela tela agora ou cancele."
+        + '<br><small style="color:var(--mut)">' + escHtml(path) + '</small>';
+      $("cfs-alerta").hidden = false;
+    } else $("cfs-alerta").hidden = true;
+  }
+}
+// chamado pelo polling (aplicaStatus): confere 1x por arquivo quando o print comeca
+function fbAutoConfere(ps){
+  if (ps.filename !== undefined) fbPsArq = ps.filename || "";
+  if (ps.state !== undefined) fbPsEst = ps.state || "";
+  if ((fbPsEst === "printing" || fbPsEst === "paused") && fbPsArq && fbPsArq !== fbConfAuto) {
+    fbConfAuto = fbPsArq;
+    fbListaArquivos().then(function(){ if ([].some.call($("fb-arq").options, function(o){ return o.value === fbPsArq; })) $("fb-arq").value = fbPsArq; });
+    fbConfere(fbPsArq, true);
+  }
+  if (fbPsEst === "standby" || fbPsEst === "complete" || fbPsEst === "cancelled") { fbConfAuto = null; $("cfs-alerta").hidden = true; }
+}
+$("fb-arq-ok").onclick = function(){ fbConfere($("fb-arq").value, false); };
+$("fb-arq").addEventListener("focus", function(){ fbListaArquivos(); });
+$("cfs-alerta-x").onclick = function(){ $("cfs-alerta").hidden = true; };
+$("cfs-alerta-ver").onclick = function(){ abaMostra("imprimir"); $("fb-conf").scrollIntoView({behavior:"smooth", block:"center"}); };
+fbListaArquivos();
+
 fbSpoolman().then(fbAtualiza);
 setInterval(fbAtualiza, 20000);
 setInterval(fbSpoolman, 90000);
@@ -4095,7 +4281,7 @@ function objsSub(){
     heater_bed:["temperature","target"], extruder:["temperature","target"],
     idle_timeout:["state"], display_status:["message"], "output_pin LED":["value"],
     toolhead:["position","homed_axes"],
-    print_stats:["state"], gcode_move:["homing_origin"]   // barra de 1a camada
+    print_stats:["state","filename"], gcode_move:["homing_origin"]   // barra de 1a camada + conferencia CFS
   };
   SENSORES.forEach(s => { if (!o[s.obj]) o[s.obj] = null; });
   return o;
