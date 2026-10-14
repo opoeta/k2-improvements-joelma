@@ -153,6 +153,12 @@ pesquisa do CFS no OrcaSlicer, receitas de curl. **Leia sob demanda.**
   porta 9999, sem restart). Encoder/buffer/clog do widget do Jacob **não existem no stock**
   (plugin fechado) — omitidos de propósito. `box.filament` é índice de seleção *stale*:
   "Loaded" só quando o sensor do printhead confirma.
+- **CFS ao vivo pela porta 9999 (out/2026):** a Central abre `ws://IP:9999` **só leitura**
+  (`get boxsInfo/ReqPrinterPara` + `ok` no `heart_beat`; **nunca** `set`). `materials[].state`
+  (0 vazio · 1 manual · 2 RFID · 3 alimentando · 4 retraindo) e `selected` mandam na presença
+  quando frescos (<12 s); senão cai na heurística do objeto `box`. `feedState` vira a faixa
+  "CFS T1B: purgando" no topo e `err.key≠0` a faixa de erro (836/839 = entupimento CFS→sensor).
+  Protocolo do CFSail (military-cat/Mainsail-CFS-Panel, GPL-3.0).
 - **Sync do Orca sem o `[mmu]`:** o caminho é o **CFS nativo pela porta 9999** (build do
   fork Jacob / mainline com CFS — HANDOFF §9). No Orca: impressora conectada via IP →
   sync de filamento lê o `boxsInfo` direto. O Filament Sync via "Printer Agent = Moonraker"

@@ -422,6 +422,11 @@
     background:color-mix(in srgb, var(--bad) 16%, var(--card)); font-size:.85rem; line-height:1.45;
     display:flex; gap:10px; align-items:flex-start; }
   .cfs-alerta[hidden] { display:none; }
+  .cfs-vivo { margin-top:10px; padding:8px 12px; border-radius:10px; font-size:.85rem; display:flex; gap:8px; align-items:center;
+    border:1px solid var(--warn); background:color-mix(in srgb, var(--warn) 14%, var(--card)); }
+  .cfs-vivo[hidden] { display:none; }
+  .cfs-vivo .gira { display:inline-block; animation:w9gira 1.2s linear infinite; }
+  @keyframes w9gira { to { transform:rotate(360deg); } }
   .cfs-alerta .tx { flex:1; }
   .cfs-alerta button { padding:4px 10px; flex:none; }
   .fb-nfat { font-weight:400; opacity:.8; }
@@ -511,6 +516,9 @@
   <span><i data-ic="server"></i> Moonraker <b id="fwMoon">—</b></span>
 </div>
 <div class="sensores topo" id="sensores"></div>
+<div class="cfs-vivo" id="cfs-vivo" role="status" hidden><span class="gira">⟳</span><span id="cfs-vivo-tx"></span></div>
+<div class="cfs-alerta" id="cfs-erro" role="alert" hidden><span>⛔</span><span class="tx" id="cfs-erro-tx"></span>
+  <button class="ghost" id="cfs-erro-x" aria-label="Fechar erro">✕</button></div>
 <div class="cfs-alerta" id="cfs-alerta" role="alert" hidden><span>⚠️</span><span class="tx" id="cfs-alerta-tx"></span>
   <button class="ghost" id="cfs-alerta-ver">Ver CFS</button><button class="ghost" id="cfs-alerta-x" aria-label="Fechar aviso">✕</button></div>
 
@@ -1674,11 +1682,32 @@ async function fbAtualiza(){
     const q = await rpc("printer.objects.query", {objects:{box:null}});
     fbFisico = fbFisicoDe(q.status.box || null);
   } catch(e){ fbFisico = {}; }
+  fbBase = norm;
+  fbPinta();
+}
+// Monta o que aparece: base (arquivo/Klipper) + presenca. Prioridade da
+// presenca: estado do FIRMWARE pela 9999 (fresco) > objeto box do Klipper
+// (heuristica vender/remain_len) > base.
+let fbBase = null;
+function fbPinta(){
+  if (!fbBase) return;
+  const norm = JSON.parse(JSON.stringify(fbBase));
+  const w9 = w9Fresco() ? w9Slots() : null;
+  let ativo = null;
   norm.boxes.forEach(function(b){ b.slots.forEach(function(s){
-    if (s.present && fbFisico[s.tnn] === false) { s.present = false; s.active = false; }
+    const w = w9 && w9[s.tnn];
+    if (w) {
+      s.present = w.state > 0; s.active = s.present && w.selected; s.w9state = w.state;
+      if (s.present && !s.cor && w.cor) s.cor = w.cor;
+      if (s.present && !s.type && w.type) s.type = w.type;
+    } else if (s.present && fbFisico[s.tnn] === false) { s.present = false; s.active = false; }
+    if (s.active && !ativo) ativo = s.tnn;
   }); });
+  if (w9) norm.meta.ativoTnn = ativo;
+  norm.meta.fonte = w9 ? "9999" : norm.meta.fonte;
   fbUlt = norm;
   fbRender(norm.boxes, norm.meta);
+  $("fb-status").textContent += w9 ? " · ao vivo (firmware)" : " · estimado (sem a porta 9999)";
 }
 // TNN -> true/false. Regra anti-fantasma (CLAUDE.md): presenca = vender OU
 // remain_len validos; nunca cor/material (RFID latcheado).
@@ -1815,7 +1844,9 @@ function fbRender(boxes, meta){
           + '<button class="ghost" data-fb-rfid="' + s.tnn + '" title="Reler a tag RFID deste slot">RFID</button></div></div>';
         return;
       }
-      const est = s.active ? '<span class="fb-state carregado"><span class="p"></span>carregado</span>' : '<span class="fb-state pronto">pronto</span>';
+      const est = s.w9state === 3 ? '<span class="fb-state carregado"><span class="p"></span>alimentando</span>'
+        : s.w9state === 4 ? '<span class="fb-state carregado"><span class="p"></span>retraindo</span>'
+        : s.active ? '<span class="fb-state carregado"><span class="p"></span>carregado</span>' : '<span class="fb-state pronto">pronto</span>';
       const m = [];
       if (s.tmin || s.tmax) m.push((s.tmin || "?") + "–" + (s.tmax || "?") + "°C");
       if (s.pa) m.push("PA " + s.pa);
@@ -1990,6 +2021,103 @@ $("fb-ex-heat").onclick = () => {
 };
 $("fb-ex-go").onclick = () => fbExtrudar(1);
 $("fb-ex-ret").onclick = () => fbExtrudar(-1);
+// ---------- CFS ao vivo pela porta 9999 (protocolo do Creality Print) ----------
+// SO LEITURA: manda apenas "get boxsInfo/ReqPrinterPara" e o "ok" do heart_beat;
+// nunca "set". Protocolo conferido no CFSail (military-cat/Mainsail-CFS-Panel,
+// GPL-3.0, derivado de swilsonnc/K2-plus-cfs-panel) e no DaviBe92/k2-websocket-re.
+// boxsInfo.materialBoxs[]: type 0 = CFS (id 1..4); materials[].state 0=vazio
+// 1=manual 2=RFID 3=alimentando 4=retraindo; selected=1 = carregado no bico.
+// feedState = etapa da carga/troca (0/3/14 = parado); err.key != 0 = erro da tela.
+const W9 = {ws:null, info:null, at:0, feed:null, err:null, errFechado:"", cfs:null, pinta:0};
+const W9_ETAPA = {1:"aquecendo p/ carregar", 2:"extrudando", 11:"aquecendo p/ descarregar", 12:"preparando a descarga",
+  13:"retraindo", 101:"aquecendo", 102:"posicionando", 103:"cortando", 104:"retraindo o filamento antigo",
+  105:"levando o filamento novo", 106:"alimentando", 107:"purgando", 111:"posicionando", 112:"cortando",
+  113:"retraindo o filamento antigo", 114:"purgando", 150:"aquecendo", 151:"posicionando", 152:"alimentando",
+  153:"purgando", 160:"aquecendo p/ descarregar", 161:"posicionando", 162:"cortando", 163:"retraindo o filamento antigo"};
+function w9Fresco(){ return !!W9.info && Date.now() - W9.at < 12000; }
+function w9Slots(){
+  const out = {};
+  ((W9.info && W9.info.materialBoxs) || []).forEach(function(bx){
+    const id = Number(bx.id);
+    if (Number(bx.type) !== 0 || !(id >= 1 && id <= 4)) return;
+    (bx.materials || []).forEach(function(m){
+      const i = Number(m.id);
+      if (!(i >= 0 && i <= 3)) return;
+      const st = Number(m.state) || 0;
+      out["T" + id + FB_SLOTS[i]] = {state: st, selected: st > 0 && Number(m.selected) === 1,
+        type: String(m.type || "").trim() || null, cor: st > 0 ? fbCor(m.color) : null};
+    });
+  });
+  return out;
+}
+function w9Pede(){
+  if (W9.ws && W9.ws.readyState === 1)
+    try { W9.ws.send(JSON.stringify({method:"get", params:{boxsInfo:1, ReqPrinterPara:1}})); } catch(e){}
+}
+function w9Conecta(){
+  if (W9.ws && W9.ws.readyState < 2) return;
+  let ws;
+  try { ws = new WebSocket("ws://" + location.hostname + ":9999"); } catch(e){ return; }
+  W9.ws = ws;
+  ws.onopen = w9Pede;
+  ws.onmessage = function(ev){
+    const t = String(ev.data);
+    if (t.indexOf("heart_beat") >= 0) { try { ws.send("ok"); } catch(e){} return; }
+    let d; try { d = JSON.parse(t); } catch(e){ return; }
+    if (!d || typeof d !== "object") return;
+    if ("boxsInfo" in d && d.boxsInfo && typeof d.boxsInfo === "object") { W9.info = d.boxsInfo; W9.at = Date.now(); }
+    if (d.materialState && W9.info) {          // delta de 1 slot
+      const ms = d.materialState;
+      (W9.info.materialBoxs || []).forEach(function(bx){
+        if (Number(bx.id) !== Number(ms.boxId)) return;
+        (bx.materials || []).forEach(function(m){
+          if (Number(m.id) !== Number(ms.materialId)) return;
+          ["state","selected","type","color","name"].forEach(function(k){ if (k in ms) m[k] = ms[k]; });
+        });
+      });
+    }
+    if (d.boxState && W9.info) {
+      const bx = (W9.info.materialBoxs || []).find(function(b){ return Number(b.id) === Number(d.boxState.id); });
+      if (bx) Object.assign(bx, d.boxState);
+    }
+    if ("feedState" in d) W9.feed = Number(d.feedState);
+    if ("err" in d) W9.err = d.err && typeof d.err === "object" ? d.err : null;
+    if ("cfsConnect" in d) W9.cfs = Number(d.cfsConnect) > 0;
+    w9Agenda();
+  };
+  ws.onerror = function(){};
+  ws.onclose = function(){ W9.ws = null; w9Agenda(); setTimeout(w9Conecta, 5000); };
+}
+// repinta no maximo 1x/s (a 9999 manda varios deltas seguidos)
+function w9Agenda(){
+  if (W9.pinta) return;
+  W9.pinta = setTimeout(function(){ W9.pinta = 0; fbPinta(); w9Faixas(); }, 700);
+}
+function w9Faixas(){
+  const vivo = $("cfs-vivo"), erro = $("cfs-erro");
+  const f = W9.feed, ativo = W9.ws && W9.ws.readyState === 1 && f != null && !isNaN(f) && [0, 3, 14].indexOf(f) < 0;
+  if (ativo) {
+    const w = w9Fresco() ? w9Slots() : {};
+    const mov = Object.keys(w).filter(function(k){ return w[k].state === 3 || w[k].state === 4; });
+    $("cfs-vivo-tx").innerHTML = "<b>CFS" + (mov.length === 1 ? " " + mov[0] : "") + ":</b> "
+      + (W9_ETAPA[f] || "etapa " + f) + ' <small style="color:var(--mut)">(' + f + ')</small>';
+  }
+  vivo.hidden = !ativo;
+  const k = W9.err ? Number(W9.err.key) : 0;
+  const det = W9.err && typeof W9.err.value === "string" ? W9.err.value.trim() : "";
+  const id = k + "|" + det;
+  if (k && id !== W9.errFechado) {
+    let dica = "";
+    if (k === 836 || k === 839) dica = " — provável entupimento entre o CFS e o sensor de filamento: confira o tubo e o engate desse slot.";
+    $("cfs-erro-tx").innerHTML = "<b>Erro da impressora " + k + "</b>" + (det ? ": " + escHtml(det) : " (veja a tela)") + dica;
+    erro.hidden = false;
+  } else erro.hidden = true;
+}
+$("cfs-erro-x").onclick = function(){ const e = W9.err || {}; W9.errFechado = Number(e.key) + "|" + (typeof e.value === "string" ? e.value.trim() : ""); $("cfs-erro").hidden = true; };
+w9Conecta();
+setInterval(w9Pede, 4000);
+setInterval(w9Faixas, 5000);
+
 // ---------- Conferir arquivo x CFS ----------
 // Sem mapeamento (envio pelo Orca/Fluidd/Central) o firmware usa o indice de
 // ferramenta do G-code direto como slot: n -> CFS (n/4)+1, slot ABCD[n%4]
