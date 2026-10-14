@@ -15,10 +15,10 @@ painel recupera** sem precisar de SSH.
 
 ## Ligar / desligar (pela Central)
 Central → seção **Recursos avançados** → **SAVE_CONFIG protegido** → **Ativar**
-(ou **Desativar**). O painel faz **backup** (`configfile.py.joelma-orig`, uma
+(ou **Desativar**). O painel faz **backup** (`configfile.py.k2-orig`, uma
 vez), troca por symlink, **reinicia o Klipper sozinho** (~30 s) e mostra
 **ATIVO/inativo**. Confirme que a tela volta depois do restart.
-(Backend: componente `joelma_features` → `POST /server/joelma/features`.)
+(Backend: componente `k2_features` → `POST /server/k2/features`.)
 
 ## Rollback automático
 O **Desativar** do painel restaura o `configfile.py` de fábrica e reinicia.

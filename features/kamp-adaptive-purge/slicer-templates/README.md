@@ -26,7 +26,7 @@ Para quem troca muito de build plate: adicione `PLATE=<nome>` na linha
 `START_PRINT` (ex.: `... CURR_BED_TYPE="{curr_bed_type}" PLATE=texturizada_antiga`).
 
 - Cada `PLATE` diferente vira uma **placa própria** com **Z-offset próprio**
-  (`zoff_<material>_<plate>`), registrada sozinha no `joelma_vars.cfg` e listada
+  (`zoff_<material>_<plate>`), registrada sozinha no `k2_vars.cfg` e listada
   na Central (dropdown de placas).
 - O `CURR_BED_TYPE` continua sendo passado (classifica textured/smooth pro
   fallback legado). O `PLATE` só manda na **identidade** da placa.

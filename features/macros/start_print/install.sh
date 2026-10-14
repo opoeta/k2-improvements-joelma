@@ -32,7 +32,7 @@ if [ -n "$SV_FILES" ]; then
     if grep -hE '^[[:space:]]*filename' $SV_FILES 2>/dev/null | grep -q '/tmp'; then
         echo "E: o [save_variables] existente aponta pra /tmp (tmpfs) - os offsets"
         echo "E: por placa+material NAO sobreviveriam ao desligar a impressora."
-        echo "E: Aponte o filename pra /mnt/UDISK/printer_data/config/joelma_vars.cfg"
+        echo "E: Aponte o filename pra /mnt/UDISK/printer_data/config/k2_vars.cfg"
         echo "E: (ou remova a secao duplicada) e rode o update de novo."
         exit 1
     fi

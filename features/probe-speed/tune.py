@@ -3,12 +3,12 @@
 #  1) sobe o 'speed' (viagem entre os pontos) de [bed_mesh] e [z_tilt];
 #  2) baixa o 'horizontal_move_z' de [bed_mesh] (o quanto a mesa desce entre os
 #     pontos) - menos curso vertical por ponto x 25 pontos = mesh bem mais
-#     rapido, estilo Bambu. Na Joelma vinha bed_mesh speed=100/hmz=5.
+#     rapido, estilo Bambu. Na K2 Plus vinha bed_mesh speed=100/hmz=5.
 #
 # So mexe nas linhas 'speed:' e 'horizontal_move_z:' DENTRO dessas secoes
 # (nunca em probe_count/pontos). Idempotente (nao reescreve se ja esta no alvo),
 # faz backup 1x, e so grava se a edicao foi limpa (mesma contagem de linhas). Se
-# o firmware update resetar o printer.cfg, o proximo 'joelma update' re-aplica.
+# o firmware update resetar o printer.cfg, o proximo 'k2 update' re-aplica.
 import os
 import re
 import shutil
@@ -83,7 +83,7 @@ def main() -> int:
         print("E: contagem de linhas mudou - abortando por seguranca")
         return 1
 
-    bak = cfg + ".joelma-speed-bak"
+    bak = cfg + ".k2-speed-bak"
     if not os.path.exists(bak):
         shutil.copy2(cfg, bak)
         print("I: backup em %s" % bak)

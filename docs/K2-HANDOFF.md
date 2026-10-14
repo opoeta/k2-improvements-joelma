@@ -1,4 +1,4 @@
-# HANDOFF — K2 Plus "Joelma"
+# HANDOFF — K2 Plus "K2 Plus"
 
 Referência completa. O `CLAUDE.md` da raiz tem o essencial (carregado toda sessão); este
 documento tem o histórico e os detalhes, para leitura **sob demanda**.
@@ -26,11 +26,11 @@ Credenciais SSH: `CLAUDE.local.md` (não versionado).
 
 | Host | IP | O que é |
 |---|---|---|
-| **Joelma** (K2 Plus) | `10.10.1.240` | Impressora. Firmware Creality **1.1.6.1**, placa `CR0CN240110C10` |
+| **K2 Plus** (K2 Plus) | `10.10.1.240` | Impressora. Firmware Creality **1.1.6.1**, placa `CR0CN240110C10` |
 | **NAS Asustor** | `10.10.1.254` | Docker: Spoolman, Obico, RomM, Portainer, AdGuard, zoukei_sync |
 | **PC (Windows)** | — | Repo em `C:\Users\opoet\k2-improvements-joelma` |
 
-Na Joelma roda o Moonraker **upstream** (fork DnG-Crafts/K2-Camera), API 1.4.0 — substitui o
+Na K2 Plus roda o Moonraker **upstream** (fork DnG-Crafts/K2-Camera), API 1.4.0 — substitui o
 build cortado da Creality. Na `:4408`, **Fluidd upstream (última release de fluidd-core/fluidd)**
 via feature `fluidd-upstream` — o build da Creality fica de backup em `/usr/share/fluidd_backup`
 (rollback: `rm -rf /usr/share/fluidd && cp -r /usr/share/fluidd_backup /usr/share/fluidd`).
@@ -55,9 +55,9 @@ No NAS, **Spoolman 0.23.1** em `http://10.10.1.254:7912`. Catálogo: **24 spools
 | `3a42697` | CFS: retry automático de reconexão pós-reinício |
 | `e698390` | Interface responsiva + ícones SVG + botões animados + componente `spoolman_admin` + **luz da câmara com dimmer PWM** |
 | `1e3d830` | **Menu completo de calibrações** + renomeia `nivela.html` → `calibra.html` (com redirect) |
-| `c0062e0` | Painel de todos os sensores (auto-descoberto) + barra de sistema com firmware (`joelma_info` lê `fw_printenv`) + **mesh 3D interativo** |
+| `c0062e0` | Painel de todos os sensores (auto-descoberto) + barra de sistema com firmware (`k2_info` lê `fw_printenv`) + **mesh 3D interativo** |
 | `5dd6e5a` | Mostra a versão da API quando o Moonraker não carimba a versão |
-| `0cf0a05`…`4081a30` (jul/2026, PRs #1–#7) | Confirmação + botão de recuperação no RELER RFID · fix da piscada dos sensores (render in-place) · `joelma update` redeploya a Central · nome **e tema** do Fluidd aplicados na página · versão do CFS na sysbar · identidade visual Fluidd + **E-STOP** + painel de movimento (jog/Home XYZ) + aquecimento com presets + envio de G-code no console + filtro EMA das temperaturas · **gráficos de ressonância via REST** (componente `joelma_resonances`) · plano z=0 no mesh 3D · precedência rótulo/RFID/spool + **vínculo Spoolman no editor do slot** · **`box_guard`** (intercepta o bug key171) · reconexão automática do CFS pós-restart · `scripts/dump_cfs_9999.py` |
+| `0cf0a05`…`4081a30` (jul/2026, PRs #1–#7) | Confirmação + botão de recuperação no RELER RFID · fix da piscada dos sensores (render in-place) · `k2 update` redeploya a Central · nome **e tema** do Fluidd aplicados na página · versão do CFS na sysbar · identidade visual Fluidd + **E-STOP** + painel de movimento (jog/Home XYZ) + aquecimento com presets + envio de G-code no console + filtro EMA das temperaturas · **gráficos de ressonância via REST** (componente `k2_resonances`) · plano z=0 no mesh 3D · precedência rótulo/RFID/spool + **vínculo Spoolman no editor do slot** · **`box_guard`** (intercepta o bug key171) · reconexão automática do CFS pós-restart · `scripts/dump_cfs_9999.py` |
 
 **Tudo acima está mergeado na `main`.** Pendente de validação ao vivo: ver §7.1 e as Pendências.
 
@@ -78,7 +78,7 @@ No NAS, **Spoolman 0.23.1** em `http://10.10.1.254:7912`. Catálogo: **24 spools
 - **Calibrações:** nivelamento dos parafusos (gauges), Z_TILT_ADJUST, mesh (**heatmap 3D
   interativo com plano de referência z=0**), probe & Z-offset, PID (mesa + bico + câmara),
   input shaper (LIS2DW) com **gráficos de ressonância** (CSVs de `/tmp` via
-  `joelma_resonances`), pressure advance, extrusora, rotation distance, velocidade,
+  `k2_resonances`), pressure advance, extrusora, rotation distance, velocidade,
   diagnóstico (endstops/fan/probe/sensor de filamento), CFS cut-pos, firmware restart
 - **Identidade visual do Fluidd** (Roboto, cards Material) com **nome e tema** puxados do
   próprio Fluidd (banco do Moonraker, `uiSettings`)
@@ -141,8 +141,8 @@ Ambos em `features/moonraker-upgrade/`, copiados pelo `install.sh` para
 - `GET  /server/spoolman_admin/scan` → varre a subnet (portas 7912/8000/8080/7913).
   Acha `10.10.1.254:7912 v0.23.1` em ~8 s.
 
-**`joelma_info.py`**
-- `GET /server/joelma/info` → `{firmware, board, modelo, modelo_cod}`
+**`k2_info.py`**
+- `GET /server/k2/info` → `{firmware, board, modelo, modelo_cod}`
 - Lê o firmware via **`fw_printenv`** (U-Boot env) — não existe arquivo de versão útil.
 - Resposta real: `{"firmware":"1.1.6.1","board":"CR0CN240110C10","modelo":"K2 Plus","modelo_cod":"F008"}`
 - Códigos de modelo: `F008`=K2 Plus · `F012`=K2 Pro · `F021`=K2 · `F022`=SPARKX i7 · `F018`=Hi
@@ -156,7 +156,7 @@ sync_rate: 5
 
 [spoolman_admin]
 
-[joelma_info]
+[k2_info]
 ```
 
 ---
@@ -256,10 +256,10 @@ derruba o Klipper — ver §7.1):
 {"method":"set","params":{"cId":"T1A","cRFIDRefresh":1}}
 ```
 
-**Implementado (jul/2026)** no componente `joelma_cfs_edit.py`: função `_envia_9999()`
+**Implementado (jul/2026)** no componente `k2_cfs_edit.py`: função `_envia_9999()`
 faz o handshake WebSocket cru + frame de texto mascarado (RFC 6455) contra
 `127.0.0.1:9999` (roda na própria impressora). O `_edita` manda o `set` depois de
-gravar os arquivos; novo endpoint `POST /server/joelma/cfs/rfid` (`{"tnn":"T1A"}`)
+gravar os arquivos; novo endpoint `POST /server/k2/cfs/rfid` (`{"tnn":"T1A"}`)
 manda o `cRFIDRefresh`. Na Central: o **RELER RFID** agora tenta a 9999 por slot
 (seguro) antes de cair no `BOX_INFO_REFRESH`; e ao salvar um slot, se o 9999 respondeu,
 **não** força restart — o sync já é ao vivo. A resposta do endpoint traz `enviado_9999`.
@@ -323,8 +323,8 @@ profiles"* (grant0013) — **mergeado pelo SoftFever em 07/jun/2026**, commit `f
 `/printer/objects/list`, lê os arrays `T1..T4`, normaliza a cor `0RRGGBB`.
 
 **Na prática:** pegue um **build nightly/beta do OrcaSlicer** (≥ 07/jun/2026) e configure com
-`host_type = crealityprint`. O caminho mergeado usa a porta 9999, que continua rodando na Joelma
-mesmo com o Moonraker upstream. **Atenção:** a Joelma está na **1.1.6.1**, mais nova que as
+`host_type = crealityprint`. O caminho mergeado usa a porta 9999, que continua rodando na K2 Plus
+mesmo com o Moonraker upstream. **Atenção:** a K2 Plus está na **1.1.6.1**, mais nova que as
 1.1.5.x testadas — se der diferença de payload, é reportável no #14241.
 
 ---
@@ -339,7 +339,7 @@ curl http://10.10.1.240:7125/printer/info
 curl -X POST http://10.10.1.240:7125/printer/firmware_restart
 
 # firmware da impressora
-curl http://10.10.1.240:7125/server/joelma/info
+curl http://10.10.1.240:7125/server/k2/info
 
 # ler o CFS
 curl -X POST http://10.10.1.240:7125/printer/objects/query `

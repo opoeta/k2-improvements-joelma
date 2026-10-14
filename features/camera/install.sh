@@ -1,6 +1,6 @@
 #!/bin/ash
 # Registra a camera da K2 (webrtc_local porta 8000) no Moonraker.
-# Idempotente: se a webcam "Joelma" ja existe, nao mexe - preserva
+# Idempotente: se a webcam "K2 Plus" ja existe, nao mexe - preserva
 # ajustes feitos pela UI do Fluidd (flip, rotacao etc).
 # O registro vive no banco do Moonraker; este passo garante que ele
 # seja recriado apos factory reset ou troca de eMMC.
@@ -18,7 +18,7 @@ import json, sys, urllib.request
 
 ip = sys.argv[1]
 base = "http://127.0.0.1:7125"
-NOME = "Joelma"
+NOME = "K2 Plus"
 
 lista = json.load(urllib.request.urlopen(base + "/server/webcams/list", timeout=10))
 existentes = [w.get("name") for w in lista["result"]["webcams"]]
