@@ -16,7 +16,13 @@
 ; Requisitos: Processo -> Outros -> "Etiquetar objetos" LIGADO;
 ;             Impressora -> Geral -> "Usar distancias E relativas" LIGADO.
 ; PLACAS NOMEADAS: adicione PLATE=<nome> no fim da linha do START_PRINT.
-START_PRINT EXTRUDER_TEMP=[nozzle_temperature_initial_layer] BED_TEMP=[bed_temperature_initial_layer_single] CHAMBER_TEMP=[chamber_temperature] MATERIAL={filament_type[initial_extruder]} CURR_BED_TYPE="{curr_bed_type}" ADAPTIVE=1
+; CAMARA: o Orca, com "Ativar controle de temperatura da camara" ligado e camara > 0,
+; insere sozinho um M191 (ESPERA a camara chegar) ANTES deste G-code - com PLA a 35 C
+; isso travou o inicio por minutos. Ele so faz isso se este G-code NAO tiver uma linha
+; que comece com M141/M191 (GCode.cpp: custom_gcode_sets_temperature). A linha abaixo
+; desliga esse automatismo; quem cuida da camara e o START_PRINT (so espera acima de 40 C).
+M141 S0
+START_PRINT EXTRUDER_TEMP=[nozzle_temperature_initial_layer] BED_TEMP=[bed_temperature_initial_layer_single] CHAMBER_TEMP=[overall_chamber_temperature] MATERIAL={filament_type[initial_extruder]} CURR_BED_TYPE="{curr_bed_type}" ADAPTIVE=1
 
 M83
 M8200 P S[initial_no_support_extruder]

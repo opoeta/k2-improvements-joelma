@@ -5,7 +5,8 @@ Drop-in machine start gcode templates for `kamp-adaptive-purge` on the K2 Plus.
 | File | Slicer | Status |
 | --- | --- | --- |
 | `creality-print-machine-start.gcode` | Creality Print 7.x | Verified on 7.1.1 |
-| `orca-machine-start.gcode` | Orca / OrcaSlicer | Unverified — `bed_type` strings need confirming against your Orca profile |
+| `orca-machine-start.gcode` | Orca / OrcaSlicer | Conferido contra o código do OrcaSlicer (commit `da4d766`, 18/out/2026): todos os placeholders existem; `curr_bed_type` emite `High Temp Plate` / `Textured PEI Plate` / `Cool Plate` / `Engineering Plate` / `Supertack Plate` (o START_PRINT classifica por `textur`); E relativo é o padrão do Orca. Inclui `M141 S0` p/ o Orca não inserir `M191` sozinho. Impresso de verdade em 13/out. |
+| `orca-change-filament.gcode` | Orca / OrcaSlicer | Placeholders conferidos no código-fonte; **ainda não impresso em multicolor pelo Orca** (os testes multicolor foram pelo Creality Print). |
 
 See the parent feature [README.md](../README.md) § "Slicer change required" for full setup instructions including:
 
