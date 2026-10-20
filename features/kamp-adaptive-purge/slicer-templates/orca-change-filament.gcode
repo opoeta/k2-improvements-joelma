@@ -3,6 +3,12 @@
 ; multicolor_method / flush_into_skeleton / flush_length_5 (nao existem no Orca);
 ; os blocos FLUSH_START viram K2_FLUSH (piso da Central, ex. 70 mm, nas trocas
 ; comuns; acima de 90 mm respeita o Orca). "Purgar na torre" DESLIGADO.
+; GUARDA (bug real, out/2026): com um filamento que NAO e o 1o da lista, o Orca roda
+; este G-code logo DEPOIS do G-code inicial, tratando o T<n> do inicio como
+; "filamento anterior" (previous_extruder == next_extruder). Sem a guarda a K2 corta
+; e recolhe o filamento recem-carregado e a purga sai 0 mm -> a impressao comeca sem
+; filamento. Com a guarda, trocar o filamento pra ele mesmo nao faz nada.
+{if previous_extruder != next_extruder}
 {if toolchange_count > 1}
 G17
 G2 Z{z_after_toolchange + 0.4} I0.86 J0.86 P1 F10000
@@ -54,3 +60,4 @@ K2_FLUSH TOTAL={flush_length} OLD_F={old_filament_e_feedrate} NEW_F={new_filamen
 G0 X160 F12000
 G0 Y345
 M8200 O
+{endif}
