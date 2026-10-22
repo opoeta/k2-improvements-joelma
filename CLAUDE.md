@@ -233,6 +233,9 @@ para tarefas específicas. Avaliados em out/2026. **Lista mestra completa (o que
 trouxemos, o que falta, riscos): [`docs/REFERENCIAS-EXTERNAS.md`](docs/REFERENCIAS-EXTERNAS.md)
 — atualize-a a cada repo novo avaliado.**
 
+**Handoff da sessão de calibração (out/2026)** — problemas abertos, lições operacionais e
+regras para operar a impressora por SSH: [`docs/HANDOFF-SESSAO-2026-10.md`](docs/HANDOFF-SESSAO-2026-10.md)
+
 - **Cartographer → `Rcpilot33/k2-improvements`.** Quando o usuário for instalar o
   Cartographer ou falar de Cartographer, **as referências vêm daqui.** É outro fork
   (base Jacob10383) focado em **instalador guiado + caminhos de Cartographer V3/V4**
