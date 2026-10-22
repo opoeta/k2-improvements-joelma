@@ -1,4 +1,4 @@
-# k2-improvements adaptado — K2 Plus "Joelma" (sem Cartographer)
+# k2-improvements adaptado — K2 Plus "K2 Plus" (sem Cartographer)
 
 Fork de [erondiel/k2-improvements](https://github.com/erondiel/k2-improvements) com as dependências do Cartographer removidas ou desativadas. Licença GPLv3 mantida (ver LICENSE).
 
@@ -6,23 +6,23 @@ Fork de [erondiel/k2-improvements](https://github.com/erondiel/k2-improvements) 
 
 ```sh
 # Verificar (firmware, respond, espaço, backup — NÃO instala nada):
-curl -sSL https://raw.githubusercontent.com/opoeta/k2-improvements-joelma/main/instalar-remoto.sh | sh -s -- 10.10.1.240
+curl -sSL https://raw.githubusercontent.com/opoeta/k2-improvements/main/instalar-remoto.sh | sh -s -- 10.10.1.240
 
 # Verificar e instalar:
-curl -sSL https://raw.githubusercontent.com/opoeta/k2-improvements-joelma/main/instalar-remoto.sh | sh -s -- 10.10.1.240 install
+curl -sSL https://raw.githubusercontent.com/opoeta/k2-improvements/main/instalar-remoto.sh | sh -s -- 10.10.1.240 install
 ```
 
 Alternativa direto no shell da impressora (stock não tem wget/curl, então via python3):
 
 ```sh
-python3 -c "import urllib.request,ssl;ctx=ssl._create_unverified_context();open('/tmp/bj.sh','wb').write(urllib.request.urlopen('https://raw.githubusercontent.com/opoeta/k2-improvements-joelma/main/bootstrap-joelma.sh',context=ctx).read())" && sh /tmp/bj.sh
+python3 -c "import urllib.request,ssl;ctx=ssl._create_unverified_context();open('/tmp/bj.sh','wb').write(urllib.request.urlopen('https://raw.githubusercontent.com/opoeta/k2-improvements/main/bootstrap-k2.sh',context=ctx).read())" && sh /tmp/bj.sh
 ```
 
 ## O que foi modificado em relação ao original
 
 - `features/macros/start_print/start_print.cfg`: removidas as chamadas incondicionais `CARTOGRAPHER_SCAN_MODEL`/`CARTOGRAPHER_TOUCH_MODEL` (surface-selection wrapper). O bloco `{% if printer.cartographer %}` foi mantido — sem o probe, cai no fluxo de mesh por perfil de temperatura.
-- `no-carto-joelma.sh`: instalador novo. O `no-carto.sh` original não instalava `entware` nem `better-root` (pré-requisitos de moonraker/fluidd). Usa `better-root-safe` e renova o `HOME` entre etapas.
-- `verifica-joelma.sh` + `bootstrap-joelma.sh` + `instalar-remoto.sh`: verificação prévia, download com fallback triplo (curl→wget→python3) e execução remota.
+- `no-carto-k2.sh`: instalador novo. O `no-carto.sh` original não instalava `entware` nem `better-root` (pré-requisitos de moonraker/fluidd). Usa `better-root-safe` e renova o `HOME` entre etapas.
+- `verifica-k2.sh` + `bootstrap-k2.sh` + `instalar-remoto.sh`: verificação prévia, download com fallback triplo (curl→wget→python3) e execução remota.
 - Todos os arquivos normalizados para LF (CRLF quebra o ash da impressora).
 
 ## O que é instalado (base)
@@ -44,9 +44,9 @@ Calibração pré-impressão acelerada (via `probe-speed`): viagem do mesh/z_til
 
 ## Também instalado
 
-`kamp-adaptive-purge` (mesh adaptativo + `LINE_PURGE` — exige "Etiquetar objetos" no slicer; funciona sem Cartographer), `moonraker-upgrade` (Fluidd upstream + componentes `joelma_cfs_edit`/`joelma_resonances`), `nivela_web` (a Central), `box_guard` (blindagem do bug key171/key60) e `probe-speed` (mesh/z_tilt mais rápidos).
+`kamp-adaptive-purge` (mesh adaptativo + `LINE_PURGE` — exige "Etiquetar objetos" no slicer; funciona sem Cartographer), `moonraker-upgrade` (Fluidd upstream + componentes `k2_cfs_edit`/`k2_resonances`), `nivela_web` (a Central), `box_guard` (blindagem do bug key171/key60) e `probe-speed` (mesh/z_tilt mais rápidos).
 
-## Opcionais (comentados no `no-carto-joelma.sh`)
+## Opcionais (comentados no `no-carto-k2.sh`)
 
 `abort_homing` (botão Force Stop Homing no Fluidd), `skip-setup` (pula self-test no boot).
 

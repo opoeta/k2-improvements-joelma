@@ -31,7 +31,7 @@ Small prints get short purges, large prints get long ones — no wasted filament
 `Smart_Park.cfg` from KAMP is intentionally **not** installed — its heat-soak/parking
 conflicts with the heat-soak logic already in k2-improvements' `START_PRINT`.
 
-### Adaptive_Meshing.cfg carries a local patch ("PATCH JOELMA")
+### Adaptive_Meshing.cfg carries a local patch ("PATCH K2")
 
 The K2 Plus probe is a compiled Creality blob (`prtouch_v3_wrapper`, fw 1.1.6.1) that
 always assumes the `[bed_mesh]` config grid (`probe_count: 5,5` = 25 points). Stock KAMP
@@ -41,7 +41,7 @@ adapts `PROBE_COUNT` down (e.g. 3,3) for small prints, which makes the blob thro
 The vendored `Adaptive_Meshing.cfg` keeps the adaptive **area** (the real win) but pins
 the probe **count** to the config grid. A 5×5 mesh over a partial area was validated in
 production (jul/2026). Never re-sync the file from upstream without re-applying the patch
-— `install.sh` greps for the `PATCH JOELMA` marker and aborts if it's missing.
+— `install.sh` greps for the `PATCH K2` marker and aborts if it's missing.
 
 ## Slicer change required
 
@@ -106,6 +106,8 @@ Process tab (right panel) → **Quality → Advanced** → toggle **Label object
 **Step 2 — Machine start gcode**
 
 Printer settings (gear next to printer profile) → Machine G-code → Machine start G-code → paste the contents of [`slicer-templates/orca-machine-start.gcode`](slicer-templates/orca-machine-start.gcode).
+
+**Change filament G-code (Orca):** Printer settings → Machine G-code → Change filament G-code → paste [`slicer-templates/orca-change-filament.gcode`](slicer-templates/orca-change-filament.gcode). It keeps Creality's M8200 cut/load sequence and hands the purge to the `K2_FLUSH` macro (floor set in the Central, e.g. 70 mm). Keep "Purge in prime tower" OFF.
 
 **Unverified:** the exact `bed_type` strings in the template depend on the bed types defined in your Orca K2 Plus profile. Slice each plate type once and grep the output `.gcode` for `; bed_type =` to see the literal string Orca emits, then adjust the conditional in the template if needed.
 

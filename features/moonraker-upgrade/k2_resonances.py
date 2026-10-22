@@ -1,15 +1,15 @@
-# joelma_resonances.py - componente Moonraker que expoe os CSVs de ressonancia
+# k2_resonances.py - componente Moonraker que expoe os CSVs de ressonancia
 # que o Klipper grava em /tmp (TEST_RESONANCES e SHAPER_CALIBRATE) para a
 # Central de Calibracao desenhar os graficos direto no navegador, via REST.
 #
 # Endpoints:
-#   GET /server/joelma/resonances            -> {"arquivos":[{nome,bytes,mtime}]}
-#   GET /server/joelma/resonances/csv?nome=X -> {"nome","colunas":[...],"dados":[[...]]}
+#   GET /server/k2/resonances            -> {"arquivos":[{nome,bytes,mtime}]}
+#   GET /server/k2/resonances/csv?nome=X -> {"nome","colunas":[...],"dados":[[...]]}
 #
 # Seguranca: le SOMENTE /tmp e SOMENTE nomes no padrao do Klipper
 # (resonances_*.csv / calibration_data_*.csv) — sem path traversal.
 #
-# Faz parte do fork k2-improvements-joelma.
+# Faz parte do fork k2-improvements.
 from __future__ import annotations
 import os
 import re
@@ -26,14 +26,14 @@ PADRAO = re.compile(r"^(resonances|calibration_data)_[a-z]+_[A-Za-z0-9_.-]+\.csv
 MAX_LINHAS = 4000  # PSD tem ~200 linhas; limite protege contra arquivo anomalo
 
 
-class JoelmaResonances:
+class K2Resonances:
     def __init__(self, config: ConfigHelper) -> None:
         self.server = config.get_server()
         self.server.register_endpoint(
-            "/server/joelma/resonances", RequestType.GET, self._lista,
+            "/server/k2/resonances", RequestType.GET, self._lista,
         )
         self.server.register_endpoint(
-            "/server/joelma/resonances/csv", RequestType.GET, self._csv,
+            "/server/k2/resonances/csv", RequestType.GET, self._csv,
         )
 
     async def _lista(self, web_request: WebRequest) -> Dict[str, Any]:
@@ -80,5 +80,5 @@ class JoelmaResonances:
         return {"nome": nome, "colunas": colunas, "dados": dados}
 
 
-def load_component(config: ConfigHelper) -> JoelmaResonances:
-    return JoelmaResonances(config)
+def load_component(config: ConfigHelper) -> K2Resonances:
+    return K2Resonances(config)

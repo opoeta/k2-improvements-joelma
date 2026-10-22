@@ -3,7 +3,7 @@
 Esta feature instalava o `[mmu]`: uma emulação de MMU (Happy Hare) sobre o
 objeto `box` do CFS, para o OrcaSlicer sincronizar filamentos e o painel MMU
 do Fluidd exibir o CFS. O `install.sh` desta pasta hoje é um **desinstalador
-idempotente** — remove o módulo/seção da impressora no próximo `joelma update`.
+idempotente** — remove o módulo/seção da impressora no próximo `k2 update`.
 
 ## Por que foi removido
 
@@ -15,7 +15,7 @@ idempotente** — remove o módulo/seção da impressora no próximo `joelma upd
    dados 100% stock): status, temperatura/umidade do CFS, caminho
    SLOT→PRINTHEAD, grade de slots com heurística anti-fantasma (`vender`),
    peso restante via Spoolman, cadeia de runout, load/unload com guarda e o
-   editor de slot ao vivo (porta 9999, `joelma_cfs_edit`).
+   editor de slot ao vivo (porta 9999, `k2_cfs_edit`).
 3. **Menos uma camada sobre o blob.** O `[mmu]` precisou de 3 PRs de correção
    (gate carregado, guarda anti-shutdown, cor 8-char) em uma semana. Traduzir
    o schema instável do blob para o protocolo do Happy Hare era fonte

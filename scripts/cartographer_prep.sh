@@ -29,7 +29,7 @@ ENV=/usr/share/klippy-env
 PLUGIN_DIR="${HOME}/cartographer3d-plugin"
 
 echo "=================================================="
-echo " Cartographer PREP (Joelma 1.1.6.x) - parte segura"
+echo " Cartographer PREP (K2 Plus 1.1.6.x) - parte segura"
 echo "=================================================="
 
 # ---------- guardas de seguranca ----------
@@ -103,5 +103,5 @@ echo "  - shim ~/klipper/klippy/extras/cartographer.py -> ${PLUGIN_DIR}/src"
 echo "  - patches de Klipper (bed_mesh/mcu/homing/...) — CONFERIR versao!"
 echo "  - cartographer.cfg no printer.cfg + serial do usb_bridge"
 echo "  - plugar a sonda e calibrar"
-echo " Rode: joelma verificar   e mande a saida antes de ativar."
+echo " Rode: k2 verificar   e mande a saida antes de ativar."
 echo "=================================================="

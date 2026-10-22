@@ -1,9 +1,9 @@
 #!/bin/ash
-# KAMP LINE_PURGE + ADAPTIVE MESHING - versao Joelma (fw 1.1.6.x):
+# KAMP LINE_PURGE + ADAPTIVE MESHING - versao K2 Plus (fw 1.1.6.x):
 # - Line_Purge.cfg e Adaptive_Meshing.cfg sao VENDORADOS neste diretorio
 #   (upstream kyleisah/Klipper-Adaptive-Meshing-Purging @ b0dad8e), nada de
 #   download em runtime: deploy deterministico e offline.
-# - Adaptive_Meshing.cfg carrega o PATCH JOELMA: PROBE_COUNT travado na grade
+# - Adaptive_Meshing.cfg carrega o PATCH K2: PROBE_COUNT travado na grade
 #   do config (5x5). O blob prtouch_v3_wrapper da Creality estoura IndexError
 #   (linha 1925 -> key60 -> shutdown) com contagem menor que a do config.
 # - guarda em /mnt/UDISK/kamp (fora do overlay pequeno do rootfs)
@@ -24,8 +24,8 @@ cp -f ${SCRIPT_DIR}/Line_Purge.cfg ${KAMP_DIR}/Line_Purge.cfg
 cp -f ${SCRIPT_DIR}/Adaptive_Meshing.cfg ${KAMP_DIR}/Adaptive_Meshing.cfg
 
 # sanity: o patch anti-shutdown precisa estar presente no arquivo instalado
-grep -q "PATCH JOELMA" ${KAMP_DIR}/Adaptive_Meshing.cfg || {
-    echo "E: Adaptive_Meshing.cfg sem o PATCH JOELMA - abortando" >&2
+grep -q "PATCH K2" ${KAMP_DIR}/Adaptive_Meshing.cfg || {
+    echo "E: Adaptive_Meshing.cfg sem o PATCH K2 - abortando" >&2
     exit 1
 }
 
